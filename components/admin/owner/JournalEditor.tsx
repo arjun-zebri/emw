@@ -14,6 +14,7 @@ import { deletePost, nowIso, savePost, slugify, useAdmin } from "@/lib/admin/sto
 import { TODAY } from "@/lib/admin/time";
 import { toast } from "@/lib/admin/toast";
 import { getVendor, vendors } from "@/lib/vendors";
+import { DatePicker } from "../shared/DatePicker";
 import { DetailRow, rowInput } from "../shared/DetailRow";
 import { Dropdown } from "../shared/Dropdown";
 import { PreviewFrame } from "../shared/PreviewFrame";
@@ -510,27 +511,13 @@ function Sidebar({
   onPublish: () => void;
   onPreview: () => void;
 }) {
-  const dateInput = useRef<HTMLInputElement>(null);
   const over = post.description.length > 160;
 
   return (
     <aside className="min-w-0 self-start xl:sticky xl:top-24 xl:col-span-5">
       <dl className="border-t hairline">
         <DetailRow label="Publish date" htmlFor="post-date">
-          {/* The native picker sits invisibly over a formatted date, so the row reads like the others. */}
-          <span className="relative flex items-center justify-between gap-4 text-[0.9375rem]">
-            {day(post.date || TODAY, { year: true })}
-            <Icon name="calendar" className="size-3.5 text-ink-mute" strokeWidth={1.4} />
-            <input
-              ref={dateInput}
-              id="post-date"
-              type="date"
-              value={post.date}
-              onChange={(e) => change({ date: e.target.value || TODAY })}
-              onClick={() => dateInput.current?.showPicker?.()}
-              className="absolute inset-0 cursor-pointer opacity-0"
-            />
-          </span>
+          <DatePicker id="post-date" value={post.date || TODAY} onChange={(date) => change({ date })} />
         </DetailRow>
         <DetailRow label="Category" htmlFor="post-category">
           <Dropdown id="post-category" options={postCategories.map((c) => ({ value: c, label: c }))} value={post.category} onChange={(c) => change({ category: c })} placeholder="Choose a category" />
