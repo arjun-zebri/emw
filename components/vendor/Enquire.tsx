@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
+import { Portal } from "@/components/ui/Portal";
 import { lockScroll } from "@/lib/lenis";
 
 const guestOptions = ["Under 80", "80–200", "200–400", "400+"];
@@ -77,91 +78,93 @@ export function Enquire({ vendorName, className }: { vendorName: string; classNa
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {open && (
-          <div className="fixed inset-0 z-[70]">
-            <motion.div
-              className="absolute inset-0 bg-night/30"
-              onClick={() => setOpen(false)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-            />
-            <motion.div
-              ref={panel}
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Enquire with ${vendorName}`}
-              tabIndex={-1}
-              data-lenis-prevent
-              className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto bg-paper outline-none"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.7, ease: [0.76, 0, 0.24, 1] }}
-            >
-              <div className="flex h-[var(--header-h)] shrink-0 items-center justify-end px-6 sm:px-8">
-                <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="p-2 text-ink-mute hover:text-ink">
-                  <Icon name="close" className="size-5" />
-                </button>
-              </div>
-
-              {!sent ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setSent(true);
-                  }}
-                  className="flex flex-1 flex-col px-6 pb-8 sm:px-8"
-                >
-                  <h2 className="t-heading mb-8">{vendorName}</h2>
-                  <div className="space-y-2">
-                    <label htmlFor={`${id}-names`} className="sr-only">Your names</label>
-                    <input id={`${id}-names`} required placeholder="Your names" autoComplete="name" className={input} />
-                    <label htmlFor={`${id}-email`} className="sr-only">Email</label>
-                    <input id={`${id}-email`} type="email" required placeholder="Email" autoComplete="email" className={input} />
-                    <label htmlFor={`${id}-date`} className="sr-only">Wedding date</label>
-                    <input id={`${id}-date`} placeholder="Wedding date" className={input} />
-                    <label htmlFor={`${id}-traditions`} className="sr-only">Cultures and traditions</label>
-                    <input id={`${id}-traditions`} placeholder="Cultures and traditions" className={input} />
-                  </div>
-                  <fieldset className="mt-8">
-                    <legend className="t-small mb-3">Guests</legend>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {guestOptions.map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          aria-pressed={guests === g}
-                          onClick={() => setGuests(g)}
-                          className={clsx(
-                            "t-small border py-2 transition-colors",
-                            guests === g ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink",
-                          )}
-                        >
-                          {g}
-                        </button>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <label htmlFor={`${id}-message`} className="sr-only">Message</label>
-                  <textarea id={`${id}-message`} rows={4} placeholder="Message" className={clsx(input, "mt-6 resize-none")} />
-                  <Button type="submit" className="mt-auto w-full">
-                    Send enquiry
-                  </Button>
-                </form>
-              ) : (
-                <div role="status" className="flex flex-1 flex-col items-start justify-center px-6 pb-24 sm:px-8">
-                  <Icon name="check" className="mb-6 size-8" />
-                  <p className="t-heading mb-3">Enquiry sent</p>
-                  <p className="t-body">{vendorName} will reply by email.</p>
+      <Portal>
+        <AnimatePresence>
+          {open && (
+            <div className="fixed inset-0 z-[70]">
+              <motion.div
+                className="absolute inset-0 bg-night/30"
+                onClick={() => setOpen(false)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+              />
+              <motion.div
+                ref={panel}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Enquire with ${vendorName}`}
+                tabIndex={-1}
+                data-lenis-prevent
+                className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto bg-paper outline-none"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ duration: 0.7, ease: [0.76, 0, 0.24, 1] }}
+              >
+                <div className="flex h-[var(--header-h)] shrink-0 items-center justify-end px-6 sm:px-8">
+                  <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="p-2 text-ink-mute hover:text-ink">
+                    <Icon name="close" className="size-5" />
+                  </button>
                 </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+
+                {!sent ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setSent(true);
+                    }}
+                    className="flex flex-1 flex-col px-6 pb-8 sm:px-8"
+                  >
+                    <h2 className="t-heading mb-8">{vendorName}</h2>
+                    <div className="space-y-2">
+                      <label htmlFor={`${id}-names`} className="sr-only">Your names</label>
+                      <input id={`${id}-names`} required placeholder="Your names" autoComplete="name" className={input} />
+                      <label htmlFor={`${id}-email`} className="sr-only">Email</label>
+                      <input id={`${id}-email`} type="email" required placeholder="Email" autoComplete="email" className={input} />
+                      <label htmlFor={`${id}-date`} className="sr-only">Wedding date</label>
+                      <input id={`${id}-date`} placeholder="Wedding date" className={input} />
+                      <label htmlFor={`${id}-traditions`} className="sr-only">Cultures and traditions</label>
+                      <input id={`${id}-traditions`} placeholder="Cultures and traditions" className={input} />
+                    </div>
+                    <fieldset className="mt-8">
+                      <legend className="t-small mb-3">Guests</legend>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {guestOptions.map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            aria-pressed={guests === g}
+                            onClick={() => setGuests(g)}
+                            className={clsx(
+                              "t-small border py-2 transition-colors",
+                              guests === g ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink",
+                            )}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <label htmlFor={`${id}-message`} className="sr-only">Message</label>
+                    <textarea id={`${id}-message`} rows={4} placeholder="Message" className={clsx(input, "mt-6 resize-none")} />
+                    <Button type="submit" className="mt-auto w-full">
+                      Send enquiry
+                    </Button>
+                  </form>
+                ) : (
+                  <div role="status" className="flex flex-1 flex-col items-start justify-center px-6 pb-24 sm:px-8">
+                    <Icon name="check" className="mb-6 size-8" />
+                    <p className="t-heading mb-3">Enquiry sent</p>
+                    <p className="t-body">{vendorName} will reply by email.</p>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </Portal>
     </>
   );
 }

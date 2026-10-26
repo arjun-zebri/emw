@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { createContext, use, useCallback, useEffect, useRef, useState, ViewTransition } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
+import { Portal } from "@/components/ui/Portal";
 import type { Slot } from "@/data/images";
 import { lockScroll } from "@/lib/lenis";
 
@@ -44,64 +45,66 @@ export function Gallery({ images, name, slug, children }: { images: Slot[]; name
     <Context value={{ images, name, slug, open: setIndex }}>
       {children}
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${name} photos`}
-            className="fixed inset-0 z-[80] flex flex-col bg-night text-paper"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className="shell flex h-[var(--header-h)] shrink-0 items-center justify-between">
-              <p className="t-small text-paper/60 tabular-nums">
-                {index + 1} / {images.length}
-              </p>
-              <button ref={closeRef} type="button" onClick={close} aria-label="Close" className="p-2 text-paper/70 hover:text-paper">
-                <Icon name="close" className="size-5" />
-              </button>
-            </div>
-            <div className="relative flex min-h-0 flex-1 items-center justify-center px-[var(--gutter)] pb-[var(--header-h)]">
-              <AnimatePresence mode="popLayout" initial={false}>
-                <motion.div
-                  key={index}
-                  className="flex size-full items-center justify-center [container-type:size]"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.45 }}
-                >
-                  {/* The whole frame, never cropped: as large as fits at the photo's own ratio. */}
-                  <span
-                    className="block"
-                    style={{ aspectRatio: images[index].ratio ?? 0.8, width: `min(100cqw, calc(100cqh * ${images[index].ratio ?? 0.8}))` }}
+      <Portal>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${name} photos`}
+              className="fixed inset-0 z-[80] flex flex-col bg-night text-paper"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="shell flex h-[var(--header-h)] shrink-0 items-center justify-between">
+                <p className="t-small text-paper/60 tabular-nums">
+                  {index + 1} / {images.length}
+                </p>
+                <button ref={closeRef} type="button" onClick={close} aria-label="Close" className="p-2 text-paper/70 hover:text-paper">
+                  <Icon name="close" className="size-5" />
+                </button>
+              </div>
+              <div className="relative flex min-h-0 flex-1 items-center justify-center px-[var(--gutter)] pb-[var(--header-h)]">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.div
+                    key={index}
+                    className="flex size-full items-center justify-center [container-type:size]"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.45 }}
                   >
-                    <Media {...images[index]} sizes="90vw" className="size-full" />
-                  </span>
-                </motion.div>
-              </AnimatePresence>
-              {images.length > 1 &&
-                [-1, 1].map((dir) => (
-                  <button
-                    key={dir}
-                    type="button"
-                    onClick={() => step(dir)}
-                    aria-label={dir === 1 ? "Next photo" : "Previous photo"}
-                    className={clsx(
-                      "absolute top-1/2 -translate-y-1/2 p-3 text-paper/70 transition-colors hover:text-paper",
-                      dir === 1 ? "right-[var(--gutter)]" : "left-[var(--gutter)]",
-                    )}
-                  >
-                    <Icon name={dir === 1 ? "arrow" : "arrow-left"} className="size-6" />
-                  </button>
-                ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    {/* The whole frame, never cropped: as large as fits at the photo's own ratio. */}
+                    <span
+                      className="block"
+                      style={{ aspectRatio: images[index].ratio ?? 0.8, width: `min(100cqw, calc(100cqh * ${images[index].ratio ?? 0.8}))` }}
+                    >
+                      <Media {...images[index]} sizes="90vw" className="size-full" />
+                    </span>
+                  </motion.div>
+                </AnimatePresence>
+                {images.length > 1 &&
+                  [-1, 1].map((dir) => (
+                    <button
+                      key={dir}
+                      type="button"
+                      onClick={() => step(dir)}
+                      aria-label={dir === 1 ? "Next photo" : "Previous photo"}
+                      className={clsx(
+                        "absolute top-1/2 -translate-y-1/2 p-3 text-paper/70 transition-colors hover:text-paper",
+                        dir === 1 ? "right-[var(--gutter)]" : "left-[var(--gutter)]",
+                      )}
+                    >
+                      <Icon name={dir === 1 ? "arrow" : "arrow-left"} className="size-6" />
+                    </button>
+                  ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Portal>
     </Context>
   );
 }
