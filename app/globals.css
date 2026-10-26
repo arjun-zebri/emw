@@ -1,0 +1,395 @@
+@import "tailwindcss";
+
+/* ── Tokens ───────────────────────────────────────────────────────────── */
+
+@theme {
+  --color-paper: #faf8f5;
+  --color-paper-soft: #f3f0eb;
+  --color-ink: #161412;
+  --color-ink-soft: #4a4642;
+  --color-ink-mute: #6f6a64; /* 5:1 on paper, passes AA for small text */
+  --color-line: rgb(22 20 18 / 0.12);
+  --color-night: #161412;
+  --color-accent: #ad9e5d; /* the client's olive-gold, used sparingly */
+
+  --font-display: var(--font-boska), var(--font-thai), var(--font-korean), "Times New Roman", serif;
+  --font-sans: var(--font-switzer), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+:root {
+  --gutter: clamp(1rem, 3vw, 3rem);
+  --header-h: 4.5rem;
+  /* The one vertical rhythm for ruled sections: the same space above a rule, below it, and after the content. */
+  --section: clamp(4rem, 8vw, 7rem);
+  /* Delay before above-the-fold entrances, timed to the end of the intro. */
+  --intro: 4.4s;
+  color-scheme: light;
+}
+
+html[data-intro] {
+  --intro: 0.05s;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+
+html {
+  /* Keep the scrollbar's space when lockScroll hides overflow, so drawers and the lightbox don't shift the page. */
+  scrollbar-gutter: stable;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--color-paper);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  min-height: 100svh;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* In the base layer so a field with its own focus style (e.g. focus:outline-none plus an underline) can opt out. */
+@layer base {
+  :focus-visible {
+    outline: 1px solid currentColor;
+    outline-offset: 4px;
+  }
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ── Layout & type ────────────────────────────────────────────────────── */
+
+@utility shell {
+  width: 100%;
+  max-width: 1760px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+@utility hairline {
+  border-color: var(--color-line);
+}
+
+/* Large serif for names and the few headlines. */
+@utility t-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2.75rem, 6vw, 6.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+
+@utility t-heading {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 2.6vw, 2.6rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+@utility t-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.375rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+@utility t-body {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--color-ink-soft);
+}
+
+@utility t-small {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-ink-mute);
+}
+
+/* Navigation and buttons only. */
+@utility t-nav {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@utility link-line {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 100% 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.6s var(--ease-out-expo);
+  &:hover,
+  :where(.group):hover &,
+  &[aria-current="page"] {
+    background-size: 100% 1px;
+    background-position: 0% 100%;
+  }
+}
+
+/* ── Reveal on scroll ─────────────────────────────────────────────────── */
+
+html.js [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 20px, 0);
+  transition:
+    opacity 1s var(--ease-out-quart),
+    transform 1.2s var(--ease-out-expo);
+  transition-delay: var(--d, 0s);
+}
+html.js [data-reveal][data-in] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Images settle from a slight zoom as they come into view. */
+html.js [data-reveal-media] {
+  overflow: hidden;
+}
+html.js [data-reveal-media] > * {
+  opacity: 0;
+  scale: 1.08;
+  transition:
+    opacity 1.2s var(--ease-out-quart),
+    scale 1.8s var(--ease-out-expo);
+  transition-delay: var(--d, 0s);
+}
+html.js [data-reveal-media][data-in] > * {
+  opacity: 1;
+  scale: 1;
+}
+
+/* Above-the-fold entrance, timed against the intro. */
+html.js [data-intro-in] {
+  opacity: 0;
+  animation: intro-rise 1.3s var(--ease-out-expo) both;
+  animation-delay: calc(var(--intro) + var(--d, 0s));
+}
+@keyframes intro-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Intro ────────────────────────────────────────────────────────────────
+   Monogram window (components/motion/Intro.tsx), centred on a cream screen
+   that is continuous with the page. The EMW monogram is cut out of the sheet,
+   so the photo shows through the letters.
+     0.35s  E slides in from the left, W from the right, M rises; each letter
+            fills with the photo, which drifts slowly inside them
+     1.3s   the "EAST MEETS WED" tagline settles in from wide spacing
+     2.7s   tagline fades
+     3.0s   the monogram drifts towards the viewer and dissolves into the cream
+     3.7s   the hero photo is unveiled in its column, bottom to top, settling
+            from a slight zoom; then the headline and header fade in (--intro)
+   ───────────────────────────────────────────────────────────────────────── */
+
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  /* Once the letters have closed the sheet is plain page-cream, so removing it is invisible. */
+  animation: intro-fade-out 0.01s linear 3.7s forwards;
+}
+.intro--lab {
+  position: absolute;
+  z-index: 1;
+}
+html[data-intro] .intro:not(.intro--lab),
+html:not(.js) .intro {
+  display: none;
+}
+
+.intro__photo,
+.intro__sheet,
+.intro__tagline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.intro__photo {
+  animation: intro-drift 4.2s cubic-bezier(0.45, 0, 0.15, 1) both;
+}
+
+.intro__letter {
+  transform-box: fill-box;
+  fill-opacity: 0;
+  translate: var(--dx) 60px;
+  animation: intro-letter 1.9s var(--ease-out-expo) calc(0.35s + var(--i) * 0.2s) forwards;
+}
+
+/* The monogram leans towards the viewer as it dissolves: fading it out of the mask closes the
+   letters, so the sheet is solid cream again before the hero photo is unveiled. */
+.intro__zoom {
+  transform-box: view-box;
+  transform-origin: 500px 500px;
+  animation:
+    intro-push 1.2s var(--ease-out-quart) 3s forwards,
+    intro-fade-out 0.6s var(--ease-in-out-quart) 3.05s forwards;
+}
+
+.intro__tag {
+  transform-box: fill-box;
+  opacity: 0;
+  translate: var(--dx) 18px;
+  animation:
+    intro-tag 1.6s var(--ease-out-expo) calc(1.3s + var(--i) * 0.05s) forwards,
+    intro-fade-out 0.5s var(--ease-out-quart) 2.7s forwards;
+}
+
+/* Hero photo: unveiled in its column after the monogram, or settles in on any other load of /. */
+.hero-media {
+  animation: hero-settle 1.4s var(--ease-out-expo) both;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not([data-intro]) .hero-curtain {
+    animation: hero-curtain 1.5s var(--ease-in-out-quart) 3.7s both;
+  }
+  html.js:not([data-intro]) .hero-media {
+    animation: hero-settle 2.2s var(--ease-out-expo) 3.7s both;
+  }
+}
+
+/* While the intro plays the page is one cream sheet: the header arrives with the headline, and the
+   page can't be scrolled until the intro has played. */
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not([data-intro]) {
+    overflow: hidden;
+  }
+  html.js:not([data-intro]) [data-site-header] {
+    animation: intro-fade-in 1s var(--ease-out-quart) var(--intro) both;
+  }
+}
+
+@keyframes intro-letter {
+  to {
+    fill-opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes intro-tag {
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes intro-push {
+  to {
+    scale: 1.18;
+  }
+}
+@keyframes intro-drift {
+  from {
+    scale: 1.25;
+  }
+  to {
+    scale: 1.05;
+  }
+}
+@keyframes hero-settle {
+  from {
+    scale: 1.12;
+  }
+}
+@keyframes hero-curtain {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes intro-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes intro-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── View transitions between pages ───────────────────────────────────── */
+
+::view-transition-old(.page-exit) {
+  animation: 300ms var(--ease-in-out-quart) both page-out;
+}
+::view-transition-new(.page-enter) {
+  animation: 700ms var(--ease-out-expo) 200ms both page-in;
+}
+::view-transition-group(.morph) {
+  animation-duration: 850ms;
+  animation-timing-function: var(--ease-in-out-quart);
+}
+::view-transition-old(.morph),
+::view-transition-new(.morph) {
+  animation-duration: 850ms;
+  height: 100%;
+  object-fit: cover;
+  overflow: clip;
+}
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --intro: 0s;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+  .intro {
+    display: none;
+  }
+  .hero-media {
+    animation: none;
+  }
+}
