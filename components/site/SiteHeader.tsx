@@ -55,8 +55,6 @@ export function SiteHeader() {
 
   const light = pathname === "/" && heroUnderHeader && !open;
 
-  // TEMPORARY: /heroes renders its own header inside each option. Remove with that route.
-  if (pathname.startsWith("/heroes")) return null;
 
   return (
     <>

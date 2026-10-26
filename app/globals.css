@@ -12,6 +12,16 @@
   --color-night: #161412;
   --color-accent: #ad9e5d; /* the client's olive-gold, used sparingly */
 
+  /* Admin: a white working surface on the paper ground, the listing tiers as one olive ramp
+     (validated light → dark), and status colours that only ever mean state. */
+  --color-surface: #ffffff;
+  --color-tier-1: #c4b57a;
+  --color-tier-2: #8e7e3e;
+  --color-tier-3: #3f3920;
+  --color-good: #3d7a52;
+  --color-warn: #a8721f;
+  --color-bad: #b4452f;
+
   --font-display: var(--font-boska), var(--font-thai), var(--font-korean), "Times New Roman", serif;
   --font-sans: var(--font-switzer), ui-sans-serif, system-ui, sans-serif;
 
@@ -221,11 +231,7 @@ html.js [data-intro-in] {
   /* Once the letters have closed the sheet is plain page-cream, so removing it is invisible. */
   animation: intro-fade-out 0.01s linear 3.7s forwards;
 }
-.intro--lab {
-  position: absolute;
-  z-index: 1;
-}
-html[data-intro] .intro:not(.intro--lab),
+html[data-intro] .intro,
 html:not(.js) .intro {
   display: none;
 }

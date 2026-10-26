@@ -2,9 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Serif_KR, Noto_Serif_Thai } from "next/font/google";
 import localFont from "next/font/local";
 import { IntroScript } from "@/components/motion/IntroScript";
-import { MotionRuntime } from "@/components/motion/MotionRuntime";
-import { SiteFooter } from "@/components/site/SiteFooter";
-import { SiteHeader } from "@/components/site/SiteHeader";
 import { SITE } from "@/lib/config";
 import "./globals.css";
 
@@ -48,10 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a href="#main" className="t-nav sr-only z-[100] bg-ink p-4 text-paper focus:not-sr-only focus:fixed focus:top-4 focus:left-4">
           Skip to content
         </a>
-        <SiteHeader />
-        <main id="main">{children}</main>
-        <SiteFooter />
-        <MotionRuntime />
+        {children}
       </body>
     </html>
   );

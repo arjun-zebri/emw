@@ -32,9 +32,9 @@ export function SiteFooter() {
               <Button href={`${SITE.url}/registration/`} variant="paper">
                 List your business
               </Button>
-              <a href={`${SITE.url}/login/`} className="t-nav link-line text-paper/60 hover:text-paper">
+              <Link href="/login?as=vendor" className="t-nav link-line text-paper/60 hover:text-paper">
                 Vendor login
-              </a>
+              </Link>
             </div>
           </div>
         </div>

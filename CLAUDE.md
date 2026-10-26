@@ -29,12 +29,6 @@ Scope: **landing (`/`), directory (`/vendors`), vendor page (`/vendors/[slug]`)*
 - `motion` for interactive animation, `lenis` for smooth scroll, `clsx`. Nothing else.
 - Don't run `npm run build` while `npm run dev` is running: both write to `.next` and the dev server stops picking up
   changes. If styles or markup look stale, stop the server, `rm -rf .next`, and restart.
-- `/heroes` is a TEMPORARY review page of six hero layouts (`app/heroes/`, sharp images in `public/images/hero/`).
-  Delete the route, the `/heroes` exception in `SiteHeader`, and unused hero images before deploying.
-- `/languages-poster` is a TEMPORARY review page with five variations on the languages poster (`app/languages-poster/`). Delete it before deploying.
-- `/languages-options` is a TEMPORARY review page with five layouts for the languages section (`app/languages-options/`). Delete it before deploying.
-- `/about-options` is a TEMPORARY review page with five About layouts (`app/about-options/`). Delete it before deploying.
-- `/loaders` is a TEMPORARY review page with five intro options (`app/loaders/`). Delete it before deploying.
 - The intro plays on every full load of `/` (never on client-side navigation).
 - Fonts are self-hosted from Fontshare (ITF Free Font License, commercial use OK): **Boska** (display serif,
   variable 200–900 + italic) and **Switzer** (UI/body). For production, consider licensing Canela or GT Alpina.
@@ -51,7 +45,9 @@ npx tsc --noEmit
 
 ```
 app/
-  layout.tsx              fonts, IntroScript, Intro, header/footer, MotionRuntime
+  layout.tsx              fonts, IntroScript, skip link (html/body only)
+  (site)/layout.tsx       header/footer, MotionRuntime; the public pages live in (site)
+  admin/, account/        owner admin and vendor portal (AdminShell); login/ is the simulated sign-in
   page.tsx                Hero → About → Featured → Categories → Journal → ForVendors
   vendors/page.tsx        "Vendors" + <VendorDirectory> (client; filters in the URL)
   vendors/[slug]/page.tsx photos left, vendor details right (sticky), similar vendors
@@ -68,7 +64,7 @@ components/
   ui/         Button, ArrowLink
 data/         vendors.ts (34 real vendors), taxonomy.ts, images.ts (every image slot + brief),
               photos.ts (cover/gallery picks), photo-ratios.ts (width ÷ height of each photo, regenerate when photos change)
-lib/          vendors.ts (filter/sort/related), config.ts, lenis.ts
+lib/          vendors.ts (filter/sort/related), config.ts, lenis.ts; admin/ (simulated data, store, session)
 ```
 
 ## Design system
@@ -131,6 +127,20 @@ in small type (`tone="dark"` for slots with text over them, like the hero).
 - Christine Civil Celebrant and Daniella Bui have no photos on the live site, so they show grey briefed placeholders.
 - Files go in `/public/images/...`. Remote images need `images.remotePatterns` in `next.config.ts`.
 - `SHOW_IMAGE_BRIEFS` in `lib/config.ts` hides the briefs for a cleaner walkthrough.
+
+## Admin portal
+
+`/admin` (owner) and `/account` (vendor), behind a simulated sign-in at `/login`: a cookie, checked in `proxy.ts`, no
+password. The team can open `/account` too; it shows Katrina Lai (`DEMO_VENDOR`).
+- **No backend.** Figures come from `lib/admin/analytics.ts`, `billing.ts` and `people.ts`: seeded random on a fixed clock
+  (`TODAY` in `time.ts`), so the server and client agree. Couples, applicants and reviews are fictional; the tiers and
+  prices in `billing.ts` are placeholders. This simulated data must never appear on the public site.
+- Anything you can change (posts, approvals, added vendors, replies, alert settings, team) is in `lib/admin/store.ts`
+  (localStorage, synced across tabs). The landing page's Journal reads published posts from it.
+- UI kit: `components/admin/ui.tsx` (Panel, Stat, Btn, fields, Tabs, Badge, `table` classes) and `charts.tsx`
+  (hand-drawn SVG, no chart library). Boska for titles and names only, Switzer 14px, white panels on paper, square
+  corners. Status colours (`good`/`warn`/`bad`) only mean state; the tier ramp is `tier-1..3`.
+- `AdminShell` reads the pathname inside Suspense; dynamic admin routes read their params on the client.
 
 ## Before committing
 

@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import { Media } from "@/components/media/Media";
 import { LOGO_VIEWBOX, MONOGRAM_HEIGHT, monogramPaths, taglinePaths } from "@/components/brand/logo-paths";
 
@@ -18,12 +17,10 @@ const letters = [
  * shows through the letters. E arrives from the left and W from the right as M rises; the photo
  * drifts inside them; the tagline settles in beneath. Then the monogram leans in and dissolves
  * into the cream, and the hero unveils the same photo in its own column.
- *
- * `lab` renders it on the /loaders review page, where the intro is otherwise suppressed.
  */
-export function Intro({ lab, src, position }: { lab?: boolean; src?: string; position?: string }) {
+export function Intro({ src, position }: { src?: string; position?: string }) {
   return (
-    <div className={clsx("intro", lab && "intro--lab")} aria-hidden>
+    <div className="intro" aria-hidden>
       <Media src={src} alt="" brief="" tone="dark" priority sizes="100vw" position={position} className="intro__photo" />
       <svg className="intro__sheet" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
         <defs>

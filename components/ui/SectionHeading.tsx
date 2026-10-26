@@ -19,11 +19,11 @@ export function SectionHeading({
 }) {
   return (
     <div className={clsx("mb-[clamp(2rem,4vw,3.5rem)] flex items-end justify-between gap-8 border-t hairline pt-[var(--section)]", className)}>
-      <h2 data-reveal className={clsx("max-w-[24ch]", sectionTitle)}>
+      <h2 data-reveal suppressHydrationWarning className={clsx("max-w-[24ch]", sectionTitle)}>
         {children}
       </h2>
       {link && (
-        <div data-reveal style={{ "--d": "0.1s" } as React.CSSProperties} className="hidden shrink-0 pb-[0.3em] md:block">
+        <div data-reveal suppressHydrationWarning style={{ "--d": "0.1s" } as React.CSSProperties} className="hidden shrink-0 pb-[0.3em] md:block">
           <ArrowLink href={link.href} transitionTypes={["nav-forward"]}>
             {link.label}
           </ArrowLink>

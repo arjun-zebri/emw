@@ -35,26 +35,6 @@ export const craftImages: Record<CraftId, Slot> = {
   "music-performance": { src: sitePhotos.crafts["music-performance"], alt: "A string quartet at a reception", brief: "Strings mid-performance, bows blurred." },
 };
 
-// "Eight trays, seven trays" is told in the About section, so the Journal carries the client's
-// announced follow-up, "All weddings are not the same", instead.
-export const journal = [
-  {
-    image: { src: sitePhotos.journal[1], alt: "A couple on a clifftop above the ocean at sunset", brief: "" },
-    category: "Real weddings",
-    title: "Eloping by the sea",
-  },
-  {
-    image: { src: sitePhotos.journal[0], alt: "A bride and her bridal party walking through a city laneway", brief: "" },
-    category: "Culture",
-    title: "All weddings are not the same",
-  },
-  {
-    image: { src: sitePhotos.journal[2], alt: "A bilingual MC on the microphone at a reception", brief: "Celebrant's hands with a bilingual script." },
-    category: "Planning",
-    title: "Writing a ceremony in two languages",
-  },
-];
-
 export function vendorCover(vendor: Vendor): Slot {
   return {
     src: vendor.cover,
