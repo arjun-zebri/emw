@@ -1,6 +1,5 @@
 "use client";
 
-import clsx from "clsx";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -8,10 +7,9 @@ import { Suspense, useEffect, useId, useState } from "react";
 import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
-import { signIn } from "@/lib/admin/session";
-import { getVendor, vendors } from "@/lib/vendors";
-
-type Role = "owner" | "vendor";
+import { decodeToken } from "@/lib/admin/session";
+import { supabase } from "@/lib/supabase/browser";
+import { canOpen, homeOf, readSession, safeNext } from "@/lib/supabase/session";
 
 const expo = [0.16, 1, 0.3, 1] as const;
 const inOut = [0.76, 0, 0.24, 1] as const;
@@ -25,7 +23,10 @@ const photo = {
 const field =
   "w-full border-b border-ink/15 bg-transparent py-3 text-[0.9375rem] text-ink transition-colors duration-300 placeholder:text-ink-mute/60 hover:border-ink/35 focus:border-ink focus:outline-none";
 
-/** Simulated sign-in: no password check, it just picks who you are for the demo. */
+/**
+ * Sign-in for the team and vendors, with email and password. Who you are (team or vendor) comes
+ * from your account, so there's nothing to choose. Only accounts the team adds can sign in.
+ */
 export function SignIn() {
   return (
     <MotionConfig reducedMotion="user">
@@ -38,7 +39,7 @@ export function SignIn() {
 
 function WithParams() {
   const params = useSearchParams();
-  return <SignInView initialRole={params.get("as") === "vendor" ? "vendor" : "owner"} next={params.get("next") ?? undefined} />;
+  return <SignInView next={safeNext(params.get("next"))} />;
 }
 
 /** Each line of the form rises in after the photo has started to open. */
@@ -48,15 +49,14 @@ const rise = (i: number) => ({
   transition: { duration: 1.1, ease: expo, delay: 0.55 + i * 0.07 },
 });
 
-function SignInView({ initialRole = "owner", next }: { initialRole?: Role; next?: string }) {
+function SignInView({ next }: { next?: string }) {
   const router = useRouter();
   const id = useId();
-  const [role, setRole] = useState<Role>(initialRole);
-  const [slug, setSlug] = useState("katrina-lai");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const vendor = getVendor(slug);
-  const listed = vendors.filter((v) => v.cover).sort((a, b) => a.name.localeCompare(b.name));
-  const home = role === "owner" ? "/admin" : "/account";
+  const [error, setError] = useState<string>();
 
   // Warm both destinations so the hand-off is instant.
   useEffect(() => {
@@ -64,13 +64,28 @@ function SignInView({ initialRole = "owner", next }: { initialRole?: Role; next?
     router.prefetch("/account");
   }, [router]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (leaving) return;
-    signIn(role === "owner" ? { role: "owner" } : { role: "vendor", slug });
+    if (busy || leaving) return;
+    setBusy(true);
+    setError(undefined);
+    const { data, error } = await supabase().auth.signInWithPassword({ email: email.trim(), password });
+    const session = readSession(decodeToken(data.session?.access_token));
+    if (error || !session) {
+      if (!error) await supabase().auth.signOut();
+      setBusy(false);
+      setError(
+        error?.status === 429
+          ? "Too many tries. Wait a minute and try again."
+          : error
+            ? "That email and password don't match."
+            : "This account doesn't have access yet. Ask the East Meets Wed team.",
+      );
+      return;
+    }
     setLeaving(true);
     // Let the page dissolve before the dashboard arrives.
-    setTimeout(() => router.push(next?.startsWith(home) ? next : home), 650);
+    setTimeout(() => router.push(next && canOpen(session, next) ? next : homeOf(session)), 650);
   };
 
   return (
@@ -122,114 +137,75 @@ function SignInView({ initialRole = "owner", next }: { initialRole?: Role; next?
           <motion.h1 className="font-display text-[clamp(2.75rem,4.4vw,3.75rem)] leading-[0.98] tracking-[-0.03em]" {...rise(1)}>
             Welcome back
           </motion.h1>
-          <motion.div className="mt-4 h-6 overflow-hidden" {...rise(2)}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.p
-                key={role}
-                className="text-[0.9375rem] text-ink-mute"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.35, ease: expo }}
-              >
-                {role === "owner" ? "Sign in to the East Meets Wed admin." : "Sign in to your listing, enquiries and stats."}
-              </motion.p>
-            </AnimatePresence>
-          </motion.div>
+          <motion.p className="mt-4 text-[0.9375rem] text-ink-mute" {...rise(2)}>
+            For the East Meets Wed team and listed vendors.
+          </motion.p>
 
-          <motion.div role="radiogroup" aria-label="Sign in as" className="mt-10 flex gap-8 border-b hairline" {...rise(3)}>
-            {(
-              [
-                ["owner", "East Meets Wed team"],
-                ["vendor", "Vendor"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={role === value}
-                onClick={() => setRole(value)}
-                className={clsx("relative -mb-px pb-3 text-[0.875rem] transition-colors duration-300", role === value ? "text-ink" : "text-ink-mute hover:text-ink")}
-              >
-                {label}
-                {role === value && <motion.span layoutId={`${id}-role`} className="absolute inset-x-0 bottom-0 h-px bg-ink" transition={{ duration: 0.5, ease: expo }} />}
-              </button>
-            ))}
-          </motion.div>
-
-          <form onSubmit={submit} className="mt-4">
-            <AnimatePresence initial={false}>
-              {role === "vendor" && (
-                <motion.div
-                  key="business"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ height: { duration: 0.55, ease: inOut }, opacity: { duration: 0.35, delay: 0.1 } }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-5">
-                    <label htmlFor={`${id}-vendor`} className="text-[0.75rem] text-ink-mute">
-                      Business
-                    </label>
-                    <div className="relative flex items-center gap-3">
-                      <span className="relative size-7 shrink-0 overflow-hidden rounded-full bg-paper-soft">
-                        <AnimatePresence initial={false}>
-                          <motion.span key={slug} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-                            <Media src={vendor?.cover} alt="" brief="" quiet sizes="28px" className="size-full" />
-                          </motion.span>
-                        </AnimatePresence>
-                      </span>
-                      <select id={`${id}-vendor`} value={slug} onChange={(e) => setSlug(e.target.value)} className={clsx(field, "cursor-pointer appearance-none pr-8")}>
-                        {listed.map((v) => (
-                          <option key={v.slug} value={v.slug}>
-                            {v.name}
-                          </option>
-                        ))}
-                      </select>
-                      <Icon name="chevron-down" className="pointer-events-none absolute right-0 size-4 text-ink-mute" strokeWidth={1.25} />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <motion.div className="pt-5" {...rise(4)}>
+          <form onSubmit={submit} className="mt-10">
+            <motion.div {...rise(3)}>
               <label htmlFor={`${id}-email`} className="text-[0.75rem] text-ink-mute">
                 Email
               </label>
               <input
                 id={`${id}-email`}
-                key={role + slug}
                 type="email"
-                defaultValue={role === "owner" ? "hello@eastmeetswed.com" : (vendor?.contact?.email ?? "hello@example.com")}
-                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                aria-describedby={error ? `${id}-error` : undefined}
                 className={field}
               />
             </motion.div>
-            <motion.div className="pt-5" {...rise(5)}>
+            <motion.div className="pt-5" {...rise(4)}>
               <div className="flex items-baseline justify-between">
                 <label htmlFor={`${id}-password`} className="text-[0.75rem] text-ink-mute">
                   Password
                 </label>
-                <span className="text-[0.75rem] text-ink-mute">Any password works in the demo</span>
+                <span className="text-[0.75rem] text-ink-mute">Forgotten it? Ask the East Meets Wed team</span>
               </div>
-              <input id={`${id}-password`} type="password" defaultValue="demo-password" autoComplete="current-password" className={field} />
+              <input
+                id={`${id}-password`}
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                aria-describedby={error ? `${id}-error` : undefined}
+                className={field}
+              />
             </motion.div>
 
-            <motion.div {...rise(6)}>
+            <AnimatePresence initial={false}>
+              {error && (
+                <motion.p
+                  key={error}
+                  id={`${id}-error`}
+                  role="alert"
+                  className="mt-4 text-[0.8125rem] leading-relaxed text-bad"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35, ease: expo }}
+                >
+                  {error}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            <motion.div {...rise(5)}>
               <button
                 type="submit"
-                className="group relative mt-10 flex h-14 w-full items-center justify-between overflow-hidden bg-ink px-6 text-paper transition-colors duration-300 hover:bg-ink/90"
+                disabled={busy}
+                className="group relative mt-10 flex h-14 w-full items-center justify-between overflow-hidden bg-ink px-6 text-paper transition-colors duration-300 hover:bg-ink/90 disabled:cursor-wait"
               >
-                <span className="t-nav">{leaving ? "Signing in" : "Sign in"}</span>
+                <span className="t-nav">{busy || leaving ? "Signing in" : "Sign in"}</span>
                 <Icon name="arrow" className="size-5 transition-transform duration-500 ease-out-expo group-hover:translate-x-1" strokeWidth={1.25} />
                 {/* A hairline runs along the foot of the button while the dashboard loads. */}
                 <motion.span
                   className="absolute bottom-0 left-0 h-px w-full origin-left bg-paper/60"
                   initial={false}
-                  animate={{ scaleX: leaving ? 1 : 0 }}
+                  animate={{ scaleX: busy || leaving ? 1 : 0 }}
                   transition={{ duration: 0.7, ease: inOut }}
                 />
               </button>
@@ -237,7 +213,7 @@ function SignInView({ initialRole = "owner", next }: { initialRole?: Role; next?
           </form>
         </div>
 
-        <motion.p className="text-[0.75rem] text-ink-mute" {...rise(7)}>
+        <motion.p className="text-[0.75rem] text-ink-mute" {...rise(6)}>
           © 2026 East Meets Wed
         </motion.p>
       </div>

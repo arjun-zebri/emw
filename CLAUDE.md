@@ -47,7 +47,7 @@ npx tsc --noEmit
 app/
   layout.tsx              fonts, IntroScript, skip link (html/body only)
   (site)/layout.tsx       header/footer, MotionRuntime; the public pages live in (site)
-  admin/, account/        owner admin and vendor portal (AdminShell); login/ is the simulated sign-in
+  admin/, account/        owner admin and vendor portal (AdminShell); login/ is sign-in
   page.tsx                Hero → About → Featured → Categories → Journal → ForVendors
   vendors/page.tsx        "Vendors" + <VendorDirectory> (client; filters in the URL)
   vendors/[slug]/page.tsx photos left, vendor details right (sticky), similar vendors
@@ -64,7 +64,7 @@ components/
   ui/         Button, ArrowLink
 data/         vendors.ts (34 real vendors), taxonomy.ts, images.ts (every image slot + brief),
               photos.ts (cover/gallery picks), photo-ratios.ts (width ÷ height of each photo, regenerate when photos change)
-lib/          vendors.ts (filter/sort/related), config.ts, lenis.ts; admin/ (simulated data, store, session)
+lib/          vendors.ts (filter/sort/related), config.ts, lenis.ts; admin/ (sample data, store, session); supabase/
 ```
 
 ## Design system
@@ -130,9 +130,15 @@ in small type (`tone="dark"` for slots with text over them, like the hero).
 
 ## Admin portal
 
-`/admin` (owner) and `/account` (vendor), behind a simulated sign-in at `/login`: a cookie, checked in `proxy.ts`, no
-password. The team can open `/account` too; it shows Katrina Lai (`DEMO_VENDOR`).
-- **No backend.** Figures come from `lib/admin/analytics.ts`, `billing.ts` and `people.ts`: seeded random on a fixed clock
+`/admin` (team) and `/account` (vendor), behind real Supabase sign-in at `/login` with email and password (no sign-in
+emails; the user doesn't want Supabase sending any). Sign-up is off, so only accounts added by hand can sign in: set a
+password with `scripts/set-password.mjs` (reads it from the clipboard), then add a `team_members` or `vendor_members` row. `proxy.ts` checks the token's `emw_role`
+and `vendor_slug` claims, which the database adds (`custom_access_token_hook`). The team can open `/account` too; until
+the portal reads real data it shows Katrina Lai (`DEMO_VENDOR`).
+- **Supabase** (project `goesitjercqizgtigquj`, Sydney, owned by admin@eastmeetswed.com). Schema, row level security and
+  storage buckets are in `supabase/migrations`; regenerate `lib/supabase/database.types.ts` after a schema change.
+  Clients: `lib/supabase/server.ts` (server), `browser.ts` (client), `session.ts` (claims, shared with the proxy).
+- **Sample data in the portals.** Figures come from `lib/admin/analytics.ts`, `billing.ts` and `people.ts`: seeded random on a fixed clock
   (`TODAY` in `time.ts`), so the server and client agree. Couples, applicants and reviews are fictional; the tiers and
   prices in `billing.ts` are placeholders. This simulated data must never appear on the public site.
 - Anything you can change (posts, approvals, added vendors, replies, alert settings, team) is in `lib/admin/store.ts`

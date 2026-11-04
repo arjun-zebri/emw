@@ -31,7 +31,7 @@ export function CommandPalette({ open, onClose, role }: { open: boolean; onClose
       return [
         ...pages,
         { id: "public", label: "See your public listing", group: "Do", icon: "arrow-up-right", run: () => window.open("/vendors", "_blank") },
-        { id: "out", label: "Sign out", group: "Do", icon: "logout", run: () => (signOut(), router.push("/login")) },
+        { id: "out", label: "Sign out", group: "Do", icon: "logout", run: signOut },
       ];
     }
     return [
@@ -50,7 +50,7 @@ export function CommandPalette({ open, onClose, role }: { open: boolean; onClose
         run: go(`/admin/vendors/${v.slug}`),
       })),
       ...state.posts.map((p) => ({ id: `p-${p.id}`, label: p.title, detail: p.status === "published" ? "Published" : p.status === "draft" ? "Draft" : "Scheduled", group: "Journal", icon: "pen" as const, run: go(`/admin/journal/${p.id}`) })),
-      { id: "out", label: "Sign out", group: "Do", icon: "logout", run: () => (signOut(), router.push("/login")) },
+      { id: "out", label: "Sign out", group: "Do", icon: "logout", run: signOut },
     ];
   }, [role, router, state]);
 

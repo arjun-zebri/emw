@@ -10,7 +10,7 @@ import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
 import { pendingCount } from "@/lib/admin/feed";
 import { enquiries } from "@/lib/admin/people";
-import { signIn, signOut, useVendorSlug } from "@/lib/admin/session";
+import { signOut, useSession, useVendorSlug } from "@/lib/admin/session";
 import { useAdmin } from "@/lib/admin/store";
 import { getVendor } from "@/lib/vendors";
 import { CommandPalette } from "./CommandPalette";
@@ -25,6 +25,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
   const nav = role === "owner" ? ownerNav : vendorNav;
+  const session = useSession();
   const portalSlug = useVendorSlug();
   const vendorSlug = role === "vendor" ? portalSlug : undefined;
   const vendor = vendorSlug ? getVendor(vendorSlug) : undefined;
@@ -36,7 +37,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
 
   const user =
     role === "owner"
-      ? { name: "East Meets Wed", email: "hello@eastmeetswed.com", src: undefined }
+      ? { name: "East Meets Wed", email: session?.email ?? "", src: undefined }
       : { name: vendor?.name ?? "Your business", email: vendor?.contact?.email ?? "", src: vendor?.cover };
 
   useEffect(() => {
@@ -219,12 +220,16 @@ function UserMenu({ role, user }: { role: "owner" | "vendor"; user: { name: stri
     };
   }, [open]);
 
+  const team = useSession()?.role === "team";
   const items = [
     { label: "View the site", icon: "arrow-up-right" as const, run: () => window.open("/", "_blank") },
-    role === "owner"
-      ? { label: "See a vendor's portal", icon: "store" as const, run: () => (signIn({ role: "vendor", slug: "katrina-lai" }), router.push("/account")) }
-      : { label: "Back to the admin", icon: "overview" as const, run: () => (signIn({ role: "owner" }), router.push("/admin")) },
-    { label: "Sign out", icon: "logout" as const, run: () => (signOut(), router.push("/login")) },
+    // The team can step into the vendor portal (it shows a demo listing) and back.
+    ...(role === "owner"
+      ? [{ label: "See a vendor's portal", icon: "store" as const, run: () => router.push("/account") }]
+      : team
+        ? [{ label: "Back to the admin", icon: "overview" as const, run: () => router.push("/admin") }]
+        : []),
+    { label: "Sign out", icon: "logout" as const, run: signOut },
   ];
 
   return (
