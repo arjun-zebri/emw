@@ -237,6 +237,9 @@ const paths = {
 
 export type IconName = keyof typeof paths;
 
+/** Every icon in the set, in source order. The design system lists them from this. */
+export const iconNames = Object.keys(paths) as IconName[];
+
 export function Icon({
   name,
   className,

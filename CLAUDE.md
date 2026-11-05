@@ -51,6 +51,7 @@ app/
   page.tsx                Hero → About → Featured → Categories → Journal → ForVendors
   vendors/page.tsx        "Vendors" + <VendorDirectory> (client; filters in the URL)
   vendors/[slug]/page.tsx photos left, vendor details right (sticky), similar vendors
+  design-system/page.tsx  the live design system (EMW-38): every example is the real component; noindex, unlinked
   globals.css             tokens, type utilities, reveals, intro, view transitions
 components/
   brand/      Logo + Monogram (the client's EMW logo), logo-paths.ts (traced SVG)

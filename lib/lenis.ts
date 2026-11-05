@@ -12,3 +12,9 @@ export function lockScroll(locked: boolean) {
   else instance?.start();
   document.documentElement.style.overflow = locked ? "hidden" : "";
 }
+
+/** Scroll to an element, smoothly where Lenis is running. The offset clears the fixed header. */
+export function scrollToElement(el: HTMLElement, offset = 0) {
+  if (instance) instance.scrollTo(el, { offset: -offset });
+  else el.scrollIntoView({ block: "start" });
+}
