@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
@@ -368,13 +368,21 @@ function Toolbar() {
 }
 
 /**
- * The list runs the length of the page and fetches the next 30 as its end comes into view. The
- * chosen draft's detail stays pinned beside it, scrolling on its own.
+ * The list runs the length of the page and fetches the next 30 as its end comes into view. One
+ * scrollbar, the page's: the chosen draft's detail starts level with its row, so picking one far
+ * down the list shows it where you clicked rather than back at the top.
  */
 function QueueList({ rows, selected, tab, onSelect, children }: { rows: QueueRow[]; selected?: string; tab: "ready" | "missing"; onSelect: (id: string) => void; children?: React.ReactNode }) {
   const { list, query } = useQueue();
   const end = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [offset, setOffset] = useState(0);
   const filtered = !!query.q.trim() || query.flags.length > 0;
+
+  useLayoutEffect(() => {
+    const li = selected ? listRef.current?.querySelector<HTMLElement>(`[data-row="${selected}"]`) : null;
+    setOffset(li ? li.offsetTop : 0);
+  }, [selected, rows.length]);
 
   useEffect(() => {
     const el = end.current;
@@ -414,11 +422,11 @@ function QueueList({ rows, selected, tab, onSelect, children }: { rows: QueueRow
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
       <div>
         <Panel flush>
-          <ul>
+          <ul ref={listRef} className="relative">
             {rows.map((r, i) => {
               const on = selected === r.id;
               return (
-                <li key={r.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
+                <li key={r.id} data-row={r.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
                   <button
                     type="button"
                     onClick={() => onSelect(r.id)}
@@ -453,7 +461,11 @@ function QueueList({ rows, selected, tab, onSelect, children }: { rows: QueueRow
           )}
         </div>
       </div>
-      {children && <div className="lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain">{children}</div>}
+      {children && (
+        <div className="lg:mt-(--offset)" style={{ "--offset": `${offset}px` } as React.CSSProperties}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
