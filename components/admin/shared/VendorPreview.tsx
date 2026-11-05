@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { vendorCover } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
-import { locationLabel, vendors } from "@/lib/vendors";
+import { vendors } from "@/lib/static-vendors";
+import { locationLabel } from "@/lib/vendors";
 import { PreviewFrame } from "./PreviewFrame";
 import type { VendorFormValues } from "./VendorForm";
 
@@ -47,7 +48,8 @@ export function ListingPreview({ values: v, photos, story = [], view }: { values
 }
 
 function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValues; photos: string[]; story: string[]; ratios: Record<string, number>; location: string }) {
-  const tongues = v.languages.filter((l) => l !== "English");
+  // Every language, English included, as the vendor page lists them (the card leaves English out).
+  const tongues = v.languages;
   const ratio = (src: string) => ratios[src] ?? 0.8;
   const landscape = photos[0] ? ratio(photos[0]) >= 1.2 : false;
   const gallery = rows(photos.slice(1), ratio);
@@ -204,8 +206,8 @@ function Card({
 }
 
 function Photo({ src, brief, sizes }: { src?: string; brief: string; sizes: string }) {
-  if (src?.startsWith("data:")) {
-    // eslint-disable-next-line @next/next/no-img-element -- uploads are data URLs, which next/image can't optimise
+  if (src?.startsWith("data:") || src?.startsWith("blob:")) {
+    // eslint-disable-next-line @next/next/no-img-element -- uploads are data or blob URLs, which next/image can't optimise
     return <img src={src} alt="" className="absolute inset-0 size-full object-cover" />;
   }
   return (
