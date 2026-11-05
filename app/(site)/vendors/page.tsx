@@ -3,12 +3,14 @@ import { Suspense } from "react";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { VendorDirectory } from "@/components/vendors/VendorDirectory";
 import { getListings } from "@/lib/listings";
+import { pageMeta } from "@/lib/seo";
 import { areaCounts, craftCounts, languageCounts, listedCrafts, locationLabel, serviceCounts } from "@/lib/vendors";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Vendors",
   description: "Wedding vendors for couples bringing two cultures together, searchable by category and language.",
-};
+  path: "/vendors",
+});
 
 export default async function VendorsPage() {
   const vendors = await getListings();

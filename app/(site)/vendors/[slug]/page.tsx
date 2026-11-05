@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { PageTransition } from "@/components/motion/PageTransition";
+import { JsonLd } from "@/components/site/JsonLd";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { Enquire } from "@/components/vendor/Enquire";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
@@ -14,6 +15,7 @@ import { type Slot, vendorImages } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { getListing, getListings } from "@/lib/listings";
+import { vendorLd, vendorMeta } from "@/lib/seo";
 import { locationLabel, relatedVendors } from "@/lib/vendors";
 
 export async function generateStaticParams() {
@@ -22,8 +24,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/vendors/[slug]">): Promise<Metadata> {
   const vendor = await getListing((await params).slug);
-  if (!vendor) return {};
-  return { title: vendor.name, description: vendor.lede, openGraph: { title: vendor.name, description: vendor.lede } };
+  return vendor ? vendorMeta(vendor) : {};
 }
 
 function displayUrl(url: string) {
@@ -72,6 +73,7 @@ export default function VendorPage({ params }: PageProps<"/vendors/[slug]">) {
     <PageTransition>
       <Suspense fallback={<div className="min-h-[100svh]" />}>
         <VendorFeature params={params} />
+        <VendorSchema params={params} />
       </Suspense>
     </PageTransition>
   );
@@ -250,4 +252,9 @@ async function VendorFeature({ params }: { params: PageProps<"/vendors/[slug]">[
       </article>
     </Gallery>
   );
+}
+
+async function VendorSchema({ params }: { params: PageProps<"/vendors/[slug]">["params"] }) {
+  const vendor = await getListing((await params).slug);
+  return vendor ? <JsonLd data={vendorLd(vendor)} /> : null;
 }

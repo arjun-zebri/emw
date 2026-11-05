@@ -3,6 +3,7 @@ import { Noto_Serif_KR, Noto_Serif_Thai } from "next/font/google";
 import localFont from "next/font/local";
 import { IntroScript } from "@/components/motion/IntroScript";
 import { SITE } from "@/lib/config";
+import { indexable, pageMeta, withoutUrl } from "@/lib/seo";
 import "./globals.css";
 
 const boska = localFont({
@@ -41,8 +42,10 @@ const korean = Noto_Serif_KR({ weight: ["300", "400"], variable: "--font-korean"
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: { default: SITE.name, template: `%s · ${SITE.name}` },
-  description: SITE.description,
-  openGraph: { siteName: SITE.name, type: "website", locale: "en_AU" },
+  // The share card for any page that doesn't set its own. No canonical or URL here: pages that
+  // don't set theirs (the 404, the portals) mustn't claim to be the home page.
+  ...withoutUrl(pageMeta({ description: SITE.description, path: "/" })),
+  ...(!indexable && { robots: { index: false, follow: false } }),
 };
 
 export const viewport: Viewport = {
