@@ -4,6 +4,9 @@
 //   1. Copy the new password (10+ characters).
 //   2. node --env-file=.env.local scripts/set-password.mjs someone@example.com
 //
+// Or generate one and keep it on the clipboard to save in a password manager:
+//   openssl rand -base64 18 | tr -d '\n' | pbcopy && node --env-file=.env.local scripts/set-password.mjs someone@example.com --keep
+//
 // .env.local points at the staging database. For the live one, pull its settings first:
 //   vercel env pull .env.production.local --environment production
 //   node --env-file=.env.production.local scripts/set-password.mjs someone@example.com
@@ -33,6 +36,8 @@ const result = user
 if (result.error) throw result.error;
 
 // Clear the clipboard so the password doesn't linger.
-execFileSync("pbcopy", { input: "" });
+// --keep leaves it there, for a password generated straight into the clipboard that still needs saving.
+const keep = process.argv.includes("--keep");
+if (!keep) execFileSync("pbcopy", { input: "" });
 const project = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname.split(".")[0];
-console.log(`${user ? "Updated" : "Created"} ${email} in ${project}. Clipboard cleared.`);
+console.log(`${user ? "Updated" : "Created"} ${email} in ${project}. ${keep ? "The password is still on the clipboard: save it now." : "Clipboard cleared."}`);
