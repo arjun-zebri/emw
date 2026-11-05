@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { VendorDirectory } from "@/components/vendors/VendorDirectory";
-import { crafts } from "@/data/taxonomy";
-import { areaCounts, craftCounts, languageCounts, locationLabel, serviceCounts, vendors } from "@/lib/vendors";
+import { areaCounts, craftCounts, languageCounts, listedCrafts, locationLabel, serviceCounts, vendors } from "@/lib/vendors";
 
 export const metadata: Metadata = {
   title: "Vendors",
@@ -15,7 +14,7 @@ export default function VendorsPage() {
   const cards = vendors.map((v) => ({ vendor: v, location: locationLabel(v) }));
   const tabs = [
     { id: null, label: "All", count: vendors.length },
-    ...crafts.map((c) => ({ id: c.id, label: c.short, count: counts[c.id] })),
+    ...listedCrafts().map((c) => ({ id: c.id, label: c.short, count: counts[c.id] })),
   ];
   const options = { languages: languageCounts(), areas: areaCounts(), services: serviceCounts() };
 

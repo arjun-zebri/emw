@@ -37,6 +37,12 @@ export function craftCounts(): Record<CraftId, number> {
   return counts;
 }
 
+/** Crafts with at least one listed vendor. Public pages show only these, so no category leads nowhere. */
+export function listedCrafts() {
+  const counts = craftCounts();
+  return crafts.filter((c) => counts[c.id] > 0);
+}
+
 export function languageCounts(): [Language, number][] {
   const counts = new Map<Language, number>();
   for (const v of vendors) for (const l of v.languages ?? []) counts.set(l, (counts.get(l) ?? 0) + 1);

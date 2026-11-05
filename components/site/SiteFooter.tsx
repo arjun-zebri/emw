@@ -2,14 +2,14 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
-import { crafts } from "@/data/taxonomy";
 import { SITE } from "@/lib/config";
+import { listedCrafts } from "@/lib/vendors";
 import { Newsletter } from "./Newsletter";
 import { primaryNav } from "./nav";
 
 export function SiteFooter() {
   const columns = [
-    { title: "Vendors", links: crafts.map((c) => ({ href: `/vendors?craft=${c.id}`, label: c.short })) },
+    { title: "Vendors", links: listedCrafts().map((c) => ({ href: `/vendors?craft=${c.id}`, label: c.short })) },
     {
       title: "East Meets Wed",
       links: primaryNav.filter((n) => n.href !== "/vendors"),

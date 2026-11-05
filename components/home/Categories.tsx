@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Media } from "@/components/media/Media";
 import { craftImages } from "@/data/images";
-import { crafts } from "@/data/taxonomy";
+import { listedCrafts } from "@/lib/vendors";
 
 export function Categories() {
+  const crafts = listedCrafts();
   return (
     <section className="shell pb-[var(--section)]">
       <ul className="-mx-[var(--gutter)] flex snap-x snap-mandatory gap-[clamp(0.5rem,1vw,1rem)] overflow-x-auto scroll-px-[var(--gutter)] px-[var(--gutter)] [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">

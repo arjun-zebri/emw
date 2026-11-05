@@ -33,6 +33,10 @@ export const craftImages: Record<CraftId, Slot> = {
   "beauty-attire": { src: sitePhotos.crafts["beauty-attire"], alt: "Bridal hair being finished", brief: "Final pins in bridal hair, window light." },
   "flowers-paper": { src: sitePhotos.crafts["flowers-paper"], alt: "A calligraphed place card beside a bloom", brief: "Place card in ink, a single stem beside it." },
   "music-performance": { src: sitePhotos.crafts["music-performance"], alt: "A string quartet at a reception", brief: "Strings mid-performance, bows blurred." },
+  // No public vendor in these yet, so they stay off the landing page until one is listed (see listedCrafts).
+  "planning-styling": { alt: "A styled reception table before guests arrive", brief: "Reception table set and lit, no one in frame yet." },
+  "food-cake": { alt: "A wedding banquet being served", brief: "Banquet dishes going out, hands and steam." },
+  "venues-hire": { alt: "An empty venue ready for the evening", brief: "The room dressed and empty, late light." },
 };
 
 export function vendorCover(vendor: Vendor): Slot {

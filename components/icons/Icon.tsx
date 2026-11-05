@@ -233,6 +233,30 @@ const paths = {
       <path d="M13.2 3l3.4 1.6M6 18.5l3-1.4" />
     </>
   ),
+  // A run sheet on a clipboard.
+  "planning-styling": (
+    <>
+      <rect x="5" y="4.5" width="14" height="16.5" rx="1.5" />
+      <path d="M9.5 4.5V3h5v1.5" />
+      <path d="M8.5 10h7M8.5 13.5h7M8.5 17h4" />
+    </>
+  ),
+  // A two-tier cake on a stand.
+  "food-cake": (
+    <>
+      <rect x="8" y="6" width="8" height="5" rx="0.8" />
+      <rect x="5" y="11" width="14" height="6" rx="0.8" />
+      <path d="M3 20h18M12 17v3M12 3.5V6" />
+    </>
+  ),
+  // A pavilion: pitched roof over two columns.
+  "venues-hire": (
+    <>
+      <path d="M3 10 12 4l9 6" />
+      <path d="M5 10h14" />
+      <path d="M7 10v11M17 10v11M3 21h18" />
+    </>
+  ),
 } satisfies Record<string, React.ReactNode>;
 
 export type IconName = keyof typeof paths;

@@ -13,7 +13,20 @@ export type Service =
   | "Stationery and Signage"
   | "Favours and Gifts"
   | "Music"
-  | "Entertainment";
+  | "Entertainment"
+  | "Dance Instructor"
+  | "Live Art"
+  | "Jewellery"
+  | "Wedding Planner"
+  | "Wedding Coordinator"
+  | "Event Planner"
+  | "Event Stylist"
+  | "Catering"
+  | "Cakes and Desserts"
+  | "Mobile Food Trucks and Carts"
+  | "Venue"
+  | "Hire Items"
+  | "Car Hire";
 
 export type Language =
   | "Cantonese"
@@ -28,7 +41,15 @@ export type Language =
   | "Thai"
   | "Vietnamese";
 
-export type CraftId = "ceremony" | "photo-film" | "beauty-attire" | "flowers-paper" | "music-performance";
+export type CraftId =
+  | "ceremony"
+  | "photo-film"
+  | "beauty-attire"
+  | "flowers-paper"
+  | "music-performance"
+  | "planning-styling"
+  | "food-cake"
+  | "venues-hire";
 
 export type Craft = {
   id: CraftId;
