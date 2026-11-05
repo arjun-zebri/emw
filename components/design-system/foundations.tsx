@@ -33,7 +33,7 @@ const colours = [
   { name: "Paper", token: "--color-paper", value: "#faf8f5" },
   { name: "Paper soft", token: "--color-paper-soft", value: "#f3f0eb" },
   { name: "Ink", token: "--color-ink", value: "#161412", dark: true },
-  { name: "Ink soft", token: "--color-ink-soft", value: "#4a4642", dark: true },
+  { name: "Ink soft", token: "--color-ink-soft", value: "#75706a", dark: true },
   { name: "Mute", token: "--color-ink-mute", value: "#6f6a64", dark: true },
   { name: "Hairline", token: "--color-line", value: "rgb(22 20 18 / 0.12)", line: true },
   { name: "Night", token: "--color-night", value: "#161412", dark: true },
@@ -75,7 +75,7 @@ export function Type() {
           <p className="t-title text-[1.75rem]">Boska</p>
         </Stage>
         <Stage ground="paper" className="flex aspect-[16/10] flex-col justify-between p-[clamp(1.25rem,3vw,2.5rem)]" caption="Everything else">
-          <p className="font-sans text-[clamp(6rem,13vw,12rem)] leading-[0.8] tracking-[-0.05em]">Aa</p>
+          <p className="font-sans text-[clamp(6rem,13vw,12rem)] leading-[0.8] tracking-[-0.04em]">Aa</p>
           <p className="font-sans text-[1.75rem] leading-tight tracking-[-0.01em]">Switzer</p>
         </Stage>
       </div>

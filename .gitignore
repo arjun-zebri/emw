@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Neue Montreal trial files: evaluation only, never commit or deploy (licence needed)
+*.trial.otf

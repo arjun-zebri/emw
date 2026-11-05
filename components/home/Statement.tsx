@@ -14,19 +14,19 @@ export function Statement() {
   return (
     <section id="about" className="shell scroll-mt-16 pt-[clamp(6rem,12vw,10rem)] pb-[var(--section)]">
       <div className="grid grid-cols-1 gap-8 md:grid-cols-12">
-        <figure data-reveal className="md:col-span-4">
-          <div data-reveal-media>
+        <figure data-reveal suppressHydrationWarning className="md:col-span-4">
+          <div data-reveal-media suppressHydrationWarning>
             <Media {...siteImages.statement} sizes="(min-width: 768px) 33vw, 100vw" position="78% 40%" className="aspect-[4/5] w-full" />
           </div>
           <Credit href="/vendors/mona-chungchao-civil-marriage-celebrant">Mona Chungchao</Credit>
         </figure>
-        <figure data-reveal style={d(0.1)} className="ml-auto w-2/3 md:col-span-3 md:mt-[55%] md:ml-0 md:w-full">
-          <div data-reveal-media>
+        <figure data-reveal suppressHydrationWarning style={d(0.1)} className="ml-auto w-2/3 md:col-span-3 md:mt-[55%] md:ml-0 md:w-full">
+          <div data-reveal-media suppressHydrationWarning>
             <Media {...siteImages.statementPortrait} sizes="(min-width: 768px) 25vw, 66vw" className="aspect-[3/4] w-full" />
           </div>
           <Credit href="/vendors/citrus-7-photography">Citrus 7 Photography</Credit>
         </figure>
-        <div data-reveal style={d(0.2)} className="mt-8 md:col-span-4 md:col-start-9 md:mt-0 md:self-end md:pb-[1.85rem]">
+        <div data-reveal suppressHydrationWarning style={d(0.2)} className="mt-8 md:col-span-4 md:col-start-9 md:mt-0 md:self-end md:pb-[1.85rem]">
           <h2 className="t-heading">Eight trays, seven trays</h2>
           <p className="t-body mt-6">
             Newly engaged, a Vietnamese-Australian bride asked her family how many trays a tea ceremony needs. Her

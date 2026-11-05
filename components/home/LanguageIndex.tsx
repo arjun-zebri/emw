@@ -43,7 +43,7 @@ export function LanguageIndex({
   return (
     <div className="grid grid-cols-1 gap-12 md:grid-cols-12 md:gap-8">
       <div className="md:col-span-6">
-        <h2 data-reveal className={sectionTitle}>
+        <h2 data-reveal suppressHydrationWarning className={sectionTitle}>
           {title}
         </h2>
         <p className="mt-[clamp(2rem,4vw,3.5rem)] font-display text-[clamp(1.9rem,3.2vw,3.25rem)] leading-[1.35] tracking-[-0.015em]">

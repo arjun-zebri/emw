@@ -26,7 +26,7 @@ export function Featured() {
       <SectionHeading link={{ href: "/vendors", label: "View all" }}>Featured vendors</SectionHeading>
       <div className="@container grid grid-cols-1 gap-x-[var(--g)] gap-y-14 [--g:clamp(1rem,2vw,2rem)] md:grid-cols-12">
         {picks.map((slug) => getVendor(slug)!).map((v, i) => (
-          <div key={v.slug} data-reveal style={{ "--d": `${(i % 3) * 0.08}s` } as React.CSSProperties} className={clsx(layout[i].cell)}>
+          <div key={v.slug} data-reveal suppressHydrationWarning style={{ "--d": `${(i % 3) * 0.08}s` } as React.CSSProperties} className={clsx(layout[i].cell)}>
             <VendorCard
               data={{ vendor: v, location: locationLabel(v) }}
               aspect={layout[i].aspect}
