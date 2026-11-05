@@ -623,9 +623,28 @@ function DraftDetail({
 
 const ratioOf = (p: DraftPhoto) => (p.width && p.height ? p.width / p.height : 1);
 
+/** Rows of photos whose ratios add up to about `target`, like the vendor page's gallery. */
+function photoRows<T>(items: T[], ratio: (x: T) => number, target: number) {
+  const out: T[][] = [];
+  let row: T[] = [];
+  let sum = 0;
+  for (const x of items) {
+    row.push(x);
+    sum += ratio(x);
+    if (sum >= target) {
+      out.push(row);
+      row = [];
+      sum = 0;
+    }
+  }
+  if (row.length) out.push(row);
+  return out;
+}
+
 /**
- * Every photo, uncropped, in listing order. Drag one to move it, or use its buttons; the first is
- * the cover, previewed beside them as the directory card crops it. Click a photo to see it full size.
+ * The photos at a size you can judge them by: the cover large and uncropped, the rest in full-width
+ * rows below, never cropped either. Drag a photo onto another to move it there, or use its buttons;
+ * click one to see it full screen.
  */
 function Photos({ d }: { d: Draft }) {
   const [dragging, setDragging] = useState<number | null>(null);
@@ -633,7 +652,7 @@ function Photos({ d }: { d: Draft }) {
   const n = d.photos.length;
 
   if (n === 0) {
-    return <div className="flex h-32 items-center justify-center border border-dashed border-ink/15 text-[0.8125rem] text-ink-mute">No photos yet</div>;
+    return <div className="flex h-48 items-center justify-center border border-dashed border-ink/15 text-[0.8125rem] text-ink-mute">No photos yet</div>;
   }
 
   const move = (from: number, to: number) => {
@@ -643,70 +662,92 @@ function Photos({ d }: { d: Draft }) {
     next.splice(to, 0, photo);
     reorderPhotos(d, next).catch((e: Error) => toast(`Couldn't save the new order: ${e.message}`));
   };
-  const endDrag = () => {
-    setDragging(null);
-    setOver(null);
-  };
   const slots = d.photos.map((p, i) => ({ src: p.src, alt: `${d.name}, photo ${i + 1}`, brief: "", ratio: ratioOf(p) }));
+  const TARGET = 3;
+  const rest = photoRows(
+    d.photos.slice(1).map((p, k) => ({ p, i: k + 1 })),
+    (x) => ratioOf(x.p),
+    TARGET,
+  );
+
+  const tile = (p: DraftPhoto, i: number, style: React.CSSProperties, sizes: string) => (
+    <div
+      key={p.id}
+      draggable={n > 1}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        setDragging(i);
+      }}
+      onDragOver={(e) => {
+        if (dragging === null) return;
+        e.preventDefault();
+        setOver(i);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        if (dragging !== null) move(dragging, i);
+        setDragging(null);
+        setOver(null);
+      }}
+      onDragEnd={() => {
+        setDragging(null);
+        setOver(null);
+      }}
+      className={clsx(
+        "group/tile relative min-w-0 bg-paper-soft transition-opacity",
+        n > 1 && "cursor-grab active:cursor-grabbing",
+        dragging === i && "opacity-40",
+        over === i && dragging !== null && dragging !== i && "outline-2 outline-offset-2 outline-ink",
+      )}
+      style={style}
+    >
+      <GalleryImage index={i} sizes={sizes} className="size-full" />
+      {i === 0 && <span className="pointer-events-none absolute top-3 left-3 bg-ink px-2 py-1 text-[0.75rem] text-paper">Cover</span>}
+      {n > 1 && (
+        <span className="absolute right-3 bottom-3 flex gap-1.5 opacity-0 transition-opacity group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 [@media(hover:none)]:opacity-100">
+          {i > 0 && (
+            <TileButton onClick={() => move(i, 0)} label={`Make photo ${i + 1} the cover`}>
+              Make cover
+            </TileButton>
+          )}
+          {i > 0 && <TileButton onClick={() => move(i, i - 1)} label={`Move photo ${i + 1} earlier`} icon="arrow-left" />}
+          {i < n - 1 && <TileButton onClick={() => move(i, i + 1)} label={`Move photo ${i + 1} later`} icon="arrow" />}
+        </span>
+      )}
+    </div>
+  );
+
   const cover = d.photos[0];
+  const coverRatio = ratioOf(cover);
 
   return (
     <Gallery images={slots} name={d.name} slug={`approval-${d.slug}`}>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
-        <figure className="max-w-[9.5rem]">
-          <div className="relative aspect-[4/5] overflow-hidden bg-paper-soft">
-            <Media src={cover.src} alt={`${d.name}, cover`} brief="" sizes="152px" className="size-full" />
-          </div>
-          <figcaption className="mt-2 text-[0.6875rem] leading-snug text-ink-mute">The cover, as the directory card crops it</figcaption>
-        </figure>
-        <div className="min-w-0">
-          <p className="mb-2 text-[0.75rem] text-ink-mute">{n === 1 ? "1 photo" : `${n} photos. Drag to reorder; the first is the cover.`}</p>
-          <ul className="flex flex-wrap gap-2">
-            {d.photos.map((p, i) => (
-              <li
-                key={p.id}
-                draggable={n > 1}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  setDragging(i);
-                }}
-                onDragOver={(e) => {
-                  if (dragging === null) return;
-                  e.preventDefault();
-                  setOver(i);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragging !== null) move(dragging, i);
-                  endDrag();
-                }}
-                onDragEnd={endDrag}
-                className={clsx(
-                  "group/tile relative h-28 shrink-0 bg-paper-soft transition-opacity sm:h-32",
-                  n > 1 && "cursor-grab active:cursor-grabbing",
-                  dragging === i && "opacity-40",
-                  over === i && dragging !== null && dragging !== i && "outline-2 outline-offset-2 outline-ink",
-                )}
-                style={{ aspectRatio: ratioOf(p) }}
-              >
-                <GalleryImage index={i} sizes="200px" className="size-full" />
-                {i === 0 && <span className="pointer-events-none absolute top-1.5 left-1.5 bg-ink px-1.5 py-0.5 text-[0.6875rem] text-paper">Cover</span>}
-                {n > 1 && (
-                  <span className="absolute inset-x-1.5 bottom-1.5 flex justify-end gap-1 opacity-0 transition-opacity group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 [@media(hover:none)]:opacity-100">
-                    {i > 0 && (
-                      <TileButton onClick={() => move(i, 0)} label={`Make photo ${i + 1} the cover`}>
-                        Cover
-                      </TileButton>
-                    )}
-                    {i > 0 && <TileButton onClick={() => move(i, i - 1)} label={`Move photo ${i + 1} earlier`} icon="arrow-left" />}
-                    {i < n - 1 && <TileButton onClick={() => move(i, i + 1)} label={`Move photo ${i + 1} later`} icon="arrow" />}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+      <div className="space-y-2">
+        {/* As wide as the panel, up to 34rem tall, at the photo's own shape. */}
+        <div className="flex justify-center bg-paper-soft">
+          {tile(cover, 0, { aspectRatio: coverRatio, width: `min(100%, calc(34rem * ${coverRatio}))` }, "(min-width: 1024px) 50vw, 100vw")}
         </div>
+        {rest.map((row) => {
+          const sum = row.reduce((a, x) => a + ratioOf(x.p), 0);
+          const full = sum >= TARGET;
+          return (
+            <div key={row[0].p.id} className="flex gap-2">
+              {row.map(({ p, i }) =>
+                tile(
+                  p,
+                  i,
+                  // A full row fills the width; a short last row keeps the same height instead of blowing up.
+                  full ? { aspectRatio: ratioOf(p), flex: `${ratioOf(p)} 1 0%` } : { aspectRatio: ratioOf(p), width: `calc(${(ratioOf(p) / TARGET) * 100}% - 0.25rem)` },
+                  "(min-width: 1024px) 25vw, 50vw",
+                ),
+              )}
+            </div>
+          );
+        })}
       </div>
+      <p className="mt-3 text-[0.75rem] text-ink-mute">
+        {n === 1 ? "1 photo." : `${n} photos. Drag one onto another to move it, or hover for its buttons. The first is the cover.`}
+      </p>
     </Gallery>
   );
 }
@@ -718,9 +759,9 @@ function TileButton({ onClick, label, icon, children }: { onClick: () => void; l
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-6 min-w-6 items-center justify-center bg-surface/95 px-1.5 text-[0.6875rem] text-ink shadow-sm transition-colors hover:bg-surface"
+      className="flex h-8 min-w-8 items-center justify-center bg-surface/95 px-2.5 text-[0.75rem] text-ink shadow-sm backdrop-blur transition-colors hover:bg-surface"
     >
-      {icon ? <Icon name={icon} className="size-3" strokeWidth={1.6} /> : children}
+      {icon ? <Icon name={icon} className="size-3.5" strokeWidth={1.6} /> : children}
     </button>
   );
 }
