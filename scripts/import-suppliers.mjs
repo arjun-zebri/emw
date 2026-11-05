@@ -1,5 +1,5 @@
 // Adds the suppliers from the team's research spreadsheet (Combined.xlsx, "Supplier Directory" tab)
-// to the staging database as draft vendors.
+// to the staging database as draft vendors, with the photos the spreadsheet links to.
 //
 //   node --env-file=.env.local scripts/import-suppliers.mjs [--dry-run]
 //
@@ -13,13 +13,14 @@
 // Insert only. A vendor whose slug is already in the database is left exactly as it is, so the
 // script is safe to run again.
 //
-// No photos. The spreadsheet lists image links on the suppliers' own websites, but we don't take
-// photos from a business's site or socials: they come from the business or the EMW team (the
-// Drive folder, the live listing, or an upload), so a draft without them waits under "Missing data".
+// Photos are only the ones the team supplied: the spreadsheet's Photo 1–3 links. Nothing goes
+// looking for others; a draft without supplied photos waits under "Missing data".
 
 import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 import { parseCsv } from "./lib/csv.mjs";
+import { uploadVariants } from "./lib/variants.mjs";
 
 const CSV = "data/imports/supplier-directory.csv";
 const STAGING = "nntjkiknekpolkftejnm";
@@ -42,7 +43,8 @@ const todo = suppliers.filter((s) => s.import === "yes");
 console.log(`${suppliers.length} rows in ${CSV}, ${todo.length} to import${dryRun ? " (dry run)" : ""}`);
 
 const existing = new Set(must(await db.from("vendors").select("slug")).map((v) => v.slug));
-let added = 0, kept = 0;
+let added = 0, kept = 0, photoCount = 0;
+const failed = [];
 
 for (const s of todo) {
   if (existing.has(s.slug)) {
@@ -64,8 +66,34 @@ for (const s of todo) {
     facebook: orNull(s.facebook),
     status: "draft",
   };
-  if (!dryRun) must(await db.from("vendors").insert(row));
   added++;
+  if (dryRun) continue;
+  const { id } = must(await db.from("vendors").insert(row).select("id").single());
+
+  const urls = [s.photo_1, s.photo_2, s.photo_3].map((u) => u.trim()).filter(Boolean);
+  const photos = [];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { data, info } = await sharp(Buffer.from(await res.arrayBuffer()))
+        .rotate()
+        .resize({ width: 2000, height: 2000, fit: "inside", withoutEnlargement: true })
+        .flatten({ background: "#ffffff" })
+        .jpeg({ quality: 86, mozjpeg: true })
+        .toBuffer({ resolveWithObject: true });
+      const i = photos.length;
+      const key = `${id}/${String(i).padStart(2, "0")}.jpg`;
+      must(await db.storage.from("vendor-photos").upload(key, data, { contentType: "image/jpeg", upsert: false }));
+      await uploadVariants(db, key, data);
+      photos.push({ vendor_id: id, path: key, width: info.width, height: info.height, alt: i === 0 ? s.name : `${s.name}, photo ${i + 1}`, position: i });
+    } catch (e) {
+      failed.push(`${s.slug}: ${url} (${e.message})`);
+    }
+  }
+  if (photos.length) must(await db.from("vendor_photos").insert(photos));
+  photoCount += photos.length;
 }
 
-console.log(`${added} vendors added as drafts, ${kept} already there and left alone`);
+console.log(`${added} vendors added as drafts, ${kept} already there and left alone, ${photoCount} photos`);
+if (failed.length) console.log(`Photos that couldn't be fetched:\n  ${failed.join("\n  ")}`);

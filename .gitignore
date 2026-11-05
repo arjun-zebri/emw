@@ -43,3 +43,6 @@ next-env.d.ts
 
 # supplier imports: contact details of people who have not yet agreed to a public listing
 /data/imports/
+
+# project notes for Claude, kept local
+/CLAUDE.md
