@@ -4,6 +4,10 @@
 //   1. Copy the new password (10+ characters).
 //   2. node --env-file=.env.local scripts/set-password.mjs someone@example.com
 //
+// .env.local points at the staging database. For the live one, pull its settings first:
+//   vercel env pull .env.production.local --environment production
+//   node --env-file=.env.production.local scripts/set-password.mjs someone@example.com
+//
 // The account still needs a role to get in: a row in team_members, or one in vendor_members.
 
 import { execFileSync } from "node:child_process";
@@ -28,4 +32,5 @@ if (result.error) throw result.error;
 
 // Clear the clipboard so the password doesn't linger.
 execFileSync("pbcopy", { input: "" });
-console.log(`${user ? "Updated" : "Created"} ${email}. Clipboard cleared.`);
+const project = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname.split(".")[0];
+console.log(`${user ? "Updated" : "Created"} ${email} in ${project}. Clipboard cleared.`);

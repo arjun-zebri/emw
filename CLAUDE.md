@@ -136,7 +136,7 @@ emails; the user doesn't want Supabase sending any). Sign-up is off, so only acc
 password with `scripts/set-password.mjs` (reads it from the clipboard), then add a `team_members` or `vendor_members` row. `proxy.ts` checks the token's `emw_role`
 and `vendor_slug` claims, which the database adds (`custom_access_token_hook`). The team can open `/account` too; until
 the portal reads real data it shows Katrina Lai (`DEMO_VENDOR`).
-- **Supabase** (project `goesitjercqizgtigquj`, Sydney, owned by admin@eastmeetswed.com). Schema, row level security and
+- **Supabase** (two projects, Sydney, owned by admin@eastmeetswed.com; see Branches and environments). Schema, row level security and
   storage buckets are in `supabase/migrations`; regenerate `lib/supabase/database.types.ts` after a schema change.
   Clients: `lib/supabase/server.ts` (server), `browser.ts` (client), `session.ts` (claims, shared with the proxy).
 - **Sample data in the portals.** Figures come from `lib/admin/analytics.ts`, `billing.ts` and `people.ts`: seeded random on a fixed clock
@@ -148,6 +148,18 @@ the portal reads real data it shows Katrina Lai (`DEMO_VENDOR`).
   (hand-drawn SVG, no chart library). Boska for titles and names only, Switzer 14px, white panels on paper, square
   corners. Status colours (`good`/`warn`/`bad`) only mean state; the tier ramp is `tier-1..3`.
 - `AdminShell` reads the pathname inside Suspense; dynamic admin routes read their params on the client.
+
+## Branches and environments
+
+| Branch    | Site                                      | Database (Supabase)                         |
+| --------- | ----------------------------------------- | ------------------------------------------- |
+| `staging` | https://east-meets-wed-staging.vercel.app | `east-meets-wed-staging` (`nntjkiknekpolkftejnm`) |
+| `main`    | live site (eastmeetswed.com at launch)    | `east-meets-wed` (`goesitjercqizgtigquj`)    |
+
+- **Work goes to `staging`**, never straight to `main`. Every push to either branch deploys. `main` only changes by
+  merging `staging` once the user says so.
+- Local dev (`.env.local`) and every other preview branch use the staging database.
+- A schema change is a new file in `supabase/migrations`, applied to staging first and to production at release.
 
 ## Before committing
 
