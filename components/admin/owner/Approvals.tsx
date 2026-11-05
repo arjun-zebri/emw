@@ -1,7 +1,6 @@
 "use client";
 
 import clsx from "clsx";
-import { AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -34,7 +33,8 @@ import { decide, deletePost, nowIso, savePost, slugify, undecide, useAdmin } fro
 import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { getVendor } from "@/lib/vendors";
-import { VendorPreview } from "../shared/VendorPreview";
+import type { VendorFormValues } from "../shared/VendorForm";
+import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, inputCls } from "../ui";
 
@@ -80,7 +80,7 @@ export function Approvals() {
   const desktop = useDesktop();
   const queue = useQueue();
   const [busy, setBusy] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
+  const [view, setView] = useState<PanelView>("listing");
 
   const raw = params.get("tab");
   const tab: Tab = raw === "vendors" ? "ready" : tabs.includes(raw as Tab) ? (raw as Tab) : "ready";
@@ -232,19 +232,7 @@ export function Approvals() {
     return () => removeEventListener("keydown", onKey);
   }, [openId]);
 
-  const detail = onQueue
-    ? row && (
-        <DraftDetail
-          key={row.id}
-          row={row}
-          draft={draft}
-          busy={busy}
-          onApprove={() => void decideRow(row, "approved")}
-          onDecline={(note) => void decideRow(row, "declined", note)}
-          onPreview={() => setPreviewing(true)}
-        />
-      )
-    : item && <ItemDetail key={item.data.id} item={item} onApprove={() => approveItem(item)} onDecline={(note) => declineItem(item, note)} />;
+  const detail = !onQueue && item && <ItemDetail key={item.data.id} item={item} onApprove={() => approveItem(item)} onDecline={(note) => declineItem(item, note)} />;
 
   const title = onQueue ? row?.name : item && itemTitle(item);
 
@@ -331,7 +319,8 @@ export function Approvals() {
         <Drawer
           open={!!row}
           onClose={() => go({ item: null })}
-          width="max-w-[62rem]"
+          footer={row && <DraftActions key={row.id} row={row} busy={busy} onApprove={() => void decideRow(row, "approved")} onDecline={(note) => void decideRow(row, "declined", note)} />}
+          width="max-w-[min(96rem,calc(100vw-3rem))]"
           title={
             row && (
               <span className="flex items-center gap-3">
@@ -347,7 +336,7 @@ export function Approvals() {
             )
           }
         >
-          <div className="p-4 sm:p-6">{detail}</div>
+          {row && <DraftPanel row={row} draft={draft} view={view} onView={setView} />}
         </Drawer>
       )}
       {!onQueue && !desktop && (
@@ -356,33 +345,6 @@ export function Approvals() {
         </Drawer>
       )}
 
-      <AnimatePresence>
-        {previewing && draft && (
-          <VendorPreview
-            values={{
-              name: draft.name,
-              person: draft.person ?? "",
-              discipline: draft.discipline,
-              lede: "",
-              services: draft.services,
-              based: "",
-              serviceArea: draft.serviceArea,
-              languages: draft.languages,
-              email: draft.email ?? "",
-              phone: draft.phone ?? "",
-              website: draft.website ?? "",
-              instagram: draft.instagram ?? "",
-              facebook: draft.facebook ?? "",
-              photos: [],
-              tier: "essential",
-              billing: "monthly",
-            }}
-            photos={draft.photos.map((p) => p.src)}
-            story={draft.story}
-            onClose={() => setPreviewing(false)}
-          />
-        )}
-      </AnimatePresence>
     </>
   );
 }
@@ -554,7 +516,7 @@ function QueueList({ rows, selected, tab, onSelect }: { rows: QueueRow[]; select
                     ))}
                   </span>
                   <span className="hidden w-20 shrink-0 text-right text-[0.75rem] text-ink-mute tabular-nums sm:block">
-                    {r.photoCount > 0 ? `${r.photoCount} ${r.photoCount === 1 ? "photo" : "photos"}` : "No photos"}
+                    {r.photoCount > 0 && `${r.photoCount} ${r.photoCount === 1 ? "photo" : "photos"}`}
                   </span>
                   <Icon name="arrow" className="size-3.5 shrink-0 text-ink-mute transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
                 </button>
@@ -620,79 +582,86 @@ function Decided({ decisions, onUndo }: { decisions: Decision[]; onUndo: (vendor
   );
 }
 
-function DraftDetail({
-  row,
-  draft,
-  busy,
-  onApprove,
-  onDecline,
-  onPreview,
-}: {
-  row: QueueRow;
-  draft?: Draft;
-  busy: boolean;
-  onApprove: () => void;
-  onDecline: (note?: string) => void;
-  onPreview: () => void;
-}) {
-  const [declining, setDeclining] = useState(false);
-  const [note, setNote] = useState("");
-  const blocked = row.missing.length > 0;
+type PanelView = "listing" | "card" | "photos" | "details";
 
+const previewValues = (d: Draft): VendorFormValues => ({
+  name: d.name,
+  person: d.person ?? "",
+  discipline: d.discipline,
+  lede: "",
+  services: d.services,
+  based: "",
+  serviceArea: d.serviceArea,
+  languages: d.languages,
+  email: d.email ?? "",
+  phone: d.phone ?? "",
+  website: d.website ?? "",
+  instagram: d.instagram ?? "",
+  facebook: d.facebook ?? "",
+  photos: [],
+  tier: "essential",
+  billing: "monthly",
+});
+
+/**
+ * What the panel shows: the listing as couples will see it (its page, or its card in the directory),
+ * then the photos to arrange and the details and research to check. Anything missing or worth a
+ * second look sits above, whichever view is open.
+ */
+function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft; view: PanelView; onView: (v: PanelView) => void }) {
   return (
-    <Panel>
-      <div className="flex items-start justify-between gap-4 pt-2">
-        <div className="min-w-0">
-          <h2 className="font-display text-[1.75rem] leading-tight tracking-[-0.02em]">{row.name}</h2>
-          <p className="mt-1 text-[0.8125rem] text-ink-mute">{[row.discipline || "No category", draft?.person].filter(Boolean).join(" · ")}</p>
-        </div>
-        <Btn size="sm" icon="eye" onClick={onPreview} disabled={!draft}>
-          Preview
-        </Btn>
+    <div>
+      <div className="sticky top-0 z-10 bg-paper/95 px-6 pt-4 backdrop-blur">
+        <Tabs
+          value={view}
+          onChange={onView}
+          tabs={[
+            { id: "listing", label: "Listing" },
+            { id: "card", label: "In the directory" },
+            { id: "photos", label: "Photos", count: draft?.photos.length ?? row.photoCount },
+            { id: "details", label: "Details and research" },
+          ]}
+        />
       </div>
 
-      {blocked && (
-        <div className="mt-5 flex gap-3 border border-warn/30 bg-warn/[0.06] p-4">
-          <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-warn" strokeWidth={1.5} />
-          <p className="text-[0.8125rem] text-ink-soft">
-            <span className="font-medium text-ink">Can&rsquo;t be published yet.</span> {row.missing.map((m) => missingLabels[m]).join(", ")}.
-          </p>
-        </div>
-      )}
-      {row.flags.length > 0 && (
-        <ul className="mt-4 space-y-1.5">
-          {row.flags.map((f) => (
-            <li key={f} className="flex gap-2 text-[0.75rem] text-ink-soft">
-              <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-warn" aria-hidden />
+      {(row.missing.length > 0 || row.flags.length > 0) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-6 pt-4 text-[0.8125rem]">
+          {row.missing.length > 0 && (
+            <span className="flex items-center gap-2 text-ink-soft">
+              <Icon name="alert" className="size-4 text-warn" strokeWidth={1.5} />
               <span>
-                <span className="font-medium text-ink">{flagLabels[f].label}.</span> {flagLabels[f].detail}
+                <span className="font-medium text-ink">Can&rsquo;t be published yet:</span> {row.missing.map((m) => missingLabels[m].toLowerCase()).join(", ")}.
               </span>
-            </li>
+            </span>
+          )}
+          {row.flags.map((f) => (
+            <span key={f} title={flagLabels[f].detail}>
+              <Badge tone="warn">{flagLabels[f].label}</Badge>
+            </span>
           ))}
-        </ul>
+        </div>
       )}
 
       {!draft ? (
-        <div className="mt-6 space-y-3" aria-busy="true">
-          <div className="h-32 animate-pulse bg-paper-soft" />
+        <div className="space-y-3 p-6" aria-busy="true">
+          <div className="h-[28rem] animate-pulse bg-paper-soft" />
           <div className="h-4 w-2/3 animate-pulse bg-paper-soft" />
-          <div className="h-4 w-1/2 animate-pulse bg-paper-soft" />
+        </div>
+      ) : view === "listing" || view === "card" ? (
+        // Exactly the public markup; nothing in it links anywhere.
+        <div className="pointer-events-none pt-2 select-none [&_.shell]:max-w-none">
+          <ListingPreview values={previewValues(draft)} photos={draft.photos.map((p) => p.src)} story={draft.story} view={view === "listing" ? "page" : "directory"} />
+        </div>
+      ) : view === "photos" ? (
+        <div className="p-6">
+          <Photos d={draft} />
         </div>
       ) : (
-        <>
-          <div className="mt-6">
-            <Photos d={draft} />
-          </div>
-          {draft.story.length > 0 && (
-            <div className="mt-6 max-w-[62ch] space-y-3 text-[0.9375rem] leading-relaxed">
-              {draft.story.map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-            </div>
-          )}
+        <div className="max-w-[56rem] p-6">
           {draft.review && <Research r={draft.review} name={draft.name} />}
           <Facts
             rows={[
+              ...(draft.person ? [["Contact", draft.person] as Row] : []),
               ...(draft.email ? [["Email", link(`mailto:${draft.email}`, draft.email)] as Row] : []),
               ...(draft.phone ? [["Phone", draft.phone] as Row] : []),
               ["Services", draft.services.map((s) => serviceLabels[s] ?? s).join(", ") || "None yet"],
@@ -712,40 +681,51 @@ function DraftDetail({
               ...(draft.facebook ? [["Facebook", link(draft.facebook, bare(draft.facebook))] as Row] : []),
             ]}
           />
-        </>
+        </div>
       )}
+    </div>
+  );
+}
 
-      <div className="sticky bottom-0 mt-6 border-t hairline bg-surface pt-5 pb-5">
-        {declining ? (
-          <div className="space-y-3">
-            <label className="block text-[0.8125rem] font-medium" htmlFor="decline-note">
-              Why <span className="font-normal text-ink-mute">(for the team, optional)</span>
-            </label>
-            <textarea id="decline-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className={clsx(inputCls, "resize-none")} autoFocus />
-            <div className="flex gap-2">
-              <Btn variant="danger" onClick={() => onDecline(note)} disabled={busy}>
-                Decline
-              </Btn>
-              <Btn variant="ghost" onClick={() => setDeclining(false)}>
-                Cancel
-              </Btn>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <Btn variant="primary" icon="check" onClick={onApprove} disabled={busy || blocked}>
-              Approve and publish
-            </Btn>
-            <Btn onClick={() => setDeclining(true)} disabled={busy}>
-              Decline
-            </Btn>
-            <p className="t-small ml-1 text-[0.75rem]">
-              {blocked ? "Approving opens up once nothing is missing." : "Publishing doesn't email the business. Either can be undone."}
-            </p>
-          </div>
-        )}
+/** The decision, in the panel's footer so it's always in reach. */
+function DraftActions({ row, busy, onApprove, onDecline }: { row: QueueRow; busy: boolean; onApprove: () => void; onDecline: (note?: string) => void }) {
+  const [declining, setDeclining] = useState(false);
+  const [note, setNote] = useState("");
+  const blocked = row.missing.length > 0;
+
+  if (declining) {
+    return (
+      <div className="flex w-full flex-wrap items-center gap-2">
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && onDecline(note)}
+          placeholder="Why? For the team, optional"
+          aria-label="Why it was declined"
+          className={clsx(inputCls, "min-w-0 flex-1")}
+          autoFocus
+        />
+        <Btn variant="ghost" onClick={() => setDeclining(false)}>
+          Cancel
+        </Btn>
+        <Btn variant="danger" onClick={() => onDecline(note)} disabled={busy}>
+          Decline
+        </Btn>
       </div>
-    </Panel>
+    );
+  }
+  return (
+    <div className="flex w-full flex-wrap items-center gap-2">
+      <p className="t-small mr-auto text-[0.75rem]">
+        {blocked ? "Approving opens up once nothing is missing." : "Publishing doesn't email the business. Either can be undone."}
+      </p>
+      <Btn onClick={() => setDeclining(true)} disabled={busy}>
+        Decline
+      </Btn>
+      <Btn variant="primary" icon="check" onClick={onApprove} disabled={busy || blocked}>
+        Approve and publish
+      </Btn>
+    </div>
   );
 }
 

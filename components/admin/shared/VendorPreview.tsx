@@ -12,7 +12,7 @@ import { locationLabel, vendors } from "@/lib/vendors";
 import { PreviewFrame } from "./PreviewFrame";
 import type { VendorFormValues } from "./VendorForm";
 
-type View = "page" | "directory";
+export type PreviewView = "page" | "directory";
 
 const displayUrl = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
 
@@ -22,9 +22,7 @@ const displayUrl = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").repl
  * context; nothing in it links anywhere.
  */
 export function VendorPreview({ values: v, photos, story = [], onClose }: { values: VendorFormValues; photos: string[]; story?: string[]; onClose: () => void }) {
-  const [view, setView] = useState<View>("page");
-  const ratios = useRatios(photos);
-  const location = locationLabel({ based: v.based || undefined, serviceArea: v.serviceArea } as Vendor);
+  const [view, setView] = useState<PreviewView>("page");
 
   return (
     <PreviewFrame
@@ -36,9 +34,16 @@ export function VendorPreview({ values: v, photos, story = [], onClose }: { valu
       onView={setView}
       onClose={onClose}
     >
-      {view === "page" ? <PagePreview v={v} photos={photos} story={story} ratios={ratios} location={location} /> : <DirectoryPreview v={v} cover={photos[0]} />}
+      <ListingPreview values={v} photos={photos} story={story} view={view} />
     </PreviewFrame>
   );
+}
+
+/** The listing itself, without a frame: the vendor page, or its card in the directory. */
+export function ListingPreview({ values: v, photos, story = [], view }: { values: VendorFormValues; photos: string[]; story?: string[]; view: PreviewView }) {
+  const ratios = useRatios(photos);
+  const location = locationLabel({ based: v.based || undefined, serviceArea: v.serviceArea } as Vendor);
+  return view === "page" ? <PagePreview v={v} photos={photos} story={story} ratios={ratios} location={location} /> : <DirectoryPreview v={v} cover={photos[0]} />;
 }
 
 function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValues; photos: string[]; story: string[]; ratios: Record<string, number>; location: string }) {
