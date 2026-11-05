@@ -32,7 +32,7 @@ import type { Review, Submission } from "@/lib/admin/people";
 import { decide, deletePost, nowIso, savePost, slugify, undecide, useAdmin } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
-import { getVendor } from "@/lib/vendors";
+import { getVendor } from "@/lib/static-vendors";
 import type { VendorFormValues } from "../shared/VendorForm";
 import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
@@ -582,7 +582,7 @@ function Decided({ decisions, onUndo }: { decisions: Decision[]; onUndo: (vendor
   );
 }
 
-type PanelView = "listing" | "card" | "photos" | "details";
+type PanelView = "listing" | "photos" | "details";
 
 const previewValues = (d: Draft): VendorFormValues => ({
   name: d.name,
@@ -604,8 +604,8 @@ const previewValues = (d: Draft): VendorFormValues => ({
 });
 
 /**
- * What the panel shows: the listing as couples will see it (its page, or its card in the directory),
- * then the photos to arrange and the details and research to check. Anything missing or worth a
+ * What the panel shows: the listing as couples will see it, then the photos to arrange and the
+ * details and research to check. Anything missing or worth a
  * second look sits above, whichever view is open.
  */
 function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft; view: PanelView; onView: (v: PanelView) => void }) {
@@ -617,7 +617,6 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
           onChange={onView}
           tabs={[
             { id: "listing", label: "Listing" },
-            { id: "card", label: "In the directory" },
             { id: "photos", label: "Photos", count: draft?.photos.length ?? row.photoCount },
             { id: "details", label: "Details and research" },
           ]}
@@ -647,10 +646,10 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
           <div className="h-[28rem] animate-pulse bg-paper-soft" />
           <div className="h-4 w-2/3 animate-pulse bg-paper-soft" />
         </div>
-      ) : view === "listing" || view === "card" ? (
+      ) : view === "listing" ? (
         // Exactly the public markup; nothing in it links anywhere.
         <div className="pointer-events-none pt-2 select-none [&_.shell]:max-w-none">
-          <ListingPreview values={previewValues(draft)} photos={draft.photos.map((p) => p.src)} story={draft.story} view={view === "listing" ? "page" : "directory"} />
+          <ListingPreview values={previewValues(draft)} photos={draft.photos.map((p) => p.src)} story={draft.story} view="page" />
         </div>
       ) : view === "photos" ? (
         <div className="p-6">
