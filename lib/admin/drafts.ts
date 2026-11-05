@@ -20,7 +20,7 @@ export type ReviewNotes = {
   source: string;
 };
 
-export type DraftPhoto = { src: string; width: number | null; height: number | null };
+export type DraftPhoto = { id: string; src: string; width: number | null; height: number | null };
 
 export type Draft = {
   id: string;
@@ -61,7 +61,7 @@ async function load() {
   set({ status: "loading", error: undefined });
   const { data, error } = await supabase()
     .from("vendors")
-    .select("id, slug, name, person, discipline, services, languages, service_area, story, email, phone, website, instagram, facebook, created_at, vendor_photos(path, width, height, position)")
+    .select("id, slug, name, person, discipline, services, languages, service_area, story, email, phone, website, instagram, facebook, created_at, vendor_photos(id, path, width, height, position)")
     .eq("status", "draft")
     .order("name");
   if (error) return set({ status: "error", error: error.message });
@@ -96,7 +96,7 @@ async function load() {
       website: opt(v.website),
       instagram: opt(v.instagram),
       facebook: opt(v.facebook),
-      photos: [...v.vendor_photos].sort((a, b) => a.position - b.position).map((p) => ({ src: imageUrl("vendor-photos", p.path), width: p.width, height: p.height })),
+      photos: [...v.vendor_photos].sort((a, b) => a.position - b.position).map((p) => ({ id: p.id, src: imageUrl("vendor-photos", p.path), width: p.width, height: p.height })),
       submitted: v.created_at,
       review: reviews.get(v.id),
     }),
@@ -135,4 +135,36 @@ export async function undoDraft(draft: Draft) {
     drafts: [...state.drafts, draft].sort((a, b) => a.name.localeCompare(b.name)),
     decided: state.decided.filter((d) => d.draft.id !== draft.id),
   });
+}
+
+const patchPhotos = (draftId: string, photos: DraftPhoto[]) =>
+  set({ drafts: state.drafts.map((d) => (d.id === draftId ? { ...d, photos } : d)) });
+
+// Saves run one after another, so quick successive moves land in the order they were made.
+let saving: Promise<unknown> = Promise.resolve();
+
+/**
+ * Put a draft's photos in a new order; the first is the cover. The screen updates straight away
+ * and goes back to the previous order if the database refuses.
+ */
+export function reorderPhotos(draft: Draft, photos: DraftPhoto[]) {
+  const before = state.drafts.find((d) => d.id === draft.id)?.photos ?? draft.photos;
+  patchPhotos(draft.id, photos);
+  const run = saving.then(async () => {
+    const results = await Promise.all(
+      photos.map((p, i) =>
+        supabase()
+          .from("vendor_photos")
+          .update({ position: i, alt: i === 0 ? draft.name : `${draft.name}, photo ${i + 1}` })
+          .eq("id", p.id),
+      ),
+    );
+    const failed = results.find((r) => r.error)?.error;
+    if (failed) {
+      patchPhotos(draft.id, before);
+      throw new Error(failed.message);
+    }
+  });
+  saving = run.catch(() => {});
+  return run;
 }

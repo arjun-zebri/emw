@@ -7,7 +7,8 @@ import { useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import { decideDraft, reloadDrafts, undoDraft, useDrafts, type Draft, type ReviewNotes, type Verdict } from "@/lib/admin/drafts";
+import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
+import { decideDraft, reloadDrafts, reorderPhotos, undoDraft, useDrafts, type Draft, type DraftPhoto, type ReviewNotes, type Verdict } from "@/lib/admin/drafts";
 import { pending } from "@/lib/admin/feed";
 import { ago, day } from "@/lib/admin/format";
 import { reviews, submissions, type Review, type Submission } from "@/lib/admin/people";
@@ -186,7 +187,8 @@ export function Approvals() {
         </Panel>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
-          <Panel flush className="self-start">
+          {/* The list scrolls on its own at desktop, so the chosen item's detail stays in view. */}
+          <Panel flush className="self-start lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto">
             <ul>
               {open.map((item, i) => {
                 const on = selected?.data.id === item.data.id;
@@ -194,7 +196,11 @@ export function Approvals() {
                   <li key={item.data.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
                     <button
                       type="button"
-                      onClick={() => go({ item: item.data.id })}
+                      onClick={() => {
+                        go({ item: item.data.id });
+                        // A long profile may have scrolled the page; bring the next one's top back into view.
+                        if (desktop && scrollY > 0) scrollTo({ top: 0, behavior: "smooth" });
+                      }}
                       aria-current={on ? "true" : undefined}
                       className={clsx("relative flex w-full items-center gap-3 px-5 py-4 text-left transition-colors", on ? "bg-paper" : "hover:bg-paper/60")}
                     >
@@ -382,25 +388,116 @@ function Research({ r }: { r: ReviewNotes }) {
   );
 }
 
+const ratioOf = (p: DraftPhoto) => (p.width && p.height ? p.width / p.height : 1);
+
+/**
+ * Every photo, uncropped, in listing order. Drag one to move it, or use its buttons; the first is
+ * the cover, previewed beside them as the directory card crops it. Click a photo to see it full size.
+ */
+function Photos({ d }: { d: Draft }) {
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const n = d.photos.length;
+
+  if (n === 0) {
+    return <div className="flex h-32 items-center justify-center border border-dashed border-ink/15 text-[0.8125rem] text-ink-mute">No photos yet</div>;
+  }
+
+  const move = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...d.photos];
+    const [photo] = next.splice(from, 1);
+    next.splice(to, 0, photo);
+    reorderPhotos(d, next).catch((e: Error) => toast(`Couldn't save the new order: ${e.message}`));
+  };
+  const endDrag = () => {
+    setDragging(null);
+    setOver(null);
+  };
+  const slots = d.photos.map((p, i) => ({ src: p.src, alt: `${d.name}, photo ${i + 1}`, brief: "", ratio: ratioOf(p) }));
+  const cover = d.photos[0];
+
+  return (
+    <Gallery images={slots} name={d.name} slug={`approval-${d.slug}`}>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+        <figure className="max-w-[9.5rem]">
+          <div className="relative aspect-[4/5] overflow-hidden bg-paper-soft">
+            <Media src={cover.src} alt={`${d.name}, cover`} brief="" sizes="152px" className="size-full" />
+          </div>
+          <figcaption className="mt-2 text-[0.6875rem] leading-snug text-ink-mute">The cover, as the directory card crops it</figcaption>
+        </figure>
+        <div className="min-w-0">
+          <p className="mb-2 text-[0.75rem] text-ink-mute">
+            {n === 1 ? "1 photo" : `${n} photos. Drag to reorder; the first is the cover.`}
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {d.photos.map((p, i) => (
+              <li
+                key={p.id}
+                draggable={n > 1}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  setDragging(i);
+                }}
+                onDragOver={(e) => {
+                  if (dragging === null) return;
+                  e.preventDefault();
+                  setOver(i);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragging !== null) move(dragging, i);
+                  endDrag();
+                }}
+                onDragEnd={endDrag}
+                className={clsx(
+                  "group/tile relative h-28 shrink-0 bg-paper-soft transition-opacity sm:h-32",
+                  n > 1 && "cursor-grab active:cursor-grabbing",
+                  dragging === i && "opacity-40",
+                  over === i && dragging !== null && dragging !== i && "outline-2 outline-offset-2 outline-ink",
+                )}
+                style={{ aspectRatio: ratioOf(p) }}
+              >
+                <GalleryImage index={i} sizes="200px" className="size-full" />
+                {i === 0 && <span className="pointer-events-none absolute top-1.5 left-1.5 bg-ink px-1.5 py-0.5 text-[0.6875rem] text-paper">Cover</span>}
+                {n > 1 && (
+                  <span className="absolute inset-x-1.5 bottom-1.5 flex justify-end gap-1 opacity-0 transition-opacity group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 [@media(hover:none)]:opacity-100">
+                    {i > 0 && (
+                      <TileButton onClick={() => move(i, 0)} label={`Make photo ${i + 1} the cover`}>
+                        Cover
+                      </TileButton>
+                    )}
+                    {i > 0 && <TileButton onClick={() => move(i, i - 1)} label={`Move photo ${i + 1} earlier`} icon="arrow-left" />}
+                    {i < n - 1 && <TileButton onClick={() => move(i, i + 1)} label={`Move photo ${i + 1} later`} icon="arrow" />}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Gallery>
+  );
+}
+
+function TileButton({ onClick, label, icon, children }: { onClick: () => void; label: string; icon?: "arrow" | "arrow-left"; children?: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex h-6 min-w-6 items-center justify-center bg-surface/95 px-1.5 text-[0.6875rem] text-ink shadow-sm transition-colors hover:bg-surface"
+    >
+      {icon ? <Icon name={icon} className="size-3" strokeWidth={1.6} /> : children}
+    </button>
+  );
+}
+
 function DraftDetail({ d }: { d: Draft }) {
-  const shown = d.photos.slice(0, 3);
-  const more = d.photos.length - shown.length;
   return (
     <>
-      {shown.length > 0 ? (
-        <div className={clsx("grid h-[clamp(18rem,30vw,28rem)] gap-2", shown.length === 1 ? "grid-cols-1" : "grid-cols-3 grid-rows-2")}>
-          {shown.map((p, i) => (
-            <div key={p.src} className={clsx("relative overflow-hidden bg-paper-soft", shown.length > 1 && i === 0 && "col-span-2 row-span-2", shown.length === 2 && i === 1 && "row-span-2")}>
-              <Media src={p.src} alt={`${d.name}, photo ${i + 1}`} brief="" sizes="(min-width: 1024px) 40vw, 90vw" className="size-full" />
-              {more > 0 && i === shown.length - 1 && (
-                <span className="absolute inset-0 flex items-center justify-center bg-night/45 text-[0.875rem] text-paper">+{more} more</span>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex h-32 items-center justify-center border border-dashed border-ink/15 text-[0.8125rem] text-ink-mute">No photos yet</div>
-      )}
+      <Photos d={d} />
       <h2 className="mt-6 font-display text-[1.75rem] leading-tight tracking-[-0.02em]">{d.name}</h2>
       <p className="mt-1 text-[0.8125rem] text-ink-mute">{[d.discipline, d.person].filter(Boolean).join(" · ")}</p>
       {d.story.length > 0 && (
