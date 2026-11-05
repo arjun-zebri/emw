@@ -323,13 +323,13 @@ export function Approvals() {
           width="max-w-[min(96rem,calc(100vw-3rem))]"
           title={
             row && (
-              <span className="flex items-center gap-3">
+              <span className="flex items-center gap-4">
                 <span className="min-w-0 truncate">{row.name}</span>
-                <span className="shrink-0 text-[0.75rem] font-normal text-ink-mute tabular-nums">
-                  {rowIndex + 1} of {queue.list.total ?? rows.length}
-                </span>
-                <span className="ml-auto flex shrink-0 gap-1">
+                <span className="flex shrink-0 items-center text-[0.75rem] font-normal text-ink-mute tabular-nums">
                   <StepButton dir={-1} disabled={rowIndex <= 0} onClick={() => step(-1)} />
+                  <span className="px-1">
+                    {rowIndex + 1} of {queue.list.total ?? rows.length}
+                  </span>
                   <StepButton dir={1} disabled={rowIndex >= rows.length - 1 && queue.list.done} onClick={() => step(1)} />
                 </span>
               </span>
@@ -349,6 +349,7 @@ export function Approvals() {
   );
 }
 
+/** A quiet chevron beside the "10 of 72" count: previous or next business in the queue. */
 function StepButton({ dir, disabled, onClick }: { dir: 1 | -1; disabled: boolean; onClick: () => void }) {
   const label = dir === 1 ? "Next business (→)" : "Previous business (←)";
   return (
@@ -358,9 +359,9 @@ function StepButton({ dir, disabled, onClick }: { dir: 1 | -1; disabled: boolean
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex size-8 items-center justify-center border hairline text-ink-soft transition-colors hover:border-ink/40 hover:text-ink disabled:pointer-events-none disabled:opacity-35"
+      className="flex size-6 items-center justify-center text-ink-mute transition-colors hover:text-ink disabled:pointer-events-none disabled:opacity-30"
     >
-      <Icon name={dir === 1 ? "arrow" : "arrow-left"} className="size-3.5" strokeWidth={1.6} />
+      <Icon name={dir === 1 ? "chevron-right" : "chevron-left"} className="size-3.5" strokeWidth={1.25} />
     </button>
   );
 }
