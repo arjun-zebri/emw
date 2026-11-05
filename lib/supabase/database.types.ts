@@ -166,6 +166,48 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_decisions: {
+        Row: {
+          created_at: string
+          decided_by: string | null
+          id: string
+          note: string
+          vendor_id: string
+          verdict: Database["public"]["Enums"]["vendor_verdict"]
+        }
+        Insert: {
+          created_at?: string
+          decided_by?: string | null
+          id?: string
+          note?: string
+          vendor_id: string
+          verdict: Database["public"]["Enums"]["vendor_verdict"]
+        }
+        Update: {
+          created_at?: string
+          decided_by?: string | null
+          id?: string
+          note?: string
+          vendor_id?: string
+          verdict?: Database["public"]["Enums"]["vendor_verdict"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_decisions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_decisions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_members: {
         Row: {
           created_at: string
@@ -363,7 +405,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vendor_queue: {
+        Row: {
+          confidence: Database["public"]["Enums"]["review_confidence"] | null
+          cover_path: string | null
+          created_at: string
+          discipline: string
+          flags: string[]
+          id: string
+          missing: string[]
+          name: string
+          photo_count: number
+          readiness: number
+          slug: string
+          status: Database["public"]["Enums"]["vendor_status"]
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_write_vendor_photo: {
@@ -371,6 +429,10 @@ export type Database = {
         Returns: boolean
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      decide_vendor: {
+        Args: { note?: string; vendor: string; verdict: Database["public"]["Enums"]["vendor_verdict"] }
+        Returns: undefined
+      }
       is_team: { Args: never; Returns: boolean }
       is_team_owner: { Args: never; Returns: boolean }
       is_vendor_member: { Args: { vendor: string }; Returns: boolean }
@@ -379,6 +441,7 @@ export type Database = {
       post_status: "draft" | "scheduled" | "published"
       review_confidence: "High" | "Medium" | "Low"
       team_role: "owner" | "editor"
+      vendor_verdict: "approved" | "declined" | "reopened"
       vendor_status: "draft" | "published" | "hidden"
     }
     CompositeTypes: {
@@ -510,6 +573,7 @@ export const Constants = {
       post_status: ["draft", "scheduled", "published"],
       review_confidence: ["High", "Medium", "Low"],
       team_role: ["owner", "editor"],
+      vendor_verdict: ["approved", "declined", "reopened"],
       vendor_status: ["draft", "published", "hidden"],
     },
   },

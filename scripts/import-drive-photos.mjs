@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { uploadVariants, variantKeys } from "./lib/variants.mjs";
 
 const STAGING = "nntjkiknekpolkftejnm";
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(STAGING)) throw new Error("This import is for the staging database only.");
@@ -60,7 +61,7 @@ for (const [slug, entry] of Object.entries(list)) {
   const existing = must(await db.from("vendor_photos").select("path, position").eq("vendor_id", vendor.id).order("position"));
   if (entry.mode === "replace" && existing.length) {
     must(await db.from("vendor_photos").delete().eq("vendor_id", vendor.id));
-    must(await db.storage.from("vendor-photos").remove(existing.map((p) => p.path)));
+    must(await db.storage.from("vendor-photos").remove([...existing.map((p) => p.path), ...variantKeys(existing.map((p) => p.path))]));
   }
   const kept = entry.mode === "replace" ? [] : existing;
   let position = kept.length ? Math.max(...kept.map((p) => p.position)) + 1 : 0;
@@ -77,6 +78,7 @@ for (const [slug, entry] of Object.entries(list)) {
         .toBuffer({ resolveWithObject: true });
       const key = `${vendor.id}/drive-${String(position).padStart(2, "0")}.jpg`;
       must(await db.storage.from("vendor-photos").upload(key, data, { contentType: "image/jpeg", upsert: true }));
+      await uploadVariants(db, key, data);
       rows.push({ vendor_id: vendor.id, path: key, width: info.width, height: info.height, alt: position === 0 ? vendor.name : `${vendor.name}, photo ${position + 1}`, position });
       position++;
     } catch (e) {

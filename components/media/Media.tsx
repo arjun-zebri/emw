@@ -1,9 +1,11 @@
 import clsx from "clsx";
 import Image from "next/image";
 import { SHOW_IMAGE_BRIEFS } from "@/lib/config";
+import { photoSrcSet } from "@/lib/supabase/storage";
 
 /*
- * Every image slot on the site. With `src` it renders a next/image; without, a grey placeholder
+ * Every image slot on the site. With `src` it renders the photo (a plain <img> from Supabase Storage,
+ * or next/image for the site's own files in /public); without, a grey placeholder
  * captioned with the shot the slot is waiting for.
  */
 
@@ -34,6 +36,26 @@ export type MediaProps = {
 };
 
 export function Media({ src, alt, brief, className, sizes = "100vw", priority, tone, quiet, position }: MediaProps) {
+  // Photos in Supabase Storage are served straight from its CDN at a size picked by srcset, never
+  // through next/image: Vercel's image optimiser is metered and these are hundreds of photos.
+  if (src && /^https?:\/\//.test(src)) {
+    return (
+      <span className={clsx("relative block overflow-hidden bg-paper-soft", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- deliberate, see above */}
+        <img
+          src={src}
+          srcSet={photoSrcSet(src)}
+          sizes={sizes}
+          alt={alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={priority ? "high" : undefined}
+          className="absolute inset-0 size-full object-cover"
+          style={position ? { objectPosition: position } : undefined}
+        />
+      </span>
+    );
+  }
   if (src) {
     return (
       <span className={clsx("relative block overflow-hidden bg-paper-soft", className)}>

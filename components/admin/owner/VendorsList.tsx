@@ -7,8 +7,8 @@ import { Icon } from "@/components/icons/Icon";
 import { languages as languageNames } from "@/data/taxonomy";
 import { vendorTotals } from "@/lib/admin/analytics";
 import { tiers } from "@/lib/admin/billing";
-import { useDrafts } from "@/lib/admin/drafts";
-import { ago, day, num } from "@/lib/admin/format";
+import { useQueue } from "@/lib/admin/drafts";
+import { day, num } from "@/lib/admin/format";
 import { useAdmin } from "@/lib/admin/store";
 import { adminVendors, statusLabels, type AdminVendor } from "@/lib/admin/vendors";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, inputCls, table } from "../ui";
@@ -21,7 +21,8 @@ export function VendorsList() {
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const all = adminVendors(state);
-  const { drafts: waiting } = useDrafts();
+  const { counts } = useQueue();
+  const waiting = counts ? counts.ready + counts.missing : 0;
 
   const groups: Record<Exclude<Tab, "pending">, AdminVendor[]> = {
     all,
@@ -42,7 +43,7 @@ export function VendorsList() {
     <>
       <PageHeader
         title="Vendors"
-        description={`${all.length} listed, ${waiting.length} waiting to join`}
+        description={`${all.length} listed, ${waiting} waiting for approval`}
         actions={
           <Btn variant="primary" icon="plus" href="/admin/vendors/new">
             Add a vendor
@@ -57,7 +58,7 @@ export function VendorsList() {
           className="md:flex-1"
           tabs={[
             { id: "all", label: "All", count: groups.all.length },
-            { id: "pending", label: "Awaiting approval", count: waiting.length },
+            { id: "pending", label: "Awaiting approval", count: waiting },
             { id: "failed", label: "Payment failed", count: groups.failed.length },
             { id: "ending", label: "Expiring & cancelling", count: groups.ending.length },
             { id: "new", label: "New", count: groups.new.length },
@@ -73,21 +74,23 @@ export function VendorsList() {
 
       {tab === "pending" ? (
         <Panel flush>
-          {waiting.length === 0 ? (
-            <Empty title="No one waiting">New applications appear here and in Approvals.</Empty>
+          {waiting === 0 ? (
+            <Empty title="No one waiting">Businesses waiting to be listed appear here and in Approvals.</Empty>
           ) : (
             <ul>
-              {waiting.map((a, i) => (
-                <li key={a.id} className={i > 0 ? "border-t border-ink/[0.06]" : undefined}>
-                  <Link href={`/admin/approvals?item=${a.id}`} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-paper/70 sm:px-6">
-                    <Avatar name={a.name} src={a.photos[0]?.src} size={40} />
+              {(
+                [
+                  ["ready", "Ready for approval", counts?.ready ?? 0, "Everything a listing needs. Check it and approve."],
+                  ["missing", "Missing data", counts?.missing ?? 0, "Photos, a category, a profile or contact details still to come."],
+                ] as const
+              ).map(([tab, label, n, detail], i) => (
+                <li key={tab} className={i > 0 ? "border-t border-ink/[0.06]" : undefined}>
+                  <Link href={`/admin/approvals?tab=${tab}`} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-paper/70 sm:px-6">
+                    <span className="w-10 shrink-0 font-display text-[1.5rem] leading-none tabular-nums">{n}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[0.875rem]">{a.name}</span>
-                      <span className="block truncate text-[0.75rem] text-ink-mute">
-                        {a.discipline || "No category yet"}
-                      </span>
+                      <span className="block text-[0.875rem]">{label}</span>
+                      <span className="block truncate text-[0.75rem] text-ink-mute">{detail}</span>
                     </span>
-                    <span className="hidden text-[0.75rem] text-ink-mute sm:block">Added {ago(a.submitted)}</span>
                     <span className="flex items-center gap-1.5 text-[0.8125rem] text-ink-mute group-hover:text-ink">
                       Review
                       <Icon name="arrow" className="size-3.5" strokeWidth={1.5} />

@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { useDrafts } from "@/lib/admin/drafts";
+import { useQueue } from "@/lib/admin/drafts";
 import { feed } from "@/lib/admin/feed";
 import { ago } from "@/lib/admin/format";
 import { update, useAdmin } from "@/lib/admin/store";
@@ -16,8 +16,8 @@ export function NotificationBell() {
   const state = useAdmin();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { drafts } = useDrafts();
-  const items = feed(state, drafts);
+  const { counts } = useQueue();
+  const items = feed(state, counts);
   const unread = items.filter((i) => !state.read.includes(i.id));
 
   useEffect(() => {

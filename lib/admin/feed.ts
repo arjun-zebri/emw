@@ -3,8 +3,7 @@ import { getVendor } from "@/lib/vendors";
 import { uptime } from "./analytics";
 import { billingSummary, price, tiers } from "./billing";
 import { aud, day } from "./format";
-import type { Draft } from "./drafts";
-import { reviews, submissions } from "./people";
+import type { Review, Submission } from "./people";
 import type { AdminState } from "./store";
 import { daysUntil, hoursAgo } from "./time";
 
@@ -25,31 +24,37 @@ export type FeedItem = {
 
 const vendorName = (slug: string) => getVendor(slug)?.name ?? slug;
 
-/** Vendors are the real drafts in Supabase (useDrafts); Real Weddings and reviews are still sample data. */
-export function pending(state: AdminState, drafts: Draft[] = []) {
-  const open = <T extends { id: string }>(list: T[]) => list.filter((x) => !state.decisions[x.id]);
-  return { applicants: drafts, submissions: open(submissions), reviews: open(reviews) };
+/** How many drafts wait in Supabase (useQueue's counts), or null before they've loaded. */
+export type Waiting = { ready: number; missing: number } | null;
+
+/*
+ * Approvals waiting on the team. Vendors are the real drafts in Supabase. Real Weddings and reviews
+ * have no source yet (couples can't send them until the site is live), so they're empty rather
+ * than sample data.
+ */
+export function pending(waiting: Waiting) {
+  return { vendors: waiting ? waiting.ready + waiting.missing : 0, waiting, submissions: [] as Submission[], reviews: [] as Review[] };
 }
 
-export function pendingCount(state: AdminState, drafts: Draft[] = []) {
-  const p = pending(state, drafts);
-  return p.applicants.length + p.submissions.length + p.reviews.length;
+export function pendingCount(waiting: Waiting) {
+  const p = pending(waiting);
+  return p.vendors + p.submissions.length + p.reviews.length;
 }
 
-export function feed(state: AdminState, drafts: Draft[] = []): FeedItem[] {
-  const p = pending(state, drafts);
+export function feed(state: AdminState, waiting: Waiting): FeedItem[] {
+  const p = pending(waiting);
   const b = billingSummary();
   const items: FeedItem[] = [
     // One line for the whole queue: an import can add a hundred drafts at once.
-    ...(p.applicants.length
+    ...(p.waiting && p.vendors
       ? [
           {
-            id: `drafts-${p.applicants.length}`,
+            id: `drafts-${p.vendors}`,
             icon: "store" as const,
             tone: "neutral" as const,
-            title: p.applicants.length === 1 ? `${p.applicants[0].name} is waiting for approval` : `${p.applicants.length} businesses waiting for approval`,
-            detail: p.applicants.length === 1 ? p.applicants[0].discipline : undefined,
-            at: p.applicants.reduce((a, d) => (d.submitted > a ? d.submitted : a), p.applicants[0].submitted),
+            title: p.vendors === 1 ? "1 business waiting for approval" : `${p.vendors} businesses waiting for approval`,
+            detail: `${p.waiting.ready} ready, ${p.waiting.missing} missing data`,
+            at: new Date().toISOString(),
             href: "/admin/approvals",
           },
         ]

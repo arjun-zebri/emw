@@ -1,32 +1,57 @@
 "use client";
 
 import clsx from "clsx";
+import { AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
-import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
-import { decideDraft, reloadDrafts, reorderPhotos, undoDraft, useDrafts, type Draft, type DraftPhoto, type ReviewNotes, type Verdict } from "@/lib/admin/drafts";
-import { pending } from "@/lib/admin/feed";
+import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
+import {
+  decide as decideVendor,
+  flagLabels,
+  loadDraft,
+  loadMore,
+  missingLabels,
+  reopen,
+  reorderPhotos,
+  retry,
+  setQuery,
+  useQueue,
+  type Decision,
+  type Draft,
+  type DraftPhoto,
+  type Flag,
+  type QueueRow,
+  type ReviewNotes,
+  type Sort,
+} from "@/lib/admin/drafts";
 import { ago, day } from "@/lib/admin/format";
-import { reviews, submissions, type Review, type Submission } from "@/lib/admin/people";
+import type { Review, Submission } from "@/lib/admin/people";
 import { decide, deletePost, nowIso, savePost, slugify, undecide, useAdmin } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
+import { thumbUrl } from "@/lib/supabase/storage";
 import { getVendor } from "@/lib/vendors";
+import { VendorPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, inputCls } from "../ui";
 
-type Tab = "vendors" | "weddings" | "reviews";
-type Item = { kind: "vendor"; data: Draft } | { kind: "wedding"; data: Submission } | { kind: "review"; data: Review };
+type Tab = "ready" | "missing" | "weddings" | "reviews";
+const tabs: Tab[] = ["ready", "missing", "weddings", "reviews"];
+const isQueueTab = (t: Tab): t is "ready" | "missing" => t === "ready" || t === "missing";
 
-const tabs: Tab[] = ["vendors", "weddings", "reviews"];
-// Vendors come from Supabase (useDrafts); Real Weddings and reviews are still the demo's samples.
-const samples: Record<Exclude<Tab, "vendors">, Item[]> = {
-  weddings: submissions.map((data) => ({ kind: "wedding", data })),
-  reviews: reviews.map((data) => ({ kind: "review", data })),
-};
+// Couples can't send Real Weddings or reviews until the site is live, so these start empty: no
+// sample data. The detail views below are ready for when they arrive.
+type Item = { kind: "wedding"; data: Submission } | { kind: "review"; data: Review };
+const incoming: Record<"weddings" | "reviews", Item[]> = { weddings: [], reviews: [] };
+
+const sorts: { value: Sort; label: string }[] = [
+  { value: "ready", label: "Most ready first" },
+  { value: "name", label: "A to Z" },
+  { value: "newest", label: "Newest first" },
+];
 
 const desktopQuery = "(min-width: 1024px)";
 const useDesktop = () =>
@@ -41,7 +66,7 @@ const useDesktop = () =>
   );
 
 const vendorName = (slug: string) => getVendor(slug)?.name ?? slug;
-const itemTitle = (item: Item) => (item.kind === "vendor" ? item.data.name : item.kind === "wedding" ? item.data.couple : `${item.data.couple} on ${vendorName(item.data.vendor)}`);
+const itemTitle = (item: Item) => (item.kind === "wedding" ? item.data.couple : `${item.data.couple} on ${vendorName(item.data.vendor)}`);
 const draftId = (s: Submission) => `p-${s.id}`;
 
 export function Approvals() {
@@ -50,43 +75,53 @@ export function Approvals() {
   const params = useSearchParams();
   const state = useAdmin();
   const desktop = useDesktop();
-  const queue = useDrafts();
+  const queue = useQueue();
   const [busy, setBusy] = useState(false);
-  const waiting = pending(state, queue.drafts);
-  const tab = (tabs.includes(params.get("tab") as Tab) ? params.get("tab") : "vendors") as Tab;
-  const open: Item[] = tab === "vendors" ? queue.drafts.map((data) => ({ kind: "vendor", data })) : samples[tab].filter((i) => !state.decisions[i.data.id]);
-  const decided: { item: Item; verdict: Verdict; note?: string }[] =
-    tab === "vendors"
-      ? queue.decided.map((d) => ({ item: { kind: "vendor", data: d.draft }, verdict: d.verdict }))
-      : samples[tab].filter((i) => state.decisions[i.data.id]).map((item) => ({ item, ...state.decisions[item.data.id] }));
-  const loading = tab === "vendors" && (queue.status === "idle" || queue.status === "loading");
-  const failed = tab === "vendors" && queue.status === "error";
+  const [previewing, setPreviewing] = useState(false);
+
+  const raw = params.get("tab");
+  const tab: Tab = raw === "vendors" ? "ready" : tabs.includes(raw as Tab) ? (raw as Tab) : "ready";
   const requested = params.get("item");
-  const selected = open.find((i) => i.data.id === requested) ?? (desktop ? open[0] : undefined);
+  const onQueue = isQueueTab(tab);
+
+  useEffect(() => {
+    if (isQueueTab(tab)) setQuery({ tab });
+  }, [tab]);
+
+  const rows = onQueue && queue.query.tab === tab ? queue.list.rows : [];
+  const row = onQueue ? (rows.find((r) => r.id === requested) ?? (desktop ? rows[0] : undefined)) : undefined;
+  const draft = row ? queue.details[row.id] : undefined;
+  useEffect(() => {
+    if (row) void loadDraft(row.id);
+  }, [row]);
+
+  const open = onQueue ? [] : incoming[tab].filter((i) => !state.decisions[i.data.id]);
+  const decidedItems = onQueue ? [] : incoming[tab].filter((i) => state.decisions[i.data.id]);
+  const item = !onQueue ? (open.find((i) => i.data.id === requested) ?? (desktop ? open[0] : undefined)) : undefined;
 
   const go = (next: { tab?: Tab; item?: string | null }) => {
     const p = new URLSearchParams();
     const t = next.tab ?? tab;
-    if (t !== "vendors") p.set("tab", t);
-    const item = next.item === undefined ? requested : next.item;
-    if (item) p.set("item", item);
+    if (t !== "ready") p.set("tab", t);
+    const id = next.item === undefined ? requested : next.item;
+    if (id) p.set("item", id);
     router.replace(p.size ? `${pathname}?${p}` : pathname, { scroll: false });
   };
 
-  const counts = { vendors: waiting.applicants.length, weddings: waiting.submissions.length, reviews: waiting.reviews.length };
-  const nextAfter = (id: string) => {
-    const i = open.findIndex((x) => x.data.id === id);
-    return open[i + 1]?.data.id ?? open[i - 1]?.data.id ?? null;
-  };
+  const counts = { ready: queue.counts?.ready, missing: queue.counts?.missing, weddings: incoming.weddings.length, reviews: incoming.reviews.length };
 
-  // Vendors are written to the database; the queue only moves on once it has the change.
-  const decideVendor = async (d: Draft, verdict: Verdict) => {
+  // ── Vendors: saved to the database; the queue moves on once it has the change.
+  const neighbour = (id: string) => {
+    const i = rows.findIndex((r) => r.id === id);
+    return rows[i + 1]?.id ?? rows[i - 1]?.id ?? null;
+  };
+  const decideRow = async (r: QueueRow, verdict: "approved" | "declined", note?: string) => {
     if (busy) return;
     setBusy(true);
-    const next = nextAfter(d.id);
+    const next = neighbour(r.id);
     try {
-      await decideDraft(d, verdict);
-      toast(verdict === "approved" ? `${d.name} approved` : `${d.name} declined`, { label: "Undo", run: () => void undoVendor(d) });
+      await decideVendor(r, verdict, note);
+      toast(verdict === "approved" ? `${r.name} approved` : `${r.name} declined`, { label: "Undo", run: () => void undoVendor(r.id) });
       go({ item: next });
     } catch (e) {
       toast(`Couldn't save that: ${(e as Error).message}`);
@@ -94,22 +129,24 @@ export function Approvals() {
       setBusy(false);
     }
   };
-
-  const undoVendor = async (d: Draft) => {
+  const undoVendor = async (vendorId: string) => {
     try {
-      await undoDraft(d);
-      go({ tab: "vendors", item: d.id });
+      await reopen(vendorId);
     } catch (e) {
       toast(`Couldn't undo that: ${(e as Error).message}`);
     }
   };
 
-  const approve = (item: Item) => {
-    if (item.kind === "vendor") return void decideVendor(item.data, "approved");
-    const id = item.data.id;
+  // ── Real Weddings and reviews: the demo store, until they're real.
+  const nextAfter = (id: string) => {
+    const i = open.findIndex((x) => x.data.id === id);
+    return open[i + 1]?.data.id ?? open[i - 1]?.data.id ?? null;
+  };
+  const approveItem = (it: Item) => {
+    const id = it.data.id;
     decide(id, "approved");
-    if (item.kind === "wedding") {
-      const s = item.data;
+    if (it.kind === "wedding") {
+      const s = it.data;
       savePost({
         id: draftId(s),
         slug: slugify(s.title),
@@ -130,29 +167,39 @@ export function Approvals() {
       });
       toast(`${s.couple}'s wedding saved as a draft`, { label: "Open draft", run: () => router.push(`/admin/journal/${draftId(s)}`) });
     } else {
-      toast(`Review published on ${vendorName(item.data.vendor)}`, { label: "Undo", run: () => undecide(id) });
+      toast(`Review published on ${vendorName(it.data.vendor)}`, { label: "Undo", run: () => undecide(id) });
     }
     go({ item: nextAfter(id) });
   };
-
-  const decline = (item: Item, note?: string) => {
-    if (item.kind === "vendor") return void decideVendor(item.data, "declined");
-    const id = item.data.id;
+  const declineItem = (it: Item, note?: string) => {
+    const id = it.data.id;
     decide(id, "declined", note);
-    toast(`${itemTitle(item)} declined`, { label: "Undo", run: () => undecide(id) });
+    toast(`${itemTitle(it)} declined`, { label: "Undo", run: () => undecide(id) });
     go({ item: nextAfter(id) });
   };
-
-  const undo = (item: Item) => {
-    if (item.kind === "vendor") return void undoVendor(item.data);
-    const id = item.data.id;
+  const undoItem = (it: Item) => {
+    const id = it.data.id;
     const verdict = state.decisions[id]?.verdict;
     undecide(id);
-    if (verdict === "approved" && item.kind === "wedding") deletePost(draftId(item.data));
+    if (verdict === "approved" && it.kind === "wedding") deletePost(draftId(it.data));
     go({ item: id });
   };
 
-  const detail = selected && <Detail key={selected.data.id} item={selected} busy={busy} onApprove={() => approve(selected)} onDecline={(note) => decline(selected, note)} />;
+  const detail = onQueue
+    ? row && (
+        <DraftDetail
+          key={row.id}
+          row={row}
+          draft={draft}
+          busy={busy}
+          onApprove={() => void decideRow(row, "approved")}
+          onDecline={(note) => void decideRow(row, "declined", note)}
+          onPreview={() => setPreviewing(true)}
+        />
+      )
+    : item && <ItemDetail key={item.data.id} item={item} onApprove={() => approveItem(item)} onDecline={(note) => declineItem(item, note)} />;
+
+  const title = onQueue ? row?.name : item && itemTitle(item);
 
   return (
     <>
@@ -162,93 +209,63 @@ export function Approvals() {
         value={tab}
         onChange={(t) => go({ tab: t, item: null })}
         tabs={[
-          { id: "vendors", label: "Vendors", count: counts.vendors },
+          { id: "ready", label: "Ready for approval", count: counts.ready },
+          { id: "missing", label: "Missing data", count: counts.missing },
           { id: "weddings", label: "Real weddings", count: counts.weddings },
           { id: "reviews", label: "Reviews", count: counts.reviews },
         ]}
       />
 
-      {loading ? (
-        <Panel>
-          <Empty title="Loading">Fetching the businesses waiting for approval.</Empty>
-        </Panel>
-      ) : failed ? (
-        <Panel>
-          <Empty title="Couldn't load the queue">
-            {queue.error}{" "}
-            <button type="button" onClick={() => void reloadDrafts()} className="link-line">
-              Try again
-            </button>
-          </Empty>
-        </Panel>
+      {onQueue ? (
+        <>
+          <Toolbar key={tab} />
+          <QueueList rows={rows} selected={row?.id} tab={tab} onSelect={(id) => go({ item: id })}>
+            {desktop && detail}
+          </QueueList>
+          <Decided decisions={queue.decisions} onUndo={(id) => void undoVendor(id)} />
+        </>
       ) : open.length === 0 ? (
         <Panel>
-          <Empty title="All clear">{tab === "vendors" ? "Businesses waiting to be listed will appear here." : tab === "weddings" ? "Couples' Real Wedding submissions will appear here." : "New reviews will appear here."}</Empty>
+          <Empty title="All clear">{tab === "weddings" ? "Couples' Real Wedding submissions will appear here." : "New reviews will appear here."}</Empty>
         </Panel>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
-          {/* The list scrolls on its own at desktop, so the chosen item's detail stays in view. */}
-          <Panel flush className="self-start lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto">
+          <Panel flush className="self-start">
             <ul>
-              {open.map((item, i) => {
-                const on = selected?.data.id === item.data.id;
-                return (
-                  <li key={item.data.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        go({ item: item.data.id });
-                        // A long profile may have scrolled the page; bring the next one's top back into view.
-                        if (desktop && scrollY > 0) scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      aria-current={on ? "true" : undefined}
-                      className={clsx("relative flex w-full items-center gap-3 px-5 py-4 text-left transition-colors", on ? "bg-paper" : "hover:bg-paper/60")}
-                    >
-                      {on && <span className="absolute inset-y-0 left-0 w-0.5 bg-ink" aria-hidden />}
-                      <ListThumb item={item} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[0.875rem]">{itemTitle(item)}</span>
-                        <span className="block truncate text-[0.75rem] text-ink-mute">
-                          {item.kind === "vendor" ? [item.data.discipline, item.data.review?.confidence === "Low" && "Low confidence"].filter(Boolean).join(" · ") : item.kind === "wedding" ? item.data.title : `${"★".repeat(item.data.rating)} ${item.data.text}`}
-                        </span>
-                      </span>
-                      <span className="self-start text-[0.6875rem] text-ink-mute">{ago(item.data.submitted)}</span>
-                    </button>
-                  </li>
-                );
-              })}
+              {open.map((it, i) => (
+                <li key={it.data.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
+                  <button
+                    type="button"
+                    onClick={() => go({ item: it.data.id })}
+                    aria-current={item?.data.id === it.data.id ? "true" : undefined}
+                    className={clsx("relative flex w-full items-center gap-3 px-5 py-4 text-left transition-colors", item?.data.id === it.data.id ? "bg-paper" : "hover:bg-paper/60")}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[0.875rem]">{itemTitle(it)}</span>
+                      <span className="block truncate text-[0.75rem] text-ink-mute">{it.kind === "wedding" ? it.data.title : `${"★".repeat(it.data.rating)} ${it.data.text}`}</span>
+                    </span>
+                    <span className="self-start text-[0.6875rem] text-ink-mute">{ago(it.data.submitted)}</span>
+                  </button>
+                </li>
+              ))}
             </ul>
           </Panel>
           {desktop && detail}
         </div>
       )}
 
-      {!desktop && (
-        <Drawer open={!!selected} onClose={() => go({ item: null })} title={selected ? itemTitle(selected) : ""}>
-          <div className="p-4">{detail}</div>
-        </Drawer>
-      )}
-
-      {decided.length > 0 && (
+      {!onQueue && decidedItems.length > 0 && (
         <section className="mt-10">
           <h2 className="mb-3 text-[0.875rem] font-medium">Recently decided</h2>
           <Panel flush>
             <ul>
-              {decided.map((d, i) => {
-                const item = d.item;
+              {decidedItems.map((it, i) => {
+                const d = state.decisions[it.data.id];
                 return (
-                  <li key={item.data.id} className={clsx("flex items-center gap-3 px-5 py-3 sm:px-6", i > 0 && "border-t border-ink/[0.06]")}>
+                  <li key={it.data.id} className={clsx("flex items-center gap-3 px-5 py-3 sm:px-6", i > 0 && "border-t border-ink/[0.06]")}>
                     <Badge tone={d.verdict === "approved" ? "good" : "neutral"}>{d.verdict === "approved" ? "Approved" : "Declined"}</Badge>
-                    <span className="min-w-0 flex-1 truncate text-[0.8125rem]">
-                      {itemTitle(item)}
-                      {d.note && <span className="ml-2 text-ink-mute">“{d.note}”</span>}
-                    </span>
-                    {d.verdict === "approved" && item.kind === "wedding" && (
-                      <Btn size="sm" variant="ghost" href={`/admin/journal/${draftId(item.data)}`}>
-                        Open draft
-                      </Btn>
-                    )}
-                    <Btn size="sm" variant="ghost" onClick={() => undo(item)}>
+                    <span className="min-w-0 flex-1 truncate text-[0.8125rem]">{itemTitle(it)}</span>
+                    <Btn size="sm" variant="ghost" onClick={() => undoItem(it)}>
                       Undo
                     </Btn>
                   </li>
@@ -258,133 +275,349 @@ export function Approvals() {
           </Panel>
         </section>
       )}
+
+      {!desktop && (
+        <Drawer open={!!(onQueue ? row && requested : item)} onClose={() => go({ item: null })} title={title ?? ""}>
+          <div className="p-4">{detail}</div>
+        </Drawer>
+      )}
+
+      <AnimatePresence>
+        {previewing && draft && (
+          <VendorPreview
+            values={{
+              name: draft.name,
+              person: draft.person ?? "",
+              discipline: draft.discipline,
+              lede: "",
+              services: draft.services,
+              based: "",
+              serviceArea: draft.serviceArea,
+              languages: draft.languages,
+              email: draft.email ?? "",
+              phone: draft.phone ?? "",
+              website: draft.website ?? "",
+              instagram: draft.instagram ?? "",
+              facebook: draft.facebook ?? "",
+              photos: [],
+              tier: "essential",
+              billing: "monthly",
+            }}
+            photos={draft.photos.map((p) => p.src)}
+            story={draft.story}
+            onClose={() => setPreviewing(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
 
-function ListThumb({ item }: { item: Item }) {
-  if (item.kind === "wedding") {
-    return (
-      <span className="relative size-10 shrink-0 overflow-hidden bg-paper-soft">
-        <Media src={item.data.photos[0]} alt="" brief="" sizes="40px" className="size-full" />
-      </span>
-    );
-  }
-  if (item.kind === "review") {
-    const v = getVendor(item.data.vendor);
-    return <Avatar name={v?.name ?? item.data.couple} src={v?.cover} size={40} />;
-  }
-  return <Avatar name={item.data.name} src={item.data.photos[0]?.src} size={40} />;
-}
+// ── The vendor queue ────────────────────────────────────────────────────
 
-function Detail({ item, busy, onApprove, onDecline }: { item: Item; busy?: boolean; onApprove: () => void; onDecline: (note?: string) => void }) {
-  const [declining, setDeclining] = useState(false);
-  const [note, setNote] = useState("");
+/** Search, the second-look filters, and the order. All of it runs in the database. */
+function Toolbar() {
+  const { query } = useQueue();
+  const [text, setText] = useState(query.q);
+  useEffect(() => {
+    const t = setTimeout(() => setQuery({ q: text }), 250);
+    return () => clearTimeout(t);
+  }, [text]);
+  const toggle = (f: Flag) => setQuery({ flags: query.flags.includes(f) ? query.flags.filter((x) => x !== f) : [...query.flags, f] });
 
-  const actions = (
-    <div className="sticky bottom-0 mt-6 border-t hairline bg-surface pt-5">
-      {item.kind === "vendor" ? (
-        // A declined draft is hidden, not deleted, and nothing is sent, so there's no note to write.
-        <div className="flex flex-wrap gap-2">
-          <Btn variant="primary" icon="check" onClick={onApprove} disabled={busy}>
-            Approve and publish
-          </Btn>
-          <Btn onClick={() => onDecline()} disabled={busy}>
-            Decline
-          </Btn>
-        </div>
-      ) : declining ? (
-        <div className="space-y-3">
-          <label className="block text-[0.8125rem] font-medium" htmlFor="decline-note">
-            A note for them <span className="font-normal text-ink-mute">(optional)</span>
-          </label>
-          <textarea id="decline-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className={clsx(inputCls, "resize-none")} autoFocus />
-          <div className="flex gap-2">
-            <Btn variant="danger" onClick={() => onDecline(note.trim() || undefined)}>
-              Decline
-            </Btn>
-            <Btn variant="ghost" onClick={() => setDeclining(false)}>
-              Cancel
-            </Btn>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <Btn variant="primary" icon="check" onClick={onApprove}>
-            {item.kind === "wedding" ? "Approve as a draft post" : "Publish review"}
-          </Btn>
-          <Btn onClick={() => setDeclining(true)}>Decline</Btn>
-        </div>
-      )}
+  return (
+    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+      <label className="relative block lg:w-72">
+        <span className="sr-only">Search the queue</span>
+        <Icon name="search" className="pointer-events-none absolute top-1/2 left-0 size-4 -translate-y-1/2 text-ink-mute" strokeWidth={1.4} />
+        <input type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search by name or category" className={clsx(inputCls, "pl-6")} />
+      </label>
+      <div className="flex flex-wrap gap-1.5 lg:flex-1" role="group" aria-label="Show only">
+        {(Object.keys(flagLabels) as Flag[]).map((f) => {
+          const on = query.flags.includes(f);
+          return (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={on}
+              onClick={() => toggle(f)}
+              title={flagLabels[f].detail}
+              className={clsx(
+                "border px-2.5 py-1 text-[0.75rem] transition-colors duration-200",
+                on ? "border-ink bg-ink text-paper" : "border-ink/15 bg-surface text-ink-soft hover:border-ink/40 hover:text-ink",
+              )}
+            >
+              {flagLabels[f].label}
+            </button>
+          );
+        })}
+      </div>
+      <label className="relative flex items-center gap-2 text-[0.75rem] text-ink-mute">
+        <span>Order</span>
+        <select value={query.sort} onChange={(e) => setQuery({ sort: e.target.value as Sort })} className="cursor-pointer appearance-none bg-transparent pr-5 text-[0.8125rem] text-ink">
+          {sorts.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <Icon name="chevron-down" className="pointer-events-none absolute top-1/2 right-0 size-3.5 -translate-y-1/2" strokeWidth={1.4} />
+      </label>
     </div>
   );
+}
+
+/**
+ * The list runs the length of the page and fetches the next 30 as its end comes into view. The
+ * chosen draft's detail stays pinned beside it, scrolling on its own.
+ */
+function QueueList({ rows, selected, tab, onSelect, children }: { rows: QueueRow[]; selected?: string; tab: "ready" | "missing"; onSelect: (id: string) => void; children?: React.ReactNode }) {
+  const { list, query } = useQueue();
+  const end = useRef<HTMLDivElement>(null);
+  const filtered = !!query.q.trim() || query.flags.length > 0;
+
+  useEffect(() => {
+    const el = end.current;
+    if (!el || list.done) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && void loadMore(), { rootMargin: "600px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [list.done, rows.length]);
+
+  if (list.error && rows.length === 0) {
+    return (
+      <Panel>
+        <Empty title="Couldn't load the queue">
+          {list.error}{" "}
+          <button type="button" onClick={retry} className="link-line">
+            Try again
+          </button>
+        </Empty>
+      </Panel>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <Panel>
+        {list.total === null || list.loading ? (
+          <Empty title="Loading">Fetching the businesses waiting for approval.</Empty>
+        ) : filtered ? (
+          <Empty title="No matches">Nothing in {tab === "ready" ? "Ready for approval" : "Missing data"} matches that.</Empty>
+        ) : (
+          <Empty title="All clear">{tab === "ready" ? "Businesses with everything a listing needs will appear here." : "Nothing is waiting on photos or details."}</Empty>
+        )}
+      </Panel>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
+      <div>
+        <Panel flush>
+          <ul>
+            {rows.map((r, i) => {
+              const on = selected === r.id;
+              return (
+                <li key={r.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(r.id)}
+                    aria-current={on ? "true" : undefined}
+                    className={clsx("relative flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors", on ? "bg-paper" : "hover:bg-paper/60")}
+                  >
+                    {on && <span className="absolute inset-y-0 left-0 w-0.5 bg-ink" aria-hidden />}
+                    <Avatar name={r.name} src={r.cover ? thumbUrl(r.cover) : undefined} size={40} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[0.875rem]">{r.name}</span>
+                      <span className="block truncate text-[0.75rem] text-ink-mute">
+                        {r.missing.length ? <span className="text-warn">{r.missing.map((m) => missingLabels[m]).join(", ")}</span> : r.discipline || "No category"}
+                        {r.flags.length > 0 && ` · ${r.flags.map((f) => flagLabels[f].label).join(", ")}`}
+                      </span>
+                    </span>
+                    <span className="self-start text-[0.6875rem] text-ink-mute tabular-nums">{r.photoCount > 0 ? `${r.photoCount} ${r.photoCount === 1 ? "photo" : "photos"}` : ""}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+        <div ref={end} className="py-4 text-center text-[0.75rem] text-ink-mute" aria-live="polite">
+          {list.loading ? "Loading more" : list.error ? (
+            <button type="button" onClick={() => void loadMore()} className="link-line">
+              Couldn&rsquo;t load more. Try again
+            </button>
+          ) : list.done ? (
+            `All ${list.total ?? rows.length} shown`
+          ) : (
+            `${rows.length} of ${list.total}`
+          )}
+        </div>
+      </div>
+      {children && <div className="lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain">{children}</div>}
+    </div>
+  );
+}
+
+function Decided({ decisions, onUndo }: { decisions: Decision[]; onUndo: (vendorId: string) => void }) {
+  if (decisions.length === 0) return null;
+  const tone = { approved: "good", declined: "neutral", reopened: "neutral" } as const;
+  const label = { approved: "Approved", declined: "Declined", reopened: "Back in the queue" };
+  return (
+    <section className="mt-10">
+      <h2 className="mb-3 text-[0.875rem] font-medium">Recently decided</h2>
+      <Panel flush>
+        <ul>
+          {decisions.map((d, i) => (
+            <li key={d.id} className={clsx("flex items-center gap-3 px-5 py-3 sm:px-6", i > 0 && "border-t border-ink/[0.06]")}>
+              <Badge tone={tone[d.verdict]}>{label[d.verdict]}</Badge>
+              <span className="min-w-0 flex-1 text-[0.8125rem]">
+                <span className="block truncate">
+                  {d.vendorName}
+                  {d.note && <span className="ml-2 text-ink-mute">“{d.note}”</span>}
+                </span>
+                <span className="block text-[0.6875rem] text-ink-mute">
+                  {[d.by, ago(d.at)].filter(Boolean).join(", ")}
+                </span>
+              </span>
+              {d.latest && d.verdict !== "reopened" && (
+                <Btn size="sm" variant="ghost" onClick={() => onUndo(d.vendorId)}>
+                  Undo
+                </Btn>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    </section>
+  );
+}
+
+function DraftDetail({
+  row,
+  draft,
+  busy,
+  onApprove,
+  onDecline,
+  onPreview,
+}: {
+  row: QueueRow;
+  draft?: Draft;
+  busy: boolean;
+  onApprove: () => void;
+  onDecline: (note?: string) => void;
+  onPreview: () => void;
+}) {
+  const [declining, setDeclining] = useState(false);
+  const [note, setNote] = useState("");
+  const blocked = row.missing.length > 0;
 
   return (
     <Panel>
-      <div className="pt-2">
-        {item.kind === "vendor" && <DraftDetail d={item.data} />}
-        {item.kind === "wedding" && <SubmissionDetail s={item.data} />}
-        {item.kind === "review" && <ReviewDetail r={item.data} />}
-      </div>
-      {actions}
-    </Panel>
-  );
-}
-
-function Facts({ rows }: { rows: [string, React.ReactNode][] }) {
-  return (
-    <dl className="mt-6 border-t hairline">
-      {rows.map(([k, v]) => (
-        <div key={k} className="grid grid-cols-1 gap-1 border-b border-ink/[0.06] py-3 text-[0.8125rem] sm:grid-cols-[9rem_1fr] sm:gap-3">
-          <dt className="text-ink-mute">{k}</dt>
-          <dd className="min-w-0 break-words">{v}</dd>
+      <div className="flex items-start justify-between gap-4 pt-2">
+        <div className="min-w-0">
+          <h2 className="font-display text-[1.75rem] leading-tight tracking-[-0.02em]">{row.name}</h2>
+          <p className="mt-1 text-[0.8125rem] text-ink-mute">{[row.discipline || "No category", draft?.person].filter(Boolean).join(" · ")}</p>
         </div>
-      ))}
-    </dl>
-  );
-}
-
-const link = (href: string, label: string) => (
-  <a href={href} target="_blank" rel="noreferrer" className="link-line">
-    {label}
-  </a>
-);
-const bare = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
-
-const confidenceTone = { High: "good", Medium: "neutral", Low: "warn" } as const;
-const confidenceMeaning = {
-  High: "Website or Instagram found and confirmed.",
-  Medium: "Strong indirect evidence, usually a confirmed Instagram but no website.",
-  Low: "Rests on the email address or business name alone. Verify before publishing.",
-};
-
-/** The research spreadsheet's verdict, kept apart from the listing itself. */
-function Research({ r }: { r: ReviewNotes }) {
-  const facts: [string, string][] = [
-    ...(r.yearsAttended ? [["Events attended", r.yearsAttended] as [string, string]] : []),
-    ...(r.categoriesOriginal ? [["Research categories", r.categoriesOriginal] as [string, string]] : []),
-    ...(r.registeredEmails ? [["Registered with", r.registeredEmails] as [string, string]] : []),
-  ];
-  return (
-    <section className="mt-6 border border-ink/[0.08] bg-paper/60 p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-[0.8125rem] font-medium">From the research</h3>
-        {r.confidence && <Badge tone={confidenceTone[r.confidence]}>{r.confidence} confidence</Badge>}
+        <Btn size="sm" icon="eye" onClick={onPreview} disabled={!draft}>
+          Preview
+        </Btn>
       </div>
-      {r.confidence && <p className="mt-1.5 text-[0.75rem] text-ink-mute">{confidenceMeaning[r.confidence]}</p>}
-      {r.notes && <p className="mt-3 max-w-[62ch] text-[0.8125rem] leading-relaxed text-ink-soft">{r.notes}</p>}
-      {facts.length > 0 && (
-        <dl className="mt-3 space-y-1 text-[0.75rem]">
-          {facts.map(([k, v]) => (
-            <div key={k} className="grid grid-cols-1 gap-x-3 sm:grid-cols-[9rem_1fr]">
-              <dt className="text-ink-mute">{k}</dt>
-              <dd className="min-w-0 break-words">{v}</dd>
-            </div>
-          ))}
-        </dl>
+
+      {blocked && (
+        <div className="mt-5 flex gap-3 border border-warn/30 bg-warn/[0.06] p-4">
+          <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-warn" strokeWidth={1.5} />
+          <p className="text-[0.8125rem] text-ink-soft">
+            <span className="font-medium text-ink">Can&rsquo;t be published yet.</span> {row.missing.map((m) => missingLabels[m]).join(", ")}.
+          </p>
+        </div>
       )}
-      <p className="mt-3 text-[0.75rem] text-ink-mute">They registered for a networking event, not the directory. Check they’re happy to be listed, with these details and photos.</p>
-    </section>
+      {row.flags.length > 0 && (
+        <ul className="mt-4 space-y-1.5">
+          {row.flags.map((f) => (
+            <li key={f} className="flex gap-2 text-[0.75rem] text-ink-soft">
+              <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-warn" aria-hidden />
+              <span>
+                <span className="font-medium text-ink">{flagLabels[f].label}.</span> {flagLabels[f].detail}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!draft ? (
+        <div className="mt-6 space-y-3" aria-busy="true">
+          <div className="h-32 animate-pulse bg-paper-soft" />
+          <div className="h-4 w-2/3 animate-pulse bg-paper-soft" />
+          <div className="h-4 w-1/2 animate-pulse bg-paper-soft" />
+        </div>
+      ) : (
+        <>
+          <div className="mt-6">
+            <Photos d={draft} />
+          </div>
+          {draft.story.length > 0 && (
+            <div className="mt-6 max-w-[62ch] space-y-3 text-[0.9375rem] leading-relaxed">
+              {draft.story.map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+            </div>
+          )}
+          {draft.review && <Research r={draft.review} name={draft.name} />}
+          <Facts
+            rows={[
+              ...(draft.email ? [["Email", link(`mailto:${draft.email}`, draft.email)] as Row] : []),
+              ...(draft.phone ? [["Phone", draft.phone] as Row] : []),
+              ["Services", draft.services.map((s) => serviceLabels[s] ?? s).join(", ") || "None yet"],
+              ["Service area", draft.serviceArea.map((s) => states[s] ?? s).join(", ") || "On request"],
+              [
+                "Languages",
+                <span key="l" className="flex flex-wrap gap-x-3">
+                  {draft.languages.map((l) => (
+                    <span key={l} lang={languageNames[l]?.lang}>
+                      {languageNames[l]?.native ?? l}
+                    </span>
+                  ))}
+                </span>,
+              ],
+              ...(draft.website ? [["Website", link(draft.website, bare(draft.website))] as Row] : []),
+              ...(draft.instagram ? [["Instagram", link(draft.instagram, bare(draft.instagram))] as Row] : []),
+              ...(draft.facebook ? [["Facebook", link(draft.facebook, bare(draft.facebook))] as Row] : []),
+            ]}
+          />
+        </>
+      )}
+
+      <div className="sticky bottom-0 mt-6 border-t hairline bg-surface pt-5 pb-5">
+        {declining ? (
+          <div className="space-y-3">
+            <label className="block text-[0.8125rem] font-medium" htmlFor="decline-note">
+              Why <span className="font-normal text-ink-mute">(for the team, optional)</span>
+            </label>
+            <textarea id="decline-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className={clsx(inputCls, "resize-none")} autoFocus />
+            <div className="flex gap-2">
+              <Btn variant="danger" onClick={() => onDecline(note)} disabled={busy}>
+                Decline
+              </Btn>
+              <Btn variant="ghost" onClick={() => setDeclining(false)}>
+                Cancel
+              </Btn>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn variant="primary" icon="check" onClick={onApprove} disabled={busy || blocked}>
+              Approve and publish
+            </Btn>
+            <Btn onClick={() => setDeclining(true)} disabled={busy}>
+              Decline
+            </Btn>
+            <p className="t-small ml-1 text-[0.75rem]">
+              {blocked ? "Approving opens up once nothing is missing." : "Publishing doesn't email the business. Either can be undone."}
+            </p>
+          </div>
+        )}
+      </div>
+    </Panel>
   );
 }
 
@@ -427,9 +660,7 @@ function Photos({ d }: { d: Draft }) {
           <figcaption className="mt-2 text-[0.6875rem] leading-snug text-ink-mute">The cover, as the directory card crops it</figcaption>
         </figure>
         <div className="min-w-0">
-          <p className="mb-2 text-[0.75rem] text-ink-mute">
-            {n === 1 ? "1 photo" : `${n} photos. Drag to reorder; the first is the cover.`}
-          </p>
+          <p className="mb-2 text-[0.75rem] text-ink-mute">{n === 1 ? "1 photo" : `${n} photos. Drag to reorder; the first is the cover.`}</p>
           <ul className="flex flex-wrap gap-2">
             {d.photos.map((p, i) => (
               <li
@@ -494,45 +725,115 @@ function TileButton({ onClick, label, icon, children }: { onClick: () => void; l
   );
 }
 
-function DraftDetail({ d }: { d: Draft }) {
+const confidenceTone = { High: "good", Medium: "neutral", Low: "warn" } as const;
+const confidenceMeaning = {
+  High: "Website or Instagram found and confirmed.",
+  Medium: "Strong indirect evidence, usually a confirmed Instagram but no website.",
+  Low: "Rests on the email address or business name alone. Verify before publishing.",
+};
+
+/** An ABN quoted in the research notes, as 11 digits. */
+const abnIn = (notes: string) => notes.match(/\bABN[:\s]*((?:\d\s?){11})/i)?.[1].replace(/\s/g, "");
+const spaced = (abn: string) => `${abn.slice(0, 2)} ${abn.slice(2, 5)} ${abn.slice(5, 8)} ${abn.slice(8)}`;
+
+/** The research spreadsheet's verdict, kept apart from the listing itself, and a way to check the business. */
+function Research({ r, name }: { r: ReviewNotes; name: string }) {
+  const abn = abnIn(r.notes);
+  const facts: [string, string][] = [
+    ...(r.yearsAttended ? [["Events attended", r.yearsAttended] as [string, string]] : []),
+    ...(r.categoriesOriginal ? [["Research categories", r.categoriesOriginal] as [string, string]] : []),
+    ...(r.registeredEmails ? [["Registered with", r.registeredEmails] as [string, string]] : []),
+  ];
   return (
-    <>
-      <Photos d={d} />
-      <h2 className="mt-6 font-display text-[1.75rem] leading-tight tracking-[-0.02em]">{d.name}</h2>
-      <p className="mt-1 text-[0.8125rem] text-ink-mute">{[d.discipline, d.person].filter(Boolean).join(" · ")}</p>
-      {d.story.length > 0 && (
-        <div className="mt-5 max-w-[62ch] space-y-3 text-[0.9375rem] leading-relaxed">
-          {d.story.map((para, i) => (
-            <p key={i}>{para}</p>
+    <section className="mt-6 border border-ink/[0.08] bg-paper/60 p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-[0.8125rem] font-medium">From the research</h3>
+        {r.confidence && <Badge tone={confidenceTone[r.confidence]}>{r.confidence} confidence</Badge>}
+      </div>
+      {r.confidence && <p className="mt-1.5 text-[0.75rem] text-ink-mute">{confidenceMeaning[r.confidence]}</p>}
+      {r.notes && <p className="mt-3 max-w-[62ch] text-[0.8125rem] leading-relaxed text-ink-soft">{r.notes}</p>}
+      {facts.length > 0 && (
+        <dl className="mt-3 space-y-1 text-[0.75rem]">
+          {facts.map(([k, v]) => (
+            <div key={k} className="grid grid-cols-1 gap-x-3 sm:grid-cols-[9rem_1fr]">
+              <dt className="text-ink-mute">{k}</dt>
+              <dd className="min-w-0 break-words">{v}</dd>
+            </div>
           ))}
-        </div>
+        </dl>
       )}
-      {d.review && <Research r={d.review} />}
-      <Facts
-        rows={[
-          ...(d.email ? [["Email", link(`mailto:${d.email}`, d.email)] as [string, React.ReactNode]] : []),
-          ...(d.phone ? [["Phone", d.phone] as [string, React.ReactNode]] : []),
-          ["Services", d.services.map((s) => serviceLabels[s] ?? s).join(", ") || "None yet"],
-          ["Service area", d.serviceArea.map((s) => states[s] ?? s).join(", ") || "On request"],
-          [
-            "Languages",
-            <span key="l" className="flex flex-wrap gap-x-3">
-              {d.languages.map((l) => (
-                <span key={l} lang={languageNames[l]?.lang}>
-                  {languageNames[l]?.native ?? l}
-                </span>
-              ))}
-            </span>,
-          ],
-          ...(d.website ? [["Website", link(d.website, bare(d.website))] as [string, React.ReactNode]] : []),
-          ...(d.instagram ? [["Instagram", link(d.instagram, bare(d.instagram))] as [string, React.ReactNode]] : []),
-          ...(d.facebook ? [["Facebook", link(d.facebook, bare(d.facebook))] as [string, React.ReactNode]] : []),
-        ]}
-      />
-      <p className="t-small mt-4 text-[0.75rem]">Approving publishes the listing. Declining hides it. Nothing is sent to the business, and either can be undone.</p>
-    </>
+      <p className="mt-3 text-[0.75rem]">
+        {abn
+          ? link(`https://abr.business.gov.au/ABN/View?abn=${abn}`, `Check ABN ${spaced(abn)} on ABN Lookup`)
+          : link(`https://abr.business.gov.au/Search/ResultsActive?SearchText=${encodeURIComponent(name)}`, "Search ABN Lookup for this business")}
+      </p>
+      <p className="mt-3 text-[0.75rem] text-ink-mute">They registered for a networking event, not the directory. Check they&rsquo;re happy to be listed, with these details and photos.</p>
+    </section>
   );
 }
+
+// ── Real Weddings and reviews ───────────────────────────────────────────
+
+function ItemDetail({ item, onApprove, onDecline }: { item: Item; onApprove: () => void; onDecline: (note?: string) => void }) {
+  const [declining, setDeclining] = useState(false);
+  const [note, setNote] = useState("");
+
+  return (
+    <Panel>
+      <div className="pt-2">
+        {item.kind === "wedding" && <SubmissionDetail s={item.data} />}
+        {item.kind === "review" && <ReviewDetail r={item.data} />}
+      </div>
+      <div className="sticky bottom-0 mt-6 border-t hairline bg-surface pt-5 pb-5">
+        {declining ? (
+          <div className="space-y-3">
+            <label className="block text-[0.8125rem] font-medium" htmlFor="decline-note">
+              A note for them <span className="font-normal text-ink-mute">(optional)</span>
+            </label>
+            <textarea id="decline-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className={clsx(inputCls, "resize-none")} autoFocus />
+            <div className="flex gap-2">
+              <Btn variant="danger" onClick={() => onDecline(note.trim() || undefined)}>
+                Decline
+              </Btn>
+              <Btn variant="ghost" onClick={() => setDeclining(false)}>
+                Cancel
+              </Btn>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="primary" icon="check" onClick={onApprove}>
+              {item.kind === "wedding" ? "Approve as a draft post" : "Publish review"}
+            </Btn>
+            <Btn onClick={() => setDeclining(true)}>Decline</Btn>
+          </div>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+type Row = [string, React.ReactNode];
+
+function Facts({ rows }: { rows: Row[] }) {
+  return (
+    <dl className="mt-6 border-t hairline">
+      {rows.map(([k, v]) => (
+        <div key={k} className="grid grid-cols-1 gap-1 border-b border-ink/[0.06] py-3 text-[0.8125rem] sm:grid-cols-[9rem_1fr] sm:gap-3">
+          <dt className="text-ink-mute">{k}</dt>
+          <dd className="min-w-0 break-words">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+const link = (href: string, label: string) => (
+  <a href={href} target="_blank" rel="noreferrer" className="link-line">
+    {label}
+  </a>
+);
+const bare = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
 
 function SubmissionDetail({ s }: { s: Submission }) {
   return (
@@ -551,7 +852,7 @@ function SubmissionDetail({ s }: { s: Submission }) {
       <p className="mt-6 max-w-[62ch] text-[0.9375rem] leading-relaxed">{s.story}</p>
       <Facts
         rows={[
-          ["Sent by", <a key="e" href={`mailto:${s.email}`} className="link-line">{s.email}</a>],
+          ["Sent by", link(`mailto:${s.email}`, s.email)],
           [
             "Vendors credited",
             <span key="v" className="flex flex-wrap gap-x-3 gap-y-1">

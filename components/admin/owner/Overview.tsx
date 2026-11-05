@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { enquiries, searches, sourceBreakdown, sum, traffic, uptime, vendorRanking } from "@/lib/admin/analytics";
 import { billingSummary, mrr, price, revenueByMonth, tierOrder, tiers } from "@/lib/admin/billing";
-import { useDrafts } from "@/lib/admin/drafts";
+import { useQueue } from "@/lib/admin/drafts";
 import { pending } from "@/lib/admin/feed";
 import { aud, compact, day, longDay, month, num, pct, plural } from "@/lib/admin/format";
 import { useAdmin } from "@/lib/admin/store";
@@ -22,8 +22,8 @@ export function Overview() {
   const leads = enquiries("day");
   const thisMonth = revenueByMonth(1)[0];
   const billing = billingSummary();
-  const { drafts } = useDrafts();
-  const waiting = pending(state, drafts);
+  const { counts } = useQueue();
+  const waiting = pending(counts);
   const failed = billing.failed.filter((s) => !state.retried[s.id]);
   const expiring = billing.renewals.filter((s) => daysUntil(s.renews) <= 30 && (!s.autoRenew || s.status === "cancelling"));
   const top = vendorRanking("day")
@@ -32,13 +32,10 @@ export function Overview() {
   const nothingFound = searches("day").filter((s) => s.results === 0);
 
   const tasks: { icon: IconName; title: string; detail: string; href: string; action: string; tone?: "bad" | "warn" }[] = [
-    waiting.applicants.length > 0 && {
+    waiting.vendors > 0 && {
       icon: "store" as const,
-      title: `${plural(waiting.applicants.length, "business", "businesses")} waiting for approval`,
-      detail:
-        waiting.applicants.length > 4
-          ? `${waiting.applicants.slice(0, 3).map((a) => a.name).join(", ")} and ${waiting.applicants.length - 3} more`
-          : waiting.applicants.map((a) => a.name).join(", "),
+      title: `${plural(waiting.vendors, "business", "businesses")} waiting for approval`,
+      detail: `${waiting.waiting?.ready ?? 0} ready, ${waiting.waiting?.missing ?? 0} missing data`,
       href: "/admin/approvals",
       action: "Review",
     },

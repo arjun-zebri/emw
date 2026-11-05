@@ -15,6 +15,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { uploadVariants, variantKeys } from "./lib/variants.mjs";
 import { vendors } from "../data/vendors.ts";
 import { vendorPhotos } from "../data/photos.ts";
 
@@ -92,13 +93,15 @@ for (const v of vendors) {
     const { width, height } = await sharp(buf).metadata();
     const key = `${id}/${String(i).padStart(2, "0")}.jpg`;
     must(await db.storage.from("vendor-photos").upload(key, buf, { contentType: "image/jpeg", upsert: true }));
+    await uploadVariants(db, key, buf);
     photos.push({ vendor_id: id, path: key, width, height, alt: i === 0 ? v.name : `${v.name}, photo ${i + 1}`, position: i });
   }
   // Replace the photo rows, and remove files left over from a longer earlier run.
   must(await db.from("vendor_photos").delete().eq("vendor_id", id));
   if (photos.length) must(await db.from("vendor_photos").insert(photos));
   const stored = must(await db.storage.from("vendor-photos").list(id));
-  const extra = stored.map((f) => `${id}/${f.name}`).filter((k) => !photos.some((p) => p.path === k));
+  const keep = new Set([...photos.map((p) => p.path), ...variantKeys(photos.map((p) => p.path))]);
+  const extra = stored.map((f) => `${id}/${f.name}`).filter((k) => !keep.has(k));
   if (extra.length) must(await db.storage.from("vendor-photos").remove(extra));
 
   photoCount += photos.length;

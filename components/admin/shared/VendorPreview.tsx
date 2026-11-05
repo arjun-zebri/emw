@@ -21,7 +21,7 @@ const displayUrl = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").repl
  * vendors in the directory. Same markup and type as the public pages, with the site header for
  * context; nothing in it links anywhere.
  */
-export function VendorPreview({ values: v, photos, onClose }: { values: VendorFormValues; photos: string[]; onClose: () => void }) {
+export function VendorPreview({ values: v, photos, story = [], onClose }: { values: VendorFormValues; photos: string[]; story?: string[]; onClose: () => void }) {
   const [view, setView] = useState<View>("page");
   const ratios = useRatios(photos);
   const location = locationLabel({ based: v.based || undefined, serviceArea: v.serviceArea } as Vendor);
@@ -36,19 +36,19 @@ export function VendorPreview({ values: v, photos, onClose }: { values: VendorFo
       onView={setView}
       onClose={onClose}
     >
-      {view === "page" ? <PagePreview v={v} photos={photos} ratios={ratios} location={location} /> : <DirectoryPreview v={v} cover={photos[0]} />}
+      {view === "page" ? <PagePreview v={v} photos={photos} story={story} ratios={ratios} location={location} /> : <DirectoryPreview v={v} cover={photos[0]} />}
     </PreviewFrame>
   );
 }
 
-function PagePreview({ v, photos, ratios, location }: { v: VendorFormValues; photos: string[]; ratios: Record<string, number>; location: string }) {
+function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValues; photos: string[]; story: string[]; ratios: Record<string, number>; location: string }) {
   const tongues = v.languages.filter((l) => l !== "English");
   const ratio = (src: string) => ratios[src] ?? 0.8;
   const landscape = photos[0] ? ratio(photos[0]) >= 1.2 : false;
   const gallery = rows(photos.slice(1), ratio);
   const area = v.serviceArea;
   const details = [
-    v.services.length > 0 && { label: "Services", value: v.services.map((s) => serviceLabels[s]).join(", ") },
+    v.services.length > 0 && { label: "Services", value: v.services.map((s) => serviceLabels[s] ?? s).join(", ") },
     { label: "Service area", value: area.length >= 8 ? "Australia-wide" : area.map((s) => states[s]).join(", ") || "On request" },
   ].filter(Boolean) as { label: string; value: string }[];
   const links = [
@@ -80,13 +80,20 @@ function PagePreview({ v, photos, ratios, location }: { v: VendorFormValues; pho
             {tongues.length > 0 && (
               <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
                 {tongues.map((l) => (
-                  <span key={l} lang={languages[l].lang}>
-                    {languages[l].native}
+                  <span key={l} lang={languages[l]?.lang}>
+                    {languages[l]?.native ?? l}
                   </span>
                 ))}
               </p>
             )}
             {v.lede && <p className="t-title mt-8 text-[1.5rem] leading-[1.3] text-pretty">{v.lede}</p>}
+            {story.length > 0 && (
+              <div className="t-body mt-5 space-y-4 text-ink">
+                {story.map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
+              </div>
+            )}
 
             <div className={clsx("mt-8", gallery.length === 0 && "lg:mt-auto lg:pt-10")}>
               <dl className="border-t hairline">
@@ -182,8 +189,8 @@ function Card({
       <p className="t-small mt-1.5 flex flex-wrap gap-x-2.5">
         <span>{line}</span>
         {tongues.map((l) => (
-          <span key={l} lang={languages[l].lang} className="text-ink-mute/75">
-            {languages[l].native}
+          <span key={l} lang={languages[l]?.lang} className="text-ink-mute/75">
+            {languages[l]?.native ?? l}
           </span>
         ))}
       </p>
