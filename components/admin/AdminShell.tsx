@@ -12,7 +12,7 @@ import { useQueue } from "@/lib/admin/drafts";
 import { useEnquiries } from "@/lib/admin/enquiries";
 import { pendingCount } from "@/lib/admin/feed";
 import { signOut, useSession, useVendorSlug } from "@/lib/admin/session";
-import { getVendor } from "@/lib/vendors";
+import { getVendor } from "@/lib/static-vendors";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationBell } from "./NotificationBell";
 import { activeHref, ownerNav, vendorNav, type NavGroup } from "./nav";

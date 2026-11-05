@@ -2,21 +2,23 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { VendorDirectory } from "@/components/vendors/VendorDirectory";
-import { areaCounts, craftCounts, languageCounts, listedCrafts, locationLabel, serviceCounts, vendors } from "@/lib/vendors";
+import { getListings } from "@/lib/listings";
+import { areaCounts, craftCounts, languageCounts, listedCrafts, locationLabel, serviceCounts } from "@/lib/vendors";
 
 export const metadata: Metadata = {
   title: "Vendors",
   description: "Wedding vendors for couples bringing two cultures together, searchable by category and language.",
 };
 
-export default function VendorsPage() {
-  const counts = craftCounts();
+export default async function VendorsPage() {
+  const vendors = await getListings();
+  const counts = craftCounts(vendors);
   const cards = vendors.map((v) => ({ vendor: v, location: locationLabel(v) }));
   const tabs = [
     { id: null, label: "All", count: vendors.length },
-    ...listedCrafts().map((c) => ({ id: c.id, label: c.short, count: counts[c.id] })),
+    ...listedCrafts(vendors).map((c) => ({ id: c.id, label: c.short, count: counts[c.id] })),
   ];
-  const options = { languages: languageCounts(), areas: areaCounts(), services: serviceCounts() };
+  const options = { languages: languageCounts(vendors), areas: areaCounts(vendors), services: serviceCounts(vendors) };
 
   return (
     <PageTransition>

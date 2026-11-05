@@ -1,7 +1,7 @@
 "use client";
 
 import { Logo } from "@/components/brand/Logo";
-import { getVendor } from "@/lib/vendors";
+import { getVendor } from "@/lib/static-vendors";
 
 /*
  * What each alert looks like when it lands in an inbox. Short, plain and on-brand: the monogram,

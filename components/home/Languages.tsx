@@ -1,11 +1,13 @@
 import { languages } from "@/data/taxonomy";
 import type { Language } from "@/data/types";
-import { languageCounts, vendors } from "@/lib/vendors";
+import { getListings } from "@/lib/listings";
+import { languageCounts } from "@/lib/vendors";
 import { LanguageIndex } from "./LanguageIndex";
 
-export function Languages() {
+export async function Languages() {
+  const vendors = await getListings();
   // English last, so the other languages lead.
-  const counts = languageCounts().sort(([a], [b]) => Number(a === "English") - Number(b === "English"));
+  const counts = languageCounts(vendors).sort(([a], [b]) => Number(a === "English") - Number(b === "English"));
   const rows = counts.map(([name, count]) => ({
     name,
     count,

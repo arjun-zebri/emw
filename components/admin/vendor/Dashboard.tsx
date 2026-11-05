@@ -7,7 +7,7 @@ import { useEnquiries } from "@/lib/admin/enquiries";
 import { longDay, plural } from "@/lib/admin/format";
 import { useVendorSlug } from "@/lib/admin/session";
 import { hoursSince, useToday } from "@/lib/admin/time";
-import { getVendor } from "@/lib/vendors";
+import { getVendor } from "@/lib/static-vendors";
 import { Btn, NotYet, PageHeader, Panel } from "../ui";
 
 export function Dashboard() {

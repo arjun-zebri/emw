@@ -8,7 +8,7 @@ import { alertDefs, type AlertDef, type Channel } from "@/lib/admin/alerts";
 import { useVendorSlug } from "@/lib/admin/session";
 import { update, useAdmin } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
-import { getVendor } from "@/lib/vendors";
+import { getVendor } from "@/lib/static-vendors";
 import { Drawer } from "../Drawer";
 import { AlertMatrix, type MatrixGroup } from "../shared/AlertMatrix";
 import { EmailPreview } from "../shared/EmailPreview";

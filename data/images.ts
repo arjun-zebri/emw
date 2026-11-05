@@ -39,6 +39,9 @@ export const craftImages: Record<CraftId, Slot> = {
   "venues-hire": { alt: "An empty venue ready for the evening", brief: "The room dressed and empty, late light." },
 };
 
+/** Width ÷ height of one of a vendor's photos, when known. */
+export const photoRatio = (vendor: Vendor, src: string): number | undefined => vendor.ratios?.[src] ?? photoRatios[src];
+
 export function vendorCover(vendor: Vendor): Slot {
   return {
     src: vendor.cover,
@@ -51,7 +54,7 @@ export function vendorCover(vendor: Vendor): Slot {
 export function vendorImages(vendor: Vendor): Slot[] {
   const cover = vendorCover(vendor);
   return [
-    { ...cover, ratio: vendor.cover ? photoRatios[vendor.cover] : undefined },
-    ...(vendor.gallery ?? []).map((src, i) => ({ src, alt: `${vendor.name}, photo ${i + 2}`, brief: "", ratio: photoRatios[src] })),
+    { ...cover, ratio: vendor.cover ? photoRatio(vendor, vendor.cover) : undefined },
+    ...(vendor.gallery ?? []).map((src, i) => ({ src, alt: `${vendor.name}, photo ${i + 2}`, brief: "", ratio: photoRatio(vendor, src) })),
   ];
 }

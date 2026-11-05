@@ -1,5 +1,6 @@
 import type { Language, Service, StateCode } from "@/data/types";
-import { getVendor, locationLabel, vendors } from "@/lib/vendors";
+import { getVendor, vendors } from "@/lib/static-vendors";
+import { locationLabel } from "@/lib/vendors";
 import type { TierId } from "./billing";
 import type { AdminState } from "./store";
 

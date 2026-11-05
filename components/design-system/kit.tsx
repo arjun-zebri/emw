@@ -7,7 +7,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Language } from "@/data/types";
-import { areaCounts, getVendor, languageCounts, locationLabel, serviceCounts, vendors } from "@/lib/vendors";
+import { getVendor, vendors } from "@/lib/static-vendors";
+import { areaCounts, languageCounts, locationLabel, serviceCounts } from "@/lib/vendors";
 import { ChipsDemo, DrawerDemo, FieldsDemo, GuestsDemo, NightFieldDemo } from "./Demos";
 import { Section, Stage } from "./parts";
 
@@ -99,12 +100,12 @@ export function Forms() {
 }
 
 export function Filters() {
-  const chipLanguages = languageCounts()
+  const chipLanguages = languageCounts(vendors)
     .map(([l]) => l)
     .filter((l) => l !== "English")
     .slice(0, 7)
     .map((l: Language) => ({ value: l, label: `${languages[l].native}  ${l}`, lang: languages[l].lang }));
-  const drawerOptions = { languages: languageCounts(), areas: areaCounts(), services: serviceCounts() };
+  const drawerOptions = { languages: languageCounts(vendors), areas: areaCounts(vendors), services: serviceCounts(vendors) };
   const facets = vendors.map((v) => ({ languages: v.languages ?? [], services: v.services, areas: v.serviceArea ?? [] }));
   return (
     <Section id="filters" title="Filters">

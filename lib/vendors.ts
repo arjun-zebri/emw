@@ -1,18 +1,10 @@
 import { craftById, craftOf, crafts, states } from "@/data/taxonomy";
 import type { Craft, CraftId, Language, Service, StateCode, Vendor } from "@/data/types";
-import { vendorPhotos } from "@/data/photos";
-import { vendors as listings } from "@/data/vendors";
 
-export const vendors: Vendor[] = listings.map((v) => ({ ...v, ...vendorPhotos[v.slug] }));
-
-export function getVendor(slug: string): Vendor | undefined {
-  return vendors.find((v) => v.slug === slug);
-}
-
-/** Issue-style number, e.g. "07". Stable across filters because it follows the source order. */
-export function vendorNumber(vendor: Vendor): string {
-  return String(vendors.indexOf(vendor) + 1).padStart(2, "0");
-}
+/*
+ * Helpers for a list of vendors, safe on the server and in the browser. The public pages get their
+ * list from lib/listings.ts (Supabase); the admin still uses the snapshot in lib/static-vendors.ts.
+ */
 
 export function primaryCraft(vendor: Vendor): Craft {
   return craftOf(vendor.services[0]);
@@ -31,31 +23,31 @@ export function locationLabel(vendor: Vendor): string {
   return region || "Location on request";
 }
 
-export function craftCounts(): Record<CraftId, number> {
+export function craftCounts(vendors: Vendor[]): Record<CraftId, number> {
   const counts = Object.fromEntries(crafts.map((c) => [c.id, 0])) as Record<CraftId, number>;
   for (const v of vendors) for (const id of vendorCrafts(v)) counts[id]++;
   return counts;
 }
 
 /** Crafts with at least one listed vendor. Public pages show only these, so no category leads nowhere. */
-export function listedCrafts() {
-  const counts = craftCounts();
+export function listedCrafts(vendors: Vendor[]) {
+  const counts = craftCounts(vendors);
   return crafts.filter((c) => counts[c.id] > 0);
 }
 
-export function languageCounts(): [Language, number][] {
+export function languageCounts(vendors: Vendor[]): [Language, number][] {
   const counts = new Map<Language, number>();
   for (const v of vendors) for (const l of v.languages ?? []) counts.set(l, (counts.get(l) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-export function serviceCounts(): [Service, number][] {
+export function serviceCounts(vendors: Vendor[]): [Service, number][] {
   const counts = new Map<Service, number>();
   for (const v of vendors) for (const s of v.services) counts.set(s, (counts.get(s) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-export function areaCounts(): [StateCode, number][] {
+export function areaCounts(vendors: Vendor[]): [StateCode, number][] {
   const counts = new Map<StateCode, number>();
   for (const v of vendors) for (const s of v.serviceArea ?? []) counts.set(s, (counts.get(s) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
@@ -105,21 +97,15 @@ export function filterVendors(list: Vendor[], f: Omit<VendorFilters, "sort"> & {
 }
 
 /** Same craft first, then vendors who share a language other than English; photographed vendors before the rest. */
-export function relatedVendors(vendor: Vendor, count = 3): Vendor[] {
+export function relatedVendors(vendors: Vendor[], vendor: Vendor, count = 3): Vendor[] {
   const craft = primaryCraft(vendor).id;
   const tongues = (vendor.languages ?? []).filter((l): l is Language => l !== "English");
   const score = (v: Vendor) =>
     (vendorCrafts(v).includes(craft) ? 4 : 0) + (v.languages?.some((l) => tongues.includes(l)) ? 2 : 0) + (v.cover ? 1 : 0);
   return vendors
-    .filter((v) => v !== vendor)
+    .filter((v) => v.slug !== vendor.slug)
     .map((v) => ({ v, s: score(v) }))
     .sort((a, b) => b.s - a.s)
     .slice(0, count)
     .map(({ v }) => v);
 }
-
-export function nextVendor(vendor: Vendor): Vendor {
-  return vendors[(vendors.indexOf(vendor) + 1) % vendors.length];
-}
-
-export const featuredVendors = vendors.filter((v) => v.featured);

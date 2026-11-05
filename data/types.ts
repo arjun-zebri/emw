@@ -80,4 +80,6 @@ export type Vendor = {
   featured: boolean;
   cover?: string;
   gallery?: string[];
+  /** Width ÷ height of each photo, by src. Listings from the database carry their own; otherwise data/photo-ratios.ts. */
+  ratios?: Record<string, number>;
 };

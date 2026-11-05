@@ -3,13 +3,15 @@ import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { SITE } from "@/lib/config";
+import { getListings } from "@/lib/listings";
 import { listedCrafts } from "@/lib/vendors";
 import { Newsletter } from "./Newsletter";
 import { primaryNav } from "./nav";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const vendors = await getListings();
   const columns = [
-    { title: "Vendors", links: listedCrafts().map((c) => ({ href: `/vendors?craft=${c.id}`, label: c.short })) },
+    { title: "Vendors", links: listedCrafts(vendors).map((c) => ({ href: `/vendors?craft=${c.id}`, label: c.short })) },
     {
       title: "East Meets Wed",
       links: primaryNav.filter((n) => n.href !== "/vendors"),

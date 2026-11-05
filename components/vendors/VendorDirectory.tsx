@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { photoRatios } from "@/data/photo-ratios";
+import { photoRatio } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { CraftId } from "@/data/types";
 import { filterVendors, filtersToParams, parseFilters, type VendorFilters } from "@/lib/vendors";
@@ -20,7 +20,7 @@ const ease = [0.16, 1, 0.3, 1] as const;
 function wideTiles(cards: VendorCardData[]) {
   let since = Infinity;
   return cards.map(({ vendor }) => {
-    const wide = (photoRatios[vendor.cover ?? ""] ?? 0) >= 1.3 && since >= 4;
+    const wide = (vendor.cover ? (photoRatio(vendor, vendor.cover) ?? 0) : 0) >= 1.3 && since >= 4;
     since = wide ? 0 : since + 1;
     return wide;
   });

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEnquiries } from "@/lib/admin/enquiries";
 import { ago, day, plural } from "@/lib/admin/format";
 import { hoursSince } from "@/lib/admin/time";
-import { getVendor } from "@/lib/vendors";
+import { getVendor } from "@/lib/static-vendors";
 import { Avatar, Badge, Empty, NotYet, PageHeader, Panel, Stat } from "../ui";
 
 /** Every enquiry couples have sent from vendor pages, newest first, and whether the vendor has replied. */

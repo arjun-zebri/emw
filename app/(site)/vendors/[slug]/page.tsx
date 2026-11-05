@@ -13,14 +13,15 @@ import { VendorCard } from "@/components/vendors/VendorCard";
 import { type Slot, vendorImages } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
-import { getVendor, locationLabel, relatedVendors, vendors } from "@/lib/vendors";
+import { getListing, getListings } from "@/lib/listings";
+import { locationLabel, relatedVendors } from "@/lib/vendors";
 
-export function generateStaticParams() {
-  return vendors.map((v) => ({ slug: v.slug }));
+export async function generateStaticParams() {
+  return (await getListings()).map((v) => ({ slug: v.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/vendors/[slug]">): Promise<Metadata> {
-  const vendor = getVendor((await params).slug);
+  const vendor = await getListing((await params).slug);
   if (!vendor) return {};
   return { title: vendor.name, description: vendor.lede, openGraph: { title: vendor.name, description: vendor.lede } };
 }
@@ -77,14 +78,16 @@ export default function VendorPage({ params }: PageProps<"/vendors/[slug]">) {
 }
 
 async function VendorFeature({ params }: { params: PageProps<"/vendors/[slug]">["params"] }) {
-  const vendor = getVendor((await params).slug);
+  const { slug } = await params;
+  const vendors = await getListings();
+  const vendor = vendors.find((v) => v.slug === slug);
   if (!vendor) notFound();
 
   const images = vendorImages(vendor);
   const landscape = ratioOf(images[0]) >= 1.2;
   const area = vendor.serviceArea ?? [];
   const tongues = vendor.languages ?? [];
-  const related = relatedVendors(vendor, 3);
+  const related = relatedVendors(vendors, vendor, 3);
   const links = contactLinks(vendor);
   const gallery = rows(images);
 

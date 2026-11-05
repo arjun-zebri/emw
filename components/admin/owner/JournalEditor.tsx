@@ -13,7 +13,7 @@ import { day } from "@/lib/admin/format";
 import { deletePost, nowIso, savePost, slugify, useAdmin } from "@/lib/admin/store";
 import { today, useToday } from "@/lib/admin/time";
 import { toast } from "@/lib/admin/toast";
-import { getVendor, vendors } from "@/lib/vendors";
+import { getVendor, vendors } from "@/lib/static-vendors";
 import { DatePicker } from "../shared/DatePicker";
 import { DetailRow, rowInput } from "../shared/DetailRow";
 import { Dropdown } from "../shared/Dropdown";

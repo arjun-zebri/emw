@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { Language, Service, StateCode } from "@/data/types";
+import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
 import { imageUrl } from "@/lib/supabase/storage";
 
@@ -253,6 +254,8 @@ export async function loadDraft(id: string) {
 async function rpc(vendor: string, verdict: Verdict, note = "") {
   const { error } = await db().rpc("decide_vendor", { vendor, verdict, note });
   if (error) throw new Error(error.message);
+  // The listing goes live (or comes down) on the public pages straight away.
+  await refreshListings().catch(() => undefined);
 }
 
 /** Approve (publish) or decline (hide) a draft, with an optional reason. Resolves once it's saved. */
