@@ -7,7 +7,7 @@ import { Icon } from "@/components/icons/Icon";
 import { languages as languageNames } from "@/data/taxonomy";
 import { vendorTotals } from "@/lib/admin/analytics";
 import { tiers } from "@/lib/admin/billing";
-import { pending } from "@/lib/admin/feed";
+import { useDrafts } from "@/lib/admin/drafts";
 import { ago, day, num } from "@/lib/admin/format";
 import { useAdmin } from "@/lib/admin/store";
 import { adminVendors, statusLabels, type AdminVendor } from "@/lib/admin/vendors";
@@ -21,7 +21,7 @@ export function VendorsList() {
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const all = adminVendors(state);
-  const waiting = pending(state).applicants;
+  const { drafts: waiting } = useDrafts();
 
   const groups: Record<Exclude<Tab, "pending">, AdminVendor[]> = {
     all,
@@ -80,14 +80,14 @@ export function VendorsList() {
               {waiting.map((a, i) => (
                 <li key={a.id} className={i > 0 ? "border-t border-ink/[0.06]" : undefined}>
                   <Link href={`/admin/approvals?item=${a.id}`} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-paper/70 sm:px-6">
-                    <Avatar name={a.name} size={40} />
+                    <Avatar name={a.name} src={a.photos[0]?.src} size={40} />
                     <span className="min-w-0 flex-1">
                       <span className="block text-[0.875rem]">{a.name}</span>
                       <span className="block truncate text-[0.75rem] text-ink-mute">
-                        {a.discipline} · {a.based}
+                        {a.discipline || "No category yet"}
                       </span>
                     </span>
-                    <span className="hidden text-[0.75rem] text-ink-mute sm:block">Applied {ago(a.submitted)}</span>
+                    <span className="hidden text-[0.75rem] text-ink-mute sm:block">Added {ago(a.submitted)}</span>
                     <span className="flex items-center gap-1.5 text-[0.8125rem] text-ink-mute group-hover:text-ink">
                       Review
                       <Icon name="arrow" className="size-3.5" strokeWidth={1.5} />

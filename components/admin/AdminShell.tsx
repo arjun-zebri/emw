@@ -8,6 +8,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
+import { useDrafts } from "@/lib/admin/drafts";
 import { pendingCount } from "@/lib/admin/feed";
 import { enquiries } from "@/lib/admin/people";
 import { signOut, useSession, useVendorSlug } from "@/lib/admin/session";
@@ -22,6 +23,7 @@ import { Avatar, Kbd } from "./ui";
 /** The frame around every admin and vendor-portal page: sidebar, top bar, search and notifications. */
 export function AdminShell({ role, children }: { role: "owner" | "vendor"; children: React.ReactNode }) {
   const state = useAdmin();
+  const { drafts } = useDrafts();
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
   const nav = role === "owner" ? ownerNav : vendorNav;
@@ -31,7 +33,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
   const vendor = vendorSlug ? getVendor(vendorSlug) : undefined;
 
   const badges = {
-    approvals: pendingCount(state),
+    approvals: pendingCount(state, drafts),
     unreplied: vendorSlug ? enquiries.filter((e) => e.vendor === vendorSlug && !e.reply && !state.replies[e.id]).length : 0,
   };
 

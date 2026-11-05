@@ -7,22 +7,22 @@ import { useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import { searches } from "@/lib/admin/analytics";
+import { decideDraft, reloadDrafts, undoDraft, useDrafts, type Draft, type Verdict } from "@/lib/admin/drafts";
 import { pending } from "@/lib/admin/feed";
-import { ago, day, num } from "@/lib/admin/format";
-import { applicants, reviews, submissions, type Applicant, type Review, type Submission } from "@/lib/admin/people";
-import { addVendor, decide, deletePost, nowIso, removeVendor, savePost, slugify, undecide, useAdmin } from "@/lib/admin/store";
+import { ago, day } from "@/lib/admin/format";
+import { reviews, submissions, type Review, type Submission } from "@/lib/admin/people";
+import { decide, deletePost, nowIso, savePost, slugify, undecide, useAdmin } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
 import { getVendor } from "@/lib/vendors";
 import { Drawer } from "../Drawer";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, inputCls } from "../ui";
 
 type Tab = "vendors" | "weddings" | "reviews";
-type Item = { kind: "vendor"; data: Applicant } | { kind: "wedding"; data: Submission } | { kind: "review"; data: Review };
+type Item = { kind: "vendor"; data: Draft } | { kind: "wedding"; data: Submission } | { kind: "review"; data: Review };
 
 const tabs: Tab[] = ["vendors", "weddings", "reviews"];
-const all: Record<Tab, Item[]> = {
-  vendors: applicants.map((data) => ({ kind: "vendor", data })),
+// Vendors come from Supabase (useDrafts); Real Weddings and reviews are still the demo's samples.
+const samples: Record<Exclude<Tab, "vendors">, Item[]> = {
   weddings: submissions.map((data) => ({ kind: "wedding", data })),
   reviews: reviews.map((data) => ({ kind: "review", data })),
 };
@@ -41,7 +41,6 @@ const useDesktop = () =>
 
 const vendorName = (slug: string) => getVendor(slug)?.name ?? slug;
 const itemTitle = (item: Item) => (item.kind === "vendor" ? item.data.name : item.kind === "wedding" ? item.data.couple : `${item.data.couple} on ${vendorName(item.data.vendor)}`);
-const applicantSlug = (a: Applicant) => slugify(a.name);
 const draftId = (s: Submission) => `p-${s.id}`;
 
 export function Approvals() {
@@ -50,10 +49,17 @@ export function Approvals() {
   const params = useSearchParams();
   const state = useAdmin();
   const desktop = useDesktop();
-  const waiting = pending(state);
+  const queue = useDrafts();
+  const [busy, setBusy] = useState(false);
+  const waiting = pending(state, queue.drafts);
   const tab = (tabs.includes(params.get("tab") as Tab) ? params.get("tab") : "vendors") as Tab;
-  const open = all[tab].filter((i) => !state.decisions[i.data.id]);
-  const decided = all[tab].filter((i) => state.decisions[i.data.id]);
+  const open: Item[] = tab === "vendors" ? queue.drafts.map((data) => ({ kind: "vendor", data })) : samples[tab].filter((i) => !state.decisions[i.data.id]);
+  const decided: { item: Item; verdict: Verdict; note?: string }[] =
+    tab === "vendors"
+      ? queue.decided.map((d) => ({ item: { kind: "vendor", data: d.draft }, verdict: d.verdict }))
+      : samples[tab].filter((i) => state.decisions[i.data.id]).map((item) => ({ item, ...state.decisions[item.data.id] }));
+  const loading = tab === "vendors" && (queue.status === "idle" || queue.status === "loading");
+  const failed = tab === "vendors" && queue.status === "error";
   const requested = params.get("item");
   const selected = open.find((i) => i.data.id === requested) ?? (desktop ? open[0] : undefined);
 
@@ -72,33 +78,36 @@ export function Approvals() {
     return open[i + 1]?.data.id ?? open[i - 1]?.data.id ?? null;
   };
 
+  // Vendors are written to the database; the queue only moves on once it has the change.
+  const decideVendor = async (d: Draft, verdict: Verdict) => {
+    if (busy) return;
+    setBusy(true);
+    const next = nextAfter(d.id);
+    try {
+      await decideDraft(d, verdict);
+      toast(verdict === "approved" ? `${d.name} approved` : `${d.name} declined`, { label: "Undo", run: () => void undoVendor(d) });
+      go({ item: next });
+    } catch (e) {
+      toast(`Couldn't save that: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const undoVendor = async (d: Draft) => {
+    try {
+      await undoDraft(d);
+      go({ tab: "vendors", item: d.id });
+    } catch (e) {
+      toast(`Couldn't undo that: ${(e as Error).message}`);
+    }
+  };
+
   const approve = (item: Item) => {
+    if (item.kind === "vendor") return void decideVendor(item.data, "approved");
     const id = item.data.id;
     decide(id, "approved");
-    if (item.kind === "vendor") {
-      const a = item.data;
-      addVendor({
-        slug: applicantSlug(a),
-        name: a.name,
-        person: a.person,
-        discipline: a.discipline,
-        services: a.services,
-        based: a.based,
-        serviceArea: a.serviceArea,
-        languages: a.languages,
-        lede: a.lede,
-        email: a.email,
-        phone: a.phone,
-        website: a.website,
-        instagram: a.instagram,
-        tier: "essential",
-        billing: "monthly",
-        photos: [],
-        added: nowIso(),
-        via: "application",
-      });
-      toast(`${a.name} is live`, { label: "Undo", run: () => (undecide(id), removeVendor(applicantSlug(a))) });
-    } else if (item.kind === "wedding") {
+    if (item.kind === "wedding") {
       const s = item.data;
       savePost({
         id: draftId(s),
@@ -126,6 +135,7 @@ export function Approvals() {
   };
 
   const decline = (item: Item, note?: string) => {
+    if (item.kind === "vendor") return void decideVendor(item.data, "declined");
     const id = item.data.id;
     decide(id, "declined", note);
     toast(`${itemTitle(item)} declined`, { label: "Undo", run: () => undecide(id) });
@@ -133,15 +143,15 @@ export function Approvals() {
   };
 
   const undo = (item: Item) => {
+    if (item.kind === "vendor") return void undoVendor(item.data);
     const id = item.data.id;
     const verdict = state.decisions[id]?.verdict;
     undecide(id);
-    if (verdict === "approved" && item.kind === "vendor") removeVendor(applicantSlug(item.data));
     if (verdict === "approved" && item.kind === "wedding") deletePost(draftId(item.data));
     go({ item: id });
   };
 
-  const detail = selected && <Detail key={selected.data.id} item={selected} onApprove={() => approve(selected)} onDecline={(note) => decline(selected, note)} />;
+  const detail = selected && <Detail key={selected.data.id} item={selected} busy={busy} onApprove={() => approve(selected)} onDecline={(note) => decline(selected, note)} />;
 
   return (
     <>
@@ -157,9 +167,22 @@ export function Approvals() {
         ]}
       />
 
-      {open.length === 0 ? (
+      {loading ? (
         <Panel>
-          <Empty title="All clear">{tab === "vendors" ? "New applications will appear here." : tab === "weddings" ? "Couples' Real Wedding submissions will appear here." : "New reviews will appear here."}</Empty>
+          <Empty title="Loading">Fetching the businesses waiting for approval.</Empty>
+        </Panel>
+      ) : failed ? (
+        <Panel>
+          <Empty title="Couldn't load the queue">
+            {queue.error}{" "}
+            <button type="button" onClick={() => void reloadDrafts()} className="link-line">
+              Try again
+            </button>
+          </Empty>
+        </Panel>
+      ) : open.length === 0 ? (
+        <Panel>
+          <Empty title="All clear">{tab === "vendors" ? "Businesses waiting to be listed will appear here." : tab === "weddings" ? "Couples' Real Wedding submissions will appear here." : "New reviews will appear here."}</Empty>
         </Panel>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
@@ -205,8 +228,8 @@ export function Approvals() {
           <h2 className="mb-3 text-[0.875rem] font-medium">Recently decided</h2>
           <Panel flush>
             <ul>
-              {decided.map((item, i) => {
-                const d = state.decisions[item.data.id];
+              {decided.map((d, i) => {
+                const item = d.item;
                 return (
                   <li key={item.data.id} className={clsx("flex items-center gap-3 px-5 py-3 sm:px-6", i > 0 && "border-t border-ink/[0.06]")}>
                     <Badge tone={d.verdict === "approved" ? "good" : "neutral"}>{d.verdict === "approved" ? "Approved" : "Declined"}</Badge>
@@ -214,11 +237,6 @@ export function Approvals() {
                       {itemTitle(item)}
                       {d.note && <span className="ml-2 text-ink-mute">“{d.note}”</span>}
                     </span>
-                    {d.verdict === "approved" && item.kind === "vendor" && (
-                      <Btn size="sm" variant="ghost" href={`/admin/vendors/${applicantSlug(item.data)}`}>
-                        Open
-                      </Btn>
-                    )}
                     {d.verdict === "approved" && item.kind === "wedding" && (
                       <Btn size="sm" variant="ghost" href={`/admin/journal/${draftId(item.data)}`}>
                         Open draft
@@ -250,16 +268,26 @@ function ListThumb({ item }: { item: Item }) {
     const v = getVendor(item.data.vendor);
     return <Avatar name={v?.name ?? item.data.couple} src={v?.cover} size={40} />;
   }
-  return <Avatar name={item.data.name} size={40} />;
+  return <Avatar name={item.data.name} src={item.data.photos[0]?.src} size={40} />;
 }
 
-function Detail({ item, onApprove, onDecline }: { item: Item; onApprove: () => void; onDecline: (note?: string) => void }) {
+function Detail({ item, busy, onApprove, onDecline }: { item: Item; busy?: boolean; onApprove: () => void; onDecline: (note?: string) => void }) {
   const [declining, setDeclining] = useState(false);
   const [note, setNote] = useState("");
 
   const actions = (
     <div className="sticky bottom-0 mt-6 border-t hairline bg-surface pt-5">
-      {declining ? (
+      {item.kind === "vendor" ? (
+        // A declined draft is hidden, not deleted, and nothing is sent, so there's no note to write.
+        <div className="flex flex-wrap gap-2">
+          <Btn variant="primary" icon="check" onClick={onApprove} disabled={busy}>
+            Approve and publish
+          </Btn>
+          <Btn onClick={() => onDecline()} disabled={busy}>
+            Decline
+          </Btn>
+        </div>
+      ) : declining ? (
         <div className="space-y-3">
           <label className="block text-[0.8125rem] font-medium" htmlFor="decline-note">
             A note for them <span className="font-normal text-ink-mute">(optional)</span>
@@ -277,7 +305,7 @@ function Detail({ item, onApprove, onDecline }: { item: Item; onApprove: () => v
       ) : (
         <div className="flex flex-wrap gap-2">
           <Btn variant="primary" icon="check" onClick={onApprove}>
-            {item.kind === "vendor" ? "Approve and list" : item.kind === "wedding" ? "Approve as a draft post" : "Publish review"}
+            {item.kind === "wedding" ? "Approve as a draft post" : "Publish review"}
           </Btn>
           <Btn onClick={() => setDeclining(true)}>Decline</Btn>
         </div>
@@ -288,7 +316,7 @@ function Detail({ item, onApprove, onDecline }: { item: Item; onApprove: () => v
   return (
     <Panel>
       <div className="pt-2">
-        {item.kind === "vendor" && <ApplicantDetail a={item.data} />}
+        {item.kind === "vendor" && <DraftDetail d={item.data} />}
         {item.kind === "wedding" && <SubmissionDetail s={item.data} />}
         {item.kind === "review" && <ReviewDetail r={item.data} />}
       </div>
@@ -310,50 +338,63 @@ function Facts({ rows }: { rows: [string, React.ReactNode][] }) {
   );
 }
 
-function ApplicantDetail({ a }: { a: Applicant }) {
-  const unanswered = a.answers ? searches("day").find((q) => q.label === a.answers) : undefined;
+const link = (href: string, label: string) => (
+  <a href={href} target="_blank" rel="noreferrer" className="link-line">
+    {label}
+  </a>
+);
+const bare = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+
+function DraftDetail({ d }: { d: Draft }) {
+  const shown = d.photos.slice(0, 3);
+  const more = d.photos.length - shown.length;
   return (
     <>
-      <div className="flex items-start gap-4">
-        <Avatar name={a.name} size={56} />
-        <div className="min-w-0">
-          <h2 className="font-display text-[1.75rem] leading-tight tracking-[-0.02em]">{a.name}</h2>
-          <p className="mt-1 text-[0.8125rem] text-ink-mute">
-            {a.discipline} · {a.based} · applied {ago(a.submitted)}
-          </p>
+      {shown.length > 0 ? (
+        <div className={clsx("grid h-[clamp(18rem,30vw,28rem)] gap-2", shown.length === 1 ? "grid-cols-1" : "grid-cols-3 grid-rows-2")}>
+          {shown.map((p, i) => (
+            <div key={p.src} className={clsx("relative overflow-hidden bg-paper-soft", shown.length > 1 && i === 0 && "col-span-2 row-span-2", shown.length === 2 && i === 1 && "row-span-2")}>
+              <Media src={p.src} alt={`${d.name}, photo ${i + 1}`} brief="" sizes="(min-width: 1024px) 40vw, 90vw" className="size-full" />
+              {more > 0 && i === shown.length - 1 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-night/45 text-[0.875rem] text-paper">+{more} more</span>
+              )}
+            </div>
+          ))}
         </div>
-      </div>
-      {unanswered && (
-        <div className="mt-5 flex gap-3 border border-accent/40 bg-accent/[0.07] p-4">
-          <Icon name="search" className="mt-0.5 size-4 text-ink-soft" strokeWidth={1.5} />
-          <p className="text-[0.8125rem] text-ink-soft">
-            Couples searched for “{unanswered.label}” {num(unanswered.value)} times in the last 30 days and found no one. {a.name} would be the first.
-          </p>
+      ) : (
+        <div className="flex h-32 items-center justify-center border border-dashed border-ink/15 text-[0.8125rem] text-ink-mute">No photos yet</div>
+      )}
+      <h2 className="mt-6 font-display text-[1.75rem] leading-tight tracking-[-0.02em]">{d.name}</h2>
+      <p className="mt-1 text-[0.8125rem] text-ink-mute">{[d.discipline, d.person].filter(Boolean).join(" · ")}</p>
+      {d.story.length > 0 && (
+        <div className="mt-5 max-w-[62ch] space-y-3 text-[0.9375rem] leading-relaxed">
+          {d.story.map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
         </div>
       )}
-      <p className="mt-6 text-[0.9375rem] leading-relaxed">{a.lede}</p>
       <Facts
         rows={[
-          ["Contact", a.person],
-          ["Email", <a key="e" href={`mailto:${a.email}`} className="link-line">{a.email}</a>],
-          ["Phone", a.phone],
-          ["Services", a.services.map((s) => serviceLabels[s]).join(", ")],
-          ["Travels to", a.serviceArea.map((s) => states[s]).join(", ")],
+          ...(d.email ? [["Email", link(`mailto:${d.email}`, d.email)] as [string, React.ReactNode]] : []),
+          ...(d.phone ? [["Phone", d.phone] as [string, React.ReactNode]] : []),
+          ["Services", d.services.map((s) => serviceLabels[s] ?? s).join(", ") || "None yet"],
+          ["Service area", d.serviceArea.map((s) => states[s] ?? s).join(", ") || "On request"],
           [
             "Languages",
             <span key="l" className="flex flex-wrap gap-x-3">
-              {a.languages.map((l) => (
-                <span key={l} lang={languageNames[l].lang}>
-                  {languageNames[l].native}
+              {d.languages.map((l) => (
+                <span key={l} lang={languageNames[l]?.lang}>
+                  {languageNames[l]?.native ?? l}
                 </span>
               ))}
             </span>,
           ],
-          ...(a.website ? [["Website", <a key="w" href={a.website} target="_blank" rel="noreferrer" className="link-line">{a.website.replace(/^https?:\/\//, "")}</a>] as [string, React.ReactNode]] : []),
-          ...(a.instagram ? [["Instagram", <a key="i" href={a.instagram} target="_blank" rel="noreferrer" className="link-line">{a.instagram.replace(/^https?:\/\/(www\.)?/, "")}</a>] as [string, React.ReactNode]] : []),
+          ...(d.website ? [["Website", link(d.website, bare(d.website))] as [string, React.ReactNode]] : []),
+          ...(d.instagram ? [["Instagram", link(d.instagram, bare(d.instagram))] as [string, React.ReactNode]] : []),
+          ...(d.facebook ? [["Facebook", link(d.facebook, bare(d.facebook))] as [string, React.ReactNode]] : []),
         ]}
       />
-      <p className="t-small mt-4 text-[0.75rem]">Approving lists them on Essential, monthly, and emails them to add photos.</p>
+      <p className="t-small mt-4 text-[0.75rem]">Approving publishes the listing. Declining hides it. Nothing is sent to the business, and either can be undone.</p>
     </>
   );
 }

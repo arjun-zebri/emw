@@ -3,7 +3,8 @@ import { getVendor } from "@/lib/vendors";
 import { uptime } from "./analytics";
 import { billingSummary, price, tiers } from "./billing";
 import { aud, day } from "./format";
-import { applicants, reviews, submissions } from "./people";
+import type { Draft } from "./drafts";
+import { reviews, submissions } from "./people";
 import type { AdminState } from "./store";
 import { daysUntil, hoursAgo } from "./time";
 
@@ -24,29 +25,35 @@ export type FeedItem = {
 
 const vendorName = (slug: string) => getVendor(slug)?.name ?? slug;
 
-export function pending(state: AdminState) {
+/** Vendors are the real drafts in Supabase (useDrafts); Real Weddings and reviews are still sample data. */
+export function pending(state: AdminState, drafts: Draft[] = []) {
   const open = <T extends { id: string }>(list: T[]) => list.filter((x) => !state.decisions[x.id]);
-  return { applicants: open(applicants), submissions: open(submissions), reviews: open(reviews) };
+  return { applicants: drafts, submissions: open(submissions), reviews: open(reviews) };
 }
 
-export function pendingCount(state: AdminState) {
-  const p = pending(state);
+export function pendingCount(state: AdminState, drafts: Draft[] = []) {
+  const p = pending(state, drafts);
   return p.applicants.length + p.submissions.length + p.reviews.length;
 }
 
-export function feed(state: AdminState): FeedItem[] {
-  const p = pending(state);
+export function feed(state: AdminState, drafts: Draft[] = []): FeedItem[] {
+  const p = pending(state, drafts);
   const b = billingSummary();
   const items: FeedItem[] = [
-    ...p.applicants.map((a) => ({
-      id: `apply-${a.id}`,
-      icon: "store" as const,
-      tone: "neutral" as const,
-      title: `${a.name} applied to join`,
-      detail: `${a.discipline}, ${a.based}`,
-      at: a.submitted,
-      href: `/admin/approvals?item=${a.id}`,
-    })),
+    // One line for the whole queue: an import can add a hundred drafts at once.
+    ...(p.applicants.length
+      ? [
+          {
+            id: `drafts-${p.applicants.length}`,
+            icon: "store" as const,
+            tone: "neutral" as const,
+            title: p.applicants.length === 1 ? `${p.applicants[0].name} is waiting for approval` : `${p.applicants.length} businesses waiting for approval`,
+            detail: p.applicants.length === 1 ? p.applicants[0].discipline : undefined,
+            at: p.applicants.reduce((a, d) => (d.submitted > a ? d.submitted : a), p.applicants[0].submitted),
+            href: "/admin/approvals",
+          },
+        ]
+      : []),
     ...p.submissions.map((s) => ({
       id: `rw-${s.id}`,
       icon: "image" as const,
