@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { vendorCover } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
-import { vendors } from "@/lib/static-vendors";
-import { locationLabel } from "@/lib/vendors";
+import { locationLabel, vendors } from "@/lib/vendors";
 import { PreviewFrame } from "./PreviewFrame";
 import type { VendorFormValues } from "./VendorForm";
 
@@ -206,8 +205,8 @@ function Card({
 }
 
 function Photo({ src, brief, sizes }: { src?: string; brief: string; sizes: string }) {
-  if (src?.startsWith("data:") || src?.startsWith("blob:")) {
-    // eslint-disable-next-line @next/next/no-img-element -- uploads are data or blob URLs, which next/image can't optimise
+  if (src?.startsWith("data:")) {
+    // eslint-disable-next-line @next/next/no-img-element -- uploads are data URLs, which next/image can't optimise
     return <img src={src} alt="" className="absolute inset-0 size-full object-cover" />;
   }
   return (

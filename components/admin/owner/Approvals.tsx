@@ -32,7 +32,7 @@ import type { Review, Submission } from "@/lib/admin/people";
 import { decide, deletePost, nowIso, savePost, slugify, undecide, useAdmin } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
-import { getVendor } from "@/lib/static-vendors";
+import { getVendor } from "@/lib/vendors";
 import type { VendorFormValues } from "../shared/VendorForm";
 import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
