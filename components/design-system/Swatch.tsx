@@ -8,8 +8,6 @@ export function Swatch({
   name,
   token,
   value,
-  role,
-  contrast,
   dark,
   line,
   className,
@@ -17,9 +15,6 @@ export function Swatch({
   name: string;
   token: string;
   value: string;
-  role: string;
-  /** e.g. "17.1:1 on paper". */
-  contrast?: string;
   /** Light text on the tile. */
   dark?: boolean;
   /** Draw the colour as a rule rather than a fill. */
@@ -60,8 +55,6 @@ export function Swatch({
         <span className="text-[0.9375rem] text-ink">{name}</span>
         <span className="t-small font-mono text-[0.75rem] uppercase">{value.startsWith("#") ? value : "12% ink"}</span>
       </span>
-      <span className="t-small mt-1 block">{role}</span>
-      {contrast && <span className="t-small mt-1 block text-ink-soft">{contrast}</span>}
       <span className="mt-2 block font-mono text-[0.6875rem] text-ink-mute">{token}</span>
     </button>
   );

@@ -2,7 +2,6 @@
 
 import clsx from "clsx";
 import { useCallback, useId, useState } from "react";
-import { Avatar, CheckChip, Segmented, Tabs, Toggle, table } from "@/components/admin/ui";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { FilterDrawer, type FilterOptions } from "@/components/vendors/FilterDrawer";
@@ -158,89 +157,5 @@ export function DrawerDemo({ options, facets }: { options: FilterOptions; facets
         resultCount={count}
       />
     </>
-  );
-}
-
-export function AdminControlsDemo() {
-  const [tab, setTab] = useState<"pending" | "live" | "paused">("pending");
-  const [range, setRange] = useState<"7d" | "30d" | "12m">("30d");
-  const [alerts, setAlerts] = useState(true);
-  const [email, setEmail] = useState(true);
-  const [sms, setSms] = useState(false);
-  return (
-    <div className="space-y-8">
-      <Tabs
-        tabs={[
-          { id: "pending", label: "Pending", count: 3 },
-          { id: "live", label: "Live", count: 34 },
-          { id: "paused", label: "Paused", count: 1 },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-5">
-        <Segmented
-          label="Range"
-          options={[
-            { id: "7d", label: "7 days" },
-            { id: "30d", label: "30 days" },
-            { id: "12m", label: "12 months" },
-          ]}
-          value={range}
-          onChange={setRange}
-        />
-        <label className="flex items-center gap-3 text-[0.875rem]">
-          <Toggle checked={alerts} onChange={setAlerts} label="New enquiry alerts" />
-          New enquiry alerts
-        </label>
-        <div className="flex items-center gap-2">
-          <CheckChip checked={email} onChange={setEmail} label="Email" />
-          <CheckChip checked={sms} onChange={setSms} label="SMS" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** The admin table, with the admin's own `table` classes (they live in a client module). */
-export function AdminTableDemo({
-  rows,
-}: {
-  rows: { slug: string; name: string; cover?: string; discipline: string; languages: { native: string; lang: string }[]; photos: number }[];
-}) {
-  return (
-    <div className={table.wrap}>
-      <table className={table.table}>
-        <thead>
-          <tr>
-            <th className={table.th}>Vendor</th>
-            <th className={table.th}>Discipline</th>
-            <th className={table.th}>Languages</th>
-            <th className={clsx(table.th, table.num)}>Photos</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((v) => (
-            <tr key={v.slug} className={table.row}>
-              <td className={table.td}>
-                <span className="flex items-center gap-3 whitespace-nowrap">
-                  <Avatar name={v.name} src={v.cover} size={28} />
-                  {v.name}
-                </span>
-              </td>
-              <td className={clsx(table.td, "text-ink-soft")}>{v.discipline}</td>
-              <td className={clsx(table.td, "text-ink-soft")}>
-                {v.languages.map((l) => (
-                  <span key={l.lang} lang={l.lang} className="mr-2">
-                    {l.native}
-                  </span>
-                ))}
-              </td>
-              <td className={clsx(table.td, table.num)}>{v.photos}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
