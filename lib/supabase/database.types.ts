@@ -233,6 +233,50 @@ export type Database = {
           },
         ]
       }
+      vendor_review_notes: {
+        Row: {
+          categories_original: string | null
+          confidence: Database["public"]["Enums"]["review_confidence"] | null
+          created_at: string
+          notes: string
+          registered_emails: string | null
+          source: string
+          updated_at: string
+          vendor_id: string
+          years_attended: string | null
+        }
+        Insert: {
+          categories_original?: string | null
+          confidence?: Database["public"]["Enums"]["review_confidence"] | null
+          created_at?: string
+          notes?: string
+          registered_emails?: string | null
+          source?: string
+          updated_at?: string
+          vendor_id: string
+          years_attended?: string | null
+        }
+        Update: {
+          categories_original?: string | null
+          confidence?: Database["public"]["Enums"]["review_confidence"] | null
+          created_at?: string
+          notes?: string
+          registered_emails?: string | null
+          source?: string
+          updated_at?: string
+          vendor_id?: string
+          years_attended?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_review_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: true
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendors: {
         Row: {
           based: string | null
@@ -333,6 +377,7 @@ export type Database = {
     }
     Enums: {
       post_status: "draft" | "scheduled" | "published"
+      review_confidence: "High" | "Medium" | "Low"
       team_role: "owner" | "editor"
       vendor_status: "draft" | "published" | "hidden"
     }
@@ -463,6 +508,7 @@ export const Constants = {
   public: {
     Enums: {
       post_status: ["draft", "scheduled", "published"],
+      review_confidence: ["High", "Medium", "Low"],
       team_role: ["owner", "editor"],
       vendor_status: ["draft", "published", "hidden"],
     },

@@ -10,6 +10,16 @@ import { imageUrl } from "@/lib/supabase/storage";
  * is real data, not the demo store.
  */
 
+/** What the research spreadsheet found, for the person approving. Team only (vendor_review_notes). */
+export type ReviewNotes = {
+  confidence?: "High" | "Medium" | "Low";
+  notes: string;
+  yearsAttended?: string;
+  categoriesOriginal?: string;
+  registeredEmails?: string;
+  source: string;
+};
+
 export type DraftPhoto = { src: string; width: number | null; height: number | null };
 
 export type Draft = {
@@ -29,6 +39,7 @@ export type Draft = {
   facebook?: string;
   photos: DraftPhoto[];
   submitted: string;
+  review?: ReviewNotes;
 };
 
 export type Verdict = "approved" | "declined";
@@ -44,7 +55,7 @@ function set(next: Partial<State>) {
   listeners.forEach((l) => l());
 }
 
-const opt = (s: string | null) => s ?? undefined;
+const opt = <T,>(s: T | null) => s ?? undefined;
 
 async function load() {
   set({ status: "loading", error: undefined });
@@ -54,6 +65,21 @@ async function load() {
     .eq("status", "draft")
     .order("name");
   if (error) return set({ status: "error", error: error.message });
+  // Separate query, so the queue still loads if the notes table hasn't been created yet.
+  const notes = await supabase().from("vendor_review_notes").select("vendor_id, confidence, notes, years_attended, categories_original, registered_emails, source");
+  const reviews = new Map(
+    (notes.data ?? []).map((n) => [
+      n.vendor_id,
+      {
+        confidence: opt(n.confidence),
+        notes: n.notes,
+        yearsAttended: opt(n.years_attended),
+        categoriesOriginal: opt(n.categories_original),
+        registeredEmails: opt(n.registered_emails),
+        source: n.source,
+      } satisfies ReviewNotes,
+    ]),
+  );
   const drafts = data.map(
     (v): Draft => ({
       id: v.id,
@@ -72,6 +98,7 @@ async function load() {
       facebook: opt(v.facebook),
       photos: [...v.vendor_photos].sort((a, b) => a.position - b.position).map((p) => ({ src: imageUrl("vendor-photos", p.path), width: p.width, height: p.height })),
       submitted: v.created_at,
+      review: reviews.get(v.id),
     }),
   );
   set({ status: "ready", drafts });

@@ -7,7 +7,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import { decideDraft, reloadDrafts, undoDraft, useDrafts, type Draft, type Verdict } from "@/lib/admin/drafts";
+import { decideDraft, reloadDrafts, undoDraft, useDrafts, type Draft, type ReviewNotes, type Verdict } from "@/lib/admin/drafts";
 import { pending } from "@/lib/admin/feed";
 import { ago, day } from "@/lib/admin/format";
 import { reviews, submissions, type Review, type Submission } from "@/lib/admin/people";
@@ -203,7 +203,7 @@ export function Approvals() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[0.875rem]">{itemTitle(item)}</span>
                         <span className="block truncate text-[0.75rem] text-ink-mute">
-                          {item.kind === "vendor" ? item.data.discipline : item.kind === "wedding" ? item.data.title : `${"★".repeat(item.data.rating)} ${item.data.text}`}
+                          {item.kind === "vendor" ? [item.data.discipline, item.data.review?.confidence === "Low" && "Low confidence"].filter(Boolean).join(" · ") : item.kind === "wedding" ? item.data.title : `${"★".repeat(item.data.rating)} ${item.data.text}`}
                         </span>
                       </span>
                       <span className="self-start text-[0.6875rem] text-ink-mute">{ago(item.data.submitted)}</span>
@@ -345,6 +345,43 @@ const link = (href: string, label: string) => (
 );
 const bare = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
 
+const confidenceTone = { High: "good", Medium: "neutral", Low: "warn" } as const;
+const confidenceMeaning = {
+  High: "Website or Instagram found and confirmed.",
+  Medium: "Strong indirect evidence, usually a confirmed Instagram but no website.",
+  Low: "Rests on the email address or business name alone. Verify before publishing.",
+};
+
+/** The research spreadsheet's verdict, kept apart from the listing itself. */
+function Research({ r }: { r: ReviewNotes }) {
+  const facts: [string, string][] = [
+    ...(r.yearsAttended ? [["Events attended", r.yearsAttended] as [string, string]] : []),
+    ...(r.categoriesOriginal ? [["Research categories", r.categoriesOriginal] as [string, string]] : []),
+    ...(r.registeredEmails ? [["Registered with", r.registeredEmails] as [string, string]] : []),
+  ];
+  return (
+    <section className="mt-6 border border-ink/[0.08] bg-paper/60 p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-[0.8125rem] font-medium">From the research</h3>
+        {r.confidence && <Badge tone={confidenceTone[r.confidence]}>{r.confidence} confidence</Badge>}
+      </div>
+      {r.confidence && <p className="mt-1.5 text-[0.75rem] text-ink-mute">{confidenceMeaning[r.confidence]}</p>}
+      {r.notes && <p className="mt-3 max-w-[62ch] text-[0.8125rem] leading-relaxed text-ink-soft">{r.notes}</p>}
+      {facts.length > 0 && (
+        <dl className="mt-3 space-y-1 text-[0.75rem]">
+          {facts.map(([k, v]) => (
+            <div key={k} className="grid grid-cols-1 gap-x-3 sm:grid-cols-[9rem_1fr]">
+              <dt className="text-ink-mute">{k}</dt>
+              <dd className="min-w-0 break-words">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <p className="mt-3 text-[0.75rem] text-ink-mute">They registered for a networking event, not the directory. Check they’re happy to be listed, with these details and photos.</p>
+    </section>
+  );
+}
+
 function DraftDetail({ d }: { d: Draft }) {
   const shown = d.photos.slice(0, 3);
   const more = d.photos.length - shown.length;
@@ -373,6 +410,7 @@ function DraftDetail({ d }: { d: Draft }) {
           ))}
         </div>
       )}
+      {d.review && <Research r={d.review} />}
       <Facts
         rows={[
           ...(d.email ? [["Email", link(`mailto:${d.email}`, d.email)] as [string, React.ReactNode]] : []),
