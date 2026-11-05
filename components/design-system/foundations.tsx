@@ -76,7 +76,7 @@ export function Type() {
         </Stage>
         <Stage ground="paper" className="flex aspect-[16/10] flex-col justify-between p-[clamp(1.25rem,3vw,2.5rem)]" caption="Everything else">
           <p className="font-sans text-[clamp(6rem,13vw,12rem)] leading-[0.8] tracking-[-0.04em]">Aa</p>
-          <p className="font-sans text-[1.75rem] leading-tight tracking-[-0.01em]">Switzer</p>
+          <p className="font-sans text-[1.75rem] leading-tight tracking-[-0.01em]">Neue Montreal</p>
         </Stage>
       </div>
 

@@ -20,6 +20,18 @@ const switzer = localFont({
   display: "swap",
 });
 
+// Neue Montreal (Pangram Pangram, licensed by EMW) for body text and the interface.
+const neueMontreal = localFont({
+  src: [
+    { path: "./fonts/NeueMontreal-regular.otf", weight: "400", style: "normal" },
+    { path: "./fonts/NeueMontreal-italic.otf", weight: "400", style: "italic" },
+    { path: "./fonts/NeueMontreal-medium.otf", weight: "500", style: "normal" },
+    { path: "./fonts/NeueMontreal-bold.otf", weight: "700", style: "normal" },
+  ],
+  variable: "--font-neue-montreal",
+  display: "swap",
+});
+
 // Boska has no Thai or Hangul, so those scripts fall back to whatever the system has (a slanted Thai,
 // a sans-serif Korean). These serifs follow Boska in the display stack, so every language on the
 // page shares one upright serif voice. Self-hosted at build time; only the glyphs used are fetched.
@@ -39,7 +51,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-AU" className={`${boska.variable} ${switzer.variable} ${thai.variable} ${korean.variable}`} suppressHydrationWarning>
+    <html lang="en-AU" className={`${boska.variable} ${switzer.variable} ${neueMontreal.variable} ${thai.variable} ${korean.variable}`} suppressHydrationWarning>
       <body>
         <IntroScript />
         <a href="#main" className="t-nav sr-only z-[100] bg-ink p-4 text-paper focus:not-sr-only focus:fixed focus:top-4 focus:left-4">

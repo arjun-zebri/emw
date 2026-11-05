@@ -23,7 +23,7 @@
   --color-bad: #b4452f;
 
   --font-display: var(--font-boska), var(--font-thai), var(--font-korean), "Times New Roman", serif;
-  --font-sans: var(--font-switzer), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-neue-montreal), var(--font-switzer), ui-sans-serif, system-ui, sans-serif;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);

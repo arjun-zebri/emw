@@ -30,8 +30,9 @@ Scope: **landing (`/`), directory (`/vendors`), vendor page (`/vendors/[slug]`)*
 - Don't run `npm run build` while `npm run dev` is running: both write to `.next` and the dev server stops picking up
   changes. If styles or markup look stale, stop the server, `rm -rf .next`, and restart.
 - The intro plays on every full load of `/` (never on client-side navigation).
-- Fonts are self-hosted from Fontshare (ITF Free Font License, commercial use OK): **Boska** (display serif,
-  variable 200–900 + italic) and **Switzer** (UI/body). For production, consider licensing Canela or GT Alpina.
+- Fonts are self-hosted: **Boska** (display serif, variable 200–900 + italic, Fontshare, ITF Free Font License) and
+  **Neue Montreal** (UI/body, Pangram Pangram, licensed by EMW; regular, italic, medium, bold). Body text is regular
+  in ink soft `#75706a`: Light was too faint, and darker greys read as black. Switzer stays loaded as the fallback.
   Do **not** use the current site's fonts (Italiana, Nanum Gothic, Montserrat); the user finds them not premium.
 
 ```bash
@@ -76,7 +77,7 @@ and "so much text everywhere". The rules below exist to stop that coming back.
 - **Photography leads.** Pages are mostly images and whitespace. A vendor is an image, a name and one line
   ("Discipline, Location"). The home page has about 40 words.
 - **Two type styles, sentence case.** Boska (`t-display`, `t-heading`, `t-title`) for names and the few headlines;
-  Switzer (`t-body`, `t-small`) for everything else. `t-nav` (small uppercase) is for navigation and buttons only.
+  Neue Montreal (`t-body`, `t-small`) for everything else. `t-nav` (small uppercase) is for navigation and buttons only.
 - **Banned:** eyebrow labels above headings, an italic word in every headline, 01/02/03 numbering, "Issue Nº" or
   other magazine gimmicks, stats rows, marquees, custom cursors, pull quotes, drop caps, paper grain, cute or clever
   copy, and decorative stroke-draw animations. If a real high-end studio site wouldn't have it, don't add it.
@@ -145,7 +146,7 @@ the portal reads real data it shows Katrina Lai (`DEMO_VENDOR`).
 - Anything you can change (posts, approvals, added vendors, replies, alert settings, team) is in `lib/admin/store.ts`
   (localStorage, synced across tabs). The landing page's Journal reads published posts from it.
 - UI kit: `components/admin/ui.tsx` (Panel, Stat, Btn, fields, Tabs, Badge, `table` classes) and `charts.tsx`
-  (hand-drawn SVG, no chart library). Boska for titles and names only, Switzer 14px, white panels on paper, square
+  (hand-drawn SVG, no chart library). Boska for titles and names only, Neue Montreal 14px, white panels on paper, square
   corners. Status colours (`good`/`warn`/`bad`) only mean state; the tier ramp is `tier-1..3`.
 - `AdminShell` reads the pathname inside Suspense; dynamic admin routes read their params on the client.
 
