@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
@@ -45,7 +45,10 @@ const isQueueTab = (t: Tab): t is "ready" | "missing" => t === "ready" || t === 
 // Couples can't send Real Weddings or reviews until the site is live, so these start empty: no
 // sample data. The detail views below are ready for when they arrive.
 type Item = { kind: "wedding"; data: Submission } | { kind: "review"; data: Review };
-const incoming: Record<"weddings" | "reviews", Item[]> = { weddings: [], reviews: [] };
+const incoming: Record<"weddings" | "reviews", Item[]> = {
+  weddings: [],
+  reviews: [],
+};
 
 const sorts: { value: Sort; label: string }[] = [
   { value: "ready", label: "Most ready first" },
@@ -89,7 +92,8 @@ export function Approvals() {
   }, [tab]);
 
   const rows = onQueue && queue.query.tab === tab ? queue.list.rows : [];
-  const row = onQueue ? (rows.find((r) => r.id === requested) ?? (desktop ? rows[0] : undefined)) : undefined;
+  const row = onQueue ? rows.find((r) => r.id === requested) : undefined;
+  const rowIndex = row ? rows.indexOf(row) : -1;
   const draft = row ? queue.details[row.id] : undefined;
   useEffect(() => {
     if (row) void loadDraft(row.id);
@@ -108,7 +112,12 @@ export function Approvals() {
     router.replace(p.size ? `${pathname}?${p}` : pathname, { scroll: false });
   };
 
-  const counts = { ready: queue.counts?.ready, missing: queue.counts?.missing, weddings: incoming.weddings.length, reviews: incoming.reviews.length };
+  const counts = {
+    ready: queue.counts?.ready,
+    missing: queue.counts?.missing,
+    weddings: incoming.weddings.length,
+    reviews: incoming.reviews.length,
+  };
 
   // ── Vendors: saved to the database; the queue moves on once it has the change.
   const neighbour = (id: string) => {
@@ -156,7 +165,12 @@ export function Approvals() {
         cover: { src: s.photos[0], alt: `${s.couple} on their wedding day` },
         body: [
           { id: "b1", type: "p", text: s.story },
-          ...s.photos.slice(1).map((src, i) => ({ id: `img${i}`, type: "img" as const, src, alt: `${s.couple}, photo ${i + 2}` })),
+          ...s.photos.slice(1).map((src, i) => ({
+            id: `img${i}`,
+            type: "img" as const,
+            src,
+            alt: `${s.couple}, photo ${i + 2}`,
+          })),
         ],
         vendors: s.vendors,
         status: "draft",
@@ -165,16 +179,25 @@ export function Approvals() {
         author: "East Meets Wed",
         description: s.title,
       });
-      toast(`${s.couple}'s wedding saved as a draft`, { label: "Open draft", run: () => router.push(`/admin/journal/${draftId(s)}`) });
+      toast(`${s.couple}'s wedding saved as a draft`, {
+        label: "Open draft",
+        run: () => router.push(`/admin/journal/${draftId(s)}`),
+      });
     } else {
-      toast(`Review published on ${vendorName(it.data.vendor)}`, { label: "Undo", run: () => undecide(id) });
+      toast(`Review published on ${vendorName(it.data.vendor)}`, {
+        label: "Undo",
+        run: () => undecide(id),
+      });
     }
     go({ item: nextAfter(id) });
   };
   const declineItem = (it: Item, note?: string) => {
     const id = it.data.id;
     decide(id, "declined", note);
-    toast(`${itemTitle(it)} declined`, { label: "Undo", run: () => undecide(id) });
+    toast(`${itemTitle(it)} declined`, {
+      label: "Undo",
+      run: () => undecide(id),
+    });
     go({ item: nextAfter(id) });
   };
   const undoItem = (it: Item) => {
@@ -184,6 +207,30 @@ export function Approvals() {
     if (verdict === "approved" && it.kind === "wedding") deletePost(draftId(it.data));
     go({ item: id });
   };
+
+  // Previous and next within the queue, fetching the next page when the end of the loaded rows is near.
+  const step = (dir: 1 | -1) => {
+    const target = rows[rowIndex + dir];
+    if (target) go({ item: target.id });
+    if (dir === 1 && rowIndex >= rows.length - 3) void loadMore();
+  };
+  const stepRef = useRef(step);
+  useEffect(() => {
+    stepRef.current = step;
+  });
+  const openId = row?.id;
+  useEffect(() => {
+    if (!openId) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      // Not while typing, and not while a lightbox or preview is open over the panel (it has its own arrows).
+      if (el.closest("input, textarea, select, [contenteditable]") || document.querySelectorAll('[aria-modal="true"]').length > 1) return;
+      if (e.key === "ArrowRight" || e.key === "j") stepRef.current(1);
+      if (e.key === "ArrowLeft" || e.key === "k") stepRef.current(-1);
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [openId]);
 
   const detail = onQueue
     ? row && (
@@ -219,9 +266,7 @@ export function Approvals() {
       {onQueue ? (
         <>
           <Toolbar key={tab} />
-          <QueueList rows={rows} selected={row?.id} tab={tab} onSelect={(id) => go({ item: id })}>
-            {desktop && detail}
-          </QueueList>
+          <QueueList rows={rows} selected={row?.id} tab={tab} onSelect={(id) => go({ item: id })} />
           <Decided decisions={queue.decisions} onUndo={(id) => void undoVendor(id)} />
         </>
       ) : open.length === 0 ? (
@@ -238,11 +283,16 @@ export function Approvals() {
                     type="button"
                     onClick={() => go({ item: it.data.id })}
                     aria-current={item?.data.id === it.data.id ? "true" : undefined}
-                    className={clsx("relative flex w-full items-center gap-3 px-5 py-4 text-left transition-colors", item?.data.id === it.data.id ? "bg-paper" : "hover:bg-paper/60")}
+                    className={clsx(
+                      "relative flex w-full items-center gap-3 px-5 py-4 text-left transition-colors",
+                      item?.data.id === it.data.id ? "bg-paper" : "hover:bg-paper/60",
+                    )}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.875rem]">{itemTitle(it)}</span>
-                      <span className="block truncate text-[0.75rem] text-ink-mute">{it.kind === "wedding" ? it.data.title : `${"★".repeat(it.data.rating)} ${it.data.text}`}</span>
+                      <span className="block truncate text-[0.75rem] text-ink-mute">
+                        {it.kind === "wedding" ? it.data.title : `${"★".repeat(it.data.rating)} ${it.data.text}`}
+                      </span>
                     </span>
                     <span className="self-start text-[0.6875rem] text-ink-mute">{ago(it.data.submitted)}</span>
                   </button>
@@ -276,8 +326,32 @@ export function Approvals() {
         </section>
       )}
 
-      {!desktop && (
-        <Drawer open={!!(onQueue ? row && requested : item)} onClose={() => go({ item: null })} title={title ?? ""}>
+      {/* A business opens in a wide panel over the list: one scrollbar at a time, and the list stays where it was. */}
+      {onQueue && (
+        <Drawer
+          open={!!row}
+          onClose={() => go({ item: null })}
+          width="max-w-[62rem]"
+          title={
+            row && (
+              <span className="flex items-center gap-3">
+                <span className="min-w-0 truncate">{row.name}</span>
+                <span className="shrink-0 text-[0.75rem] font-normal text-ink-mute tabular-nums">
+                  {rowIndex + 1} of {queue.list.total ?? rows.length}
+                </span>
+                <span className="ml-auto flex shrink-0 gap-1">
+                  <StepButton dir={-1} disabled={rowIndex <= 0} onClick={() => step(-1)} />
+                  <StepButton dir={1} disabled={rowIndex >= rows.length - 1 && queue.list.done} onClick={() => step(1)} />
+                </span>
+              </span>
+            )
+          }
+        >
+          <div className="p-4 sm:p-6">{detail}</div>
+        </Drawer>
+      )}
+      {!onQueue && !desktop && (
+        <Drawer open={!!item} onClose={() => go({ item: null })} title={title ?? ""}>
           <div className="p-4">{detail}</div>
         </Drawer>
       )}
@@ -313,6 +387,22 @@ export function Approvals() {
   );
 }
 
+function StepButton({ dir, disabled, onClick }: { dir: 1 | -1; disabled: boolean; onClick: () => void }) {
+  const label = dir === 1 ? "Next business (→)" : "Previous business (←)";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="flex size-8 items-center justify-center border hairline text-ink-soft transition-colors hover:border-ink/40 hover:text-ink disabled:pointer-events-none disabled:opacity-35"
+    >
+      <Icon name={dir === 1 ? "arrow" : "arrow-left"} className="size-3.5" strokeWidth={1.6} />
+    </button>
+  );
+}
+
 // ── The vendor queue ────────────────────────────────────────────────────
 
 /** Search, the second-look filters, and the order. All of it runs in the database. */
@@ -323,14 +413,23 @@ function Toolbar() {
     const t = setTimeout(() => setQuery({ q: text }), 250);
     return () => clearTimeout(t);
   }, [text]);
-  const toggle = (f: Flag) => setQuery({ flags: query.flags.includes(f) ? query.flags.filter((x) => x !== f) : [...query.flags, f] });
+  const toggle = (f: Flag) =>
+    setQuery({
+      flags: query.flags.includes(f) ? query.flags.filter((x) => x !== f) : [...query.flags, f],
+    });
 
   return (
     <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
       <label className="relative block lg:w-72">
         <span className="sr-only">Search the queue</span>
         <Icon name="search" className="pointer-events-none absolute top-1/2 left-0 size-4 -translate-y-1/2 text-ink-mute" strokeWidth={1.4} />
-        <input type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search by name or category" className={clsx(inputCls, "pl-6")} />
+        <input
+          type="search"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Search by name or category"
+          className={clsx(inputCls, "pl-6")}
+        />
       </label>
       <div className="flex flex-wrap gap-1.5 lg:flex-1" role="group" aria-label="Show only">
         {(Object.keys(flagLabels) as Flag[]).map((f) => {
@@ -354,7 +453,11 @@ function Toolbar() {
       </div>
       <label className="relative flex items-center gap-2 text-[0.75rem] text-ink-mute">
         <span>Order</span>
-        <select value={query.sort} onChange={(e) => setQuery({ sort: e.target.value as Sort })} className="cursor-pointer appearance-none bg-transparent pr-5 text-[0.8125rem] text-ink">
+        <select
+          value={query.sort}
+          onChange={(e) => setQuery({ sort: e.target.value as Sort })}
+          className="cursor-pointer appearance-none bg-transparent pr-5 text-[0.8125rem] text-ink"
+        >
           {sorts.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
@@ -367,22 +470,11 @@ function Toolbar() {
   );
 }
 
-/**
- * The list runs the length of the page and fetches the next 30 as its end comes into view. One
- * scrollbar, the page's: the chosen draft's detail starts level with its row, so picking one far
- * down the list shows it where you clicked rather than back at the top.
- */
-function QueueList({ rows, selected, tab, onSelect, children }: { rows: QueueRow[]; selected?: string; tab: "ready" | "missing"; onSelect: (id: string) => void; children?: React.ReactNode }) {
+/** The list runs the length of the page and fetches the next 30 as its end comes into view. */
+function QueueList({ rows, selected, tab, onSelect }: { rows: QueueRow[]; selected?: string; tab: "ready" | "missing"; onSelect: (id: string) => void }) {
   const { list, query } = useQueue();
   const end = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-  const [offset, setOffset] = useState(0);
   const filtered = !!query.q.trim() || query.flags.length > 0;
-
-  useLayoutEffect(() => {
-    const li = selected ? listRef.current?.querySelector<HTMLElement>(`[data-row="${selected}"]`) : null;
-    setOffset(li ? li.offsetTop : 0);
-  }, [selected, rows.length]);
 
   useEffect(() => {
     const el = end.current;
@@ -412,68 +504,94 @@ function QueueList({ rows, selected, tab, onSelect, children }: { rows: QueueRow
         ) : filtered ? (
           <Empty title="No matches">Nothing in {tab === "ready" ? "Ready for approval" : "Missing data"} matches that.</Empty>
         ) : (
-          <Empty title="All clear">{tab === "ready" ? "Businesses with everything a listing needs will appear here." : "Nothing is waiting on photos or details."}</Empty>
+          <Empty title="All clear">
+            {tab === "ready" ? "Businesses with everything a listing needs will appear here." : "Nothing is waiting on photos or details."}
+          </Empty>
         )}
       </Panel>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
-      <div>
-        <Panel flush>
-          <ul ref={listRef} className="relative">
-            {rows.map((r, i) => {
-              const on = selected === r.id;
-              return (
-                <li key={r.id} data-row={r.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(r.id)}
-                    aria-current={on ? "true" : undefined}
-                    className={clsx("relative flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors", on ? "bg-paper" : "hover:bg-paper/60")}
-                  >
-                    {on && <span className="absolute inset-y-0 left-0 w-0.5 bg-ink" aria-hidden />}
-                    <Avatar name={r.name} src={r.cover ? thumbUrl(r.cover) : undefined} size={40} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[0.875rem]">{r.name}</span>
-                      <span className="block truncate text-[0.75rem] text-ink-mute">
-                        {r.missing.length ? <span className="text-warn">{r.missing.map((m) => missingLabels[m]).join(", ")}</span> : r.discipline || "No category"}
-                        {r.flags.length > 0 && ` · ${r.flags.map((f) => flagLabels[f].label).join(", ")}`}
-                      </span>
+    <div>
+      <Panel flush>
+        <ul>
+          {rows.map((r, i) => {
+            const on = selected === r.id;
+            return (
+              <li key={r.id} className={clsx(i > 0 && "border-t border-ink/[0.06]")}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(r.id)}
+                  aria-current={on ? "true" : undefined}
+                  className={clsx(
+                    "group relative flex w-full items-center gap-4 px-5 py-3 text-left transition-colors sm:px-6",
+                    on ? "bg-paper" : "hover:bg-paper/60",
+                  )}
+                >
+                  {on && <span className="absolute inset-y-0 left-0 w-0.5 bg-ink" aria-hidden />}
+                  <span className="relative size-14 shrink-0 overflow-hidden bg-paper-soft">
+                    {r.cover && (
+                      // eslint-disable-next-line @next/next/no-img-element -- served from Supabase at 480px, never next/image
+                      <img src={thumbUrl(r.cover)} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.9375rem]">{r.name}</span>
+                    <span className="block truncate text-[0.75rem] text-ink-mute">
+                      {r.missing.length ? (
+                        <span className="text-warn">{r.missing.map((m) => missingLabels[m]).join(", ")}</span>
+                      ) : (
+                        r.discipline || "No category"
+                      )}
                     </span>
-                    <span className="self-start text-[0.6875rem] text-ink-mute tabular-nums">{r.photoCount > 0 ? `${r.photoCount} ${r.photoCount === 1 ? "photo" : "photos"}` : ""}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </Panel>
-        <div ref={end} className="py-4 text-center text-[0.75rem] text-ink-mute" aria-live="polite">
-          {list.loading ? "Loading more" : list.error ? (
-            <button type="button" onClick={() => void loadMore()} className="link-line">
-              Couldn&rsquo;t load more. Try again
-            </button>
-          ) : list.done ? (
-            `All ${list.total ?? rows.length} shown`
-          ) : (
-            `${rows.length} of ${list.total}`
-          )}
-        </div>
+                  </span>
+                  <span className="hidden max-w-[40%] flex-wrap justify-end gap-1.5 md:flex">
+                    {r.flags.map((f) => (
+                      <Badge key={f} tone="warn">
+                        {flagLabels[f].label}
+                      </Badge>
+                    ))}
+                  </span>
+                  <span className="hidden w-20 shrink-0 text-right text-[0.75rem] text-ink-mute tabular-nums sm:block">
+                    {r.photoCount > 0 ? `${r.photoCount} ${r.photoCount === 1 ? "photo" : "photos"}` : "No photos"}
+                  </span>
+                  <Icon name="arrow" className="size-3.5 shrink-0 text-ink-mute transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </Panel>
+      <div ref={end} className="py-4 text-center text-[0.75rem] text-ink-mute" aria-live="polite">
+        {list.loading ? (
+          "Loading more"
+        ) : list.error ? (
+          <button type="button" onClick={() => void loadMore()} className="link-line">
+            Couldn&rsquo;t load more. Try again
+          </button>
+        ) : list.done ? (
+          `All ${list.total ?? rows.length} shown`
+        ) : (
+          `${rows.length} of ${list.total}`
+        )}
       </div>
-      {children && (
-        <div className="lg:mt-(--offset)" style={{ "--offset": `${offset}px` } as React.CSSProperties}>
-          {children}
-        </div>
-      )}
     </div>
   );
 }
 
 function Decided({ decisions, onUndo }: { decisions: Decision[]; onUndo: (vendorId: string) => void }) {
   if (decisions.length === 0) return null;
-  const tone = { approved: "good", declined: "neutral", reopened: "neutral" } as const;
-  const label = { approved: "Approved", declined: "Declined", reopened: "Back in the queue" };
+  const tone = {
+    approved: "good",
+    declined: "neutral",
+    reopened: "neutral",
+  } as const;
+  const label = {
+    approved: "Approved",
+    declined: "Declined",
+    reopened: "Back in the queue",
+  };
   return (
     <section className="mt-10">
       <h2 className="mb-3 text-[0.875rem] font-medium">Recently decided</h2>
@@ -487,9 +605,7 @@ function Decided({ decisions, onUndo }: { decisions: Decision[]; onUndo: (vendor
                   {d.vendorName}
                   {d.note && <span className="ml-2 text-ink-mute">“{d.note}”</span>}
                 </span>
-                <span className="block text-[0.6875rem] text-ink-mute">
-                  {[d.by, ago(d.at)].filter(Boolean).join(", ")}
-                </span>
+                <span className="block text-[0.6875rem] text-ink-mute">{[d.by, ago(d.at)].filter(Boolean).join(", ")}</span>
               </span>
               {d.latest && d.verdict !== "reopened" && (
                 <Btn size="sm" variant="ghost" onClick={() => onUndo(d.vendorId)}>
@@ -674,7 +790,12 @@ function Photos({ d }: { d: Draft }) {
     next.splice(to, 0, photo);
     reorderPhotos(d, next).catch((e: Error) => toast(`Couldn't save the new order: ${e.message}`));
   };
-  const slots = d.photos.map((p, i) => ({ src: p.src, alt: `${d.name}, photo ${i + 1}`, brief: "", ratio: ratioOf(p) }));
+  const slots = d.photos.map((p, i) => ({
+    src: p.src,
+    alt: `${d.name}, photo ${i + 1}`,
+    brief: "",
+    ratio: ratioOf(p),
+  }));
   const TARGET = 3;
   const rest = photoRows(
     d.photos.slice(1).map((p, k) => ({ p, i: k + 1 })),
@@ -737,7 +858,15 @@ function Photos({ d }: { d: Draft }) {
       <div className="space-y-2">
         {/* As wide as the panel, up to 34rem tall, at the photo's own shape. */}
         <div className="flex justify-center bg-paper-soft">
-          {tile(cover, 0, { aspectRatio: coverRatio, width: `min(100%, calc(34rem * ${coverRatio}))` }, "(min-width: 1024px) 50vw, 100vw")}
+          {tile(
+            cover,
+            0,
+            {
+              aspectRatio: coverRatio,
+              width: `min(100%, calc(34rem * ${coverRatio}))`,
+            },
+            "(min-width: 1024px) 50vw, 100vw",
+          )}
         </div>
         {rest.map((row) => {
           const sum = row.reduce((a, x) => a + ratioOf(x.p), 0);
@@ -749,7 +878,12 @@ function Photos({ d }: { d: Draft }) {
                   p,
                   i,
                   // A full row fills the width; a short last row keeps the same height instead of blowing up.
-                  full ? { aspectRatio: ratioOf(p), flex: `${ratioOf(p)} 1 0%` } : { aspectRatio: ratioOf(p), width: `calc(${(ratioOf(p) / TARGET) * 100}% - 0.25rem)` },
+                  full
+                    ? { aspectRatio: ratioOf(p), flex: `${ratioOf(p)} 1 0%` }
+                    : {
+                        aspectRatio: ratioOf(p),
+                        width: `calc(${(ratioOf(p) / TARGET) * 100}% - 0.25rem)`,
+                      },
                   "(min-width: 1024px) 25vw, 50vw",
                 ),
               )}
@@ -778,7 +912,11 @@ function TileButton({ onClick, label, icon, children }: { onClick: () => void; l
   );
 }
 
-const confidenceTone = { High: "good", Medium: "neutral", Low: "warn" } as const;
+const confidenceTone = {
+  High: "good",
+  Medium: "neutral",
+  Low: "warn",
+} as const;
 const confidenceMeaning = {
   High: "Website or Instagram found and confirmed.",
   Medium: "Strong indirect evidence, usually a confirmed Instagram but no website.",
@@ -820,7 +958,9 @@ function Research({ r, name }: { r: ReviewNotes; name: string }) {
           ? link(`https://abr.business.gov.au/ABN/View?abn=${abn}`, `Check ABN ${spaced(abn)} on ABN Lookup`)
           : link(`https://abr.business.gov.au/Search/ResultsActive?SearchText=${encodeURIComponent(name)}`, "Search ABN Lookup for this business")}
       </p>
-      <p className="mt-3 text-[0.75rem] text-ink-mute">They registered for a networking event, not the directory. Check they&rsquo;re happy to be listed, with these details and photos.</p>
+      <p className="mt-3 text-[0.75rem] text-ink-mute">
+        They registered for a networking event, not the directory. Check they&rsquo;re happy to be listed, with these details and photos.
+      </p>
     </section>
   );
 }
@@ -897,7 +1037,10 @@ function SubmissionDetail({ s }: { s: Submission }) {
       <h2 className="mt-2 font-display text-[1.75rem] leading-tight tracking-[-0.02em] text-balance">{s.title}</h2>
       <div className="mt-5 grid h-[clamp(18rem,30vw,28rem)] grid-cols-3 grid-rows-2 gap-2">
         {s.photos.map((src, i) => (
-          <div key={src} className={clsx("relative overflow-hidden bg-paper-soft", i === 0 ? "col-span-2 row-span-2" : s.photos.length === 2 ? "row-span-2" : "")}>
+          <div
+            key={src}
+            className={clsx("relative overflow-hidden bg-paper-soft", i === 0 ? "col-span-2 row-span-2" : s.photos.length === 2 ? "row-span-2" : "")}
+          >
             <Media src={src} alt={`${s.couple}, photo ${i + 1}`} brief="" sizes="(min-width: 1024px) 30vw, 60vw" className="size-full" />
           </div>
         ))}

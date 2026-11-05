@@ -7,6 +7,12 @@ import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
 import { lockScroll } from "@/lib/lenis";
 
+/** Whether `el` is the last open modal on the page (portals stack in the order they open). */
+export function isTopLayer(el: HTMLElement | null) {
+  const modals = document.querySelectorAll('[aria-modal="true"]');
+  return !!el && modals[modals.length - 1] === el;
+}
+
 /** A slide-over panel from the right, the same motion as the public site's filters and enquiry form. */
 export function Drawer({
   open,
@@ -24,19 +30,26 @@ export function Drawer({
   width?: string;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // The latest onClose, so a parent passing a new function each render doesn't re-run the effect
+  // (which would pull focus back to the panel mid-typing).
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
 
   useEffect(() => {
     lockScroll(open);
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     panel.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    // Escape closes only the top layer: a lightbox or preview opened from inside the panel goes first.
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && isTopLayer(panel.current) && close.current();
     addEventListener("keydown", onKey);
     return () => {
       removeEventListener("keydown", onKey);
       prev?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <Portal>
