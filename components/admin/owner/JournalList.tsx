@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Media } from "@/components/media/Media";
 import type { Post, PostStatus } from "@/data/journal";
-import { journalReads, sum, traffic } from "@/lib/admin/analytics";
-import { day, num } from "@/lib/admin/format";
+import { day } from "@/lib/admin/format";
 import { useAdmin } from "@/lib/admin/store";
 import { Badge, Btn, Empty, PageHeader, Panel, Tabs, type Tone } from "../ui";
 
@@ -16,13 +15,6 @@ export const postStatus: Record<PostStatus, { label: string; tone: Tone }> = {
   draft: { label: "Draft", tone: "neutral" },
   scheduled: { label: "Scheduled", tone: "warn" },
 };
-
-/** Reads over the last 30 days, from the post's share of site visits. */
-function reads(post: Post) {
-  if (post.status !== "published") return null;
-  const share = journalReads[post.slug] ?? 0.012;
-  return Math.round(sum(traffic("visits", "day")).value * share);
-}
 
 /** Newest first: scheduled and drafts by their date, then published. */
 const order = (a: Post, b: Post) => b.date.localeCompare(a.date);
@@ -63,7 +55,6 @@ export function JournalList() {
         ) : (
           <ul>
             {shown.map((post, i) => {
-              const r = reads(post);
               return (
                 <li key={post.id} className={i ? "border-t border-ink/[0.06]" : undefined}>
                   <Link href={`/admin/journal/${post.id}`} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-paper/70 sm:gap-5 sm:px-6">
@@ -82,17 +73,8 @@ export function JournalList() {
                     <span className="hidden w-32 shrink-0 text-[0.8125rem] text-ink-soft sm:block">
                       {post.status === "published" ? day(post.date) : post.status === "scheduled" ? `Publishes ${day(post.date)}` : `Edited ${day(post.updated)}`}
                     </span>
-                    <span className="w-20 shrink-0 text-right">
-                      {r !== null ? (
-                        <>
-                          <span className="block text-[0.875rem] font-medium tabular-nums">{num(r)}</span>
-                          <span className="block text-[0.6875rem] text-ink-mute">reads, 30 days</span>
-                        </>
-                      ) : (
-                        <span className="md:hidden">
-                          <Badge tone={postStatus[post.status].tone}>{postStatus[post.status].label}</Badge>
-                        </span>
-                      )}
+                    <span className="shrink-0 md:hidden">
+                      <Badge tone={postStatus[post.status].tone}>{postStatus[post.status].label}</Badge>
                     </span>
                   </Link>
                 </li>

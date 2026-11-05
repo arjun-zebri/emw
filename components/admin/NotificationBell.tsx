@@ -17,7 +17,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { counts } = useQueue();
-  const items = feed(state, counts);
+  const items = feed(counts);
   const unread = items.filter((i) => !state.read.includes(i.id));
 
   useEffect(() => {

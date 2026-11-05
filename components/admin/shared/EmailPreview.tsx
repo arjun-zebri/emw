@@ -1,15 +1,13 @@
 "use client";
 
 import { Logo } from "@/components/brand/Logo";
-import { enquiries as enquiryTotals, searches, traffic, uptime, vendorRanking, vendorTotals } from "@/lib/admin/analytics";
-import { billingSummary, price, revenueByMonth, subscriptionFor, tiers } from "@/lib/admin/billing";
-import { aud, day, month, num, signedPct } from "@/lib/admin/format";
-import { applicants, couples, enquiries, publishedReviews, reviews } from "@/lib/admin/people";
 import { getVendor } from "@/lib/vendors";
 
 /*
  * What each alert looks like when it lands in an inbox. Short, plain and on-brand: the monogram,
- * one Boska heading, a few lines of Switzer and at most one button.
+ * one Boska heading, a few lines of body type and at most one button. Anything that changes from
+ * one email to the next (a couple's names, a date, a figure) shows as a grey field, never an
+ * invented example; vendor emails use the real vendor.
  */
 
 const OWNER = "hello@eastmeetswed.com";
@@ -60,211 +58,196 @@ function Details({ rows }: { rows: [string, string | undefined][] }) {
   );
 }
 
-const lastSeven = (points: { value: number }[]) => {
-  const now = points.slice(-7).reduce((s, p) => s + p.value, 0);
-  const before = points.slice(-14, -7).reduce((s, p) => s + p.value, 0);
-  return { now, delta: before ? now / before - 1 : 0 };
-};
+/** A part of the email that's filled in when it's sent. */
+function F({ children }: { children: React.ReactNode }) {
+  return <span className="bg-ink/[0.06] px-1 text-ink">{children}</span>;
+}
+
+// The same fields in plain text, for subject lines.
+const f = (label: string) => `[${label}]`;
 
 export function build(id: string, vendorSlug: string): Email {
   const vendor = getVendor(vendorSlug);
   const vendorName = vendor?.name ?? "your business";
-  const vendorEmail = vendor?.contact?.email ?? "you@example.com";
+  const vendorEmail = vendor?.contact?.email ?? f("vendor's email");
   const firstName = (vendor?.person ?? vendor?.signoff ?? vendorName).split(" ")[0];
-  const enquiry = enquiries.find((e) => e.vendor === vendorSlug) ?? enquiries[0];
-  const couple = couples.find((c) => c.names === enquiry.couple) ?? couples[0];
-  const billing = billingSummary();
+  const couple = <F>Couple&apos;s names</F>;
 
   switch (id) {
-    case "weekly-summary": {
-      const visits = lastSeven(traffic("visits", "day"));
-      const leads = lastSeven(enquiryTotals("day"));
-      const newCouples = lastSeven(traffic("couples", "day"));
-      const top = [...vendorRanking("day")].sort((a, b) => b.enquiries.value - a.enquiries.value)[0];
-      const gap = searches("day").find((s) => s.results === 0);
-      const revenue = revenueByMonth(1)[0];
+    case "weekly-summary":
       return {
         to: OWNER,
-        subject: `Your week: ${num(visits.now)} visits, ${num(leads.now)} enquiries`,
+        subject: `Your week: ${f("visits")} visits, ${f("enquiries")} enquiries`,
         body: (
           <>
             <Heading>Your week</Heading>
             <P>The last seven days on East Meets Wed, compared with the week before.</P>
             <Figures
               rows={[
-                ["Visits", num(visits.now), signedPct(visits.delta)],
-                ["Enquiries sent to vendors", num(leads.now), signedPct(leads.delta)],
-                ["Revenue collected in " + month(revenue.key, true).split(" ")[0], aud(revenue.total)],
-                ["New vendors this month", num(billing.newThisMonth.length)],
-                ["New couples", num(newCouples.now)],
+                ["Visits", f("number"), f("change")],
+                ["Enquiries sent to vendors", f("number"), f("change")],
+                ["Revenue collected this month", f("amount")],
+                ["New vendors this month", f("number")],
+                ["New couples", f("number")],
               ]}
             />
             <P>
-              {top.vendor.name} had the most enquiries over the last 30 days. {gap && <>Couples searched for “{gap.label}” {num(gap.value)} times in that time and found no one.</>}
+              <F>Vendor</F> had the most enquiries over the last 30 days. Couples searched for <F>search</F> and found no one.
             </P>
             <Button>Open the admin</Button>
           </>
         ),
       };
-    }
-    case "monthly-report": {
-      const months = traffic("visits", "month");
-      const leads = enquiryTotals("month");
-      const [prevRev, lastRev] = revenueByMonth(3);
-      const last = months.at(-2)!;
-      const before = months.at(-3)!;
-      const name = month(last.key, true).split(" ")[0];
+    case "monthly-report":
       return {
         to: OWNER,
-        subject: `${name} on East Meets Wed`,
+        subject: `${f("Month")} on East Meets Wed`,
         body: (
           <>
-            <Heading>{name} in review</Heading>
-            <P>A full month of figures, against {month(before.key, true).split(" ")[0]}.</P>
+            <Heading>
+              <F>Month</F> in review
+            </Heading>
+            <P>A full month of figures, against the month before.</P>
             <Figures
               rows={[
-                ["Visits", num(last.value), signedPct(last.value / before.value - 1)],
-                ["Enquiries", num(leads.at(-2)!.value), signedPct(leads.at(-2)!.value / leads.at(-3)!.value - 1)],
-                ["Revenue", aud(lastRev.total), prevRev.total ? signedPct(lastRev.total / prevRev.total - 1) : undefined],
-                ["Paying vendors", num(billing.paying)],
-                ["Cancellations, last 90 days", num(billing.cancelled.length)],
+                ["Visits", f("number"), f("change")],
+                ["Enquiries", f("number"), f("change")],
+                ["Revenue", f("amount"), f("change")],
+                ["Paying vendors", f("number")],
+                ["Cancellations, last 90 days", f("number")],
               ]}
             />
             <Button>See the full report</Button>
           </>
         ),
       };
-    }
-    case "vendor-signup": {
-      const a = applicants[0];
+    case "vendor-signup":
       return {
         to: OWNER,
-        subject: `${a.name} wants to join the directory`,
+        subject: `${f("Business name")} wants to join the directory`,
         body: (
           <>
-            <Heading>{a.name} applied to join</Heading>
-            <P>{a.lede}</P>
+            <Heading>
+              <F>Business name</F> applied to join
+            </Heading>
+            <P>
+              <F>Their introduction</F>
+            </P>
             <Details
               rows={[
-                ["Contact", a.person],
-                ["Offers", a.discipline],
-                ["Based in", a.based],
-                ["Languages", a.languages.join(", ")],
-                ["Answers", a.answers ? `Searches for “${a.answers}”, which find no one today` : undefined],
+                ["Contact", f("name")],
+                ["Offers", f("category")],
+                ["Based in", f("suburb")],
+                ["Languages", f("languages")],
               ]}
             />
             <Button>Review the application</Button>
           </>
         ),
       };
-    }
-    case "submission": {
-      const r = reviews[0];
+    case "submission":
       return {
         to: OWNER,
-        subject: `New review for ${getVendor(r.vendor)?.name}`,
+        subject: `New review for ${f("vendor")}`,
         body: (
           <>
             <Heading>A review is waiting</Heading>
             <P>
-              {r.couple} reviewed {getVendor(r.vendor)?.name}, {r.rating} of 5. It goes live once you approve it.
+              {couple} reviewed <F>vendor</F>, <F>rating</F> of 5. It goes live once you approve it.
             </P>
-            <blockquote className="mt-6 border-l-2 border-ink/15 pl-4 text-[0.875rem] leading-relaxed text-ink">{r.text}</blockquote>
+            <blockquote className="mt-6 border-l-2 border-ink/15 pl-4 text-[0.875rem] leading-relaxed text-ink">
+              <F>Their review</F>
+            </blockquote>
             <Button>Review it</Button>
           </>
         ),
       };
-    }
-    case "paid-change": {
-      const s = billing.upgrades[0] ?? billing.newThisMonth[0];
+    case "paid-change":
       return {
         to: OWNER,
-        subject: `${s.name} upgraded to ${tiers[s.tier].name}`,
+        subject: `${f("Vendor")} upgraded to ${f("plan")}`,
         body: (
           <>
-            <Heading>{s.name} upgraded</Heading>
+            <Heading>
+              <F>Vendor</F> upgraded
+            </Heading>
             <P>
-              They moved to {tiers[s.tier].name}, now {aud(price(s))} {s.billing === "annual" ? "a year" : "a month"}. The difference has been charged.
+              They moved to <F>plan</F>, now <F>price</F>. The difference has been charged.
             </P>
             <Button>View the vendor</Button>
           </>
         ),
       };
-    }
-    case "payment-risk": {
-      const s = billing.failed[0];
+    case "payment-risk":
       return {
         to: OWNER,
-        subject: `Payment failed: ${s.name}`,
+        subject: `Payment failed: ${f("vendor")}`,
         body: (
           <>
             <Heading>A payment didn&apos;t go through</Heading>
             <P>
-              We couldn&apos;t charge {s.name} {aud(price(s))} for their {tiers[s.tier].name} listing. We&apos;ll try again in three days and have emailed them to update their card.
+              We couldn&apos;t charge <F>vendor</F> <F>amount</F> for their <F>plan</F> listing. We&apos;ll try again in three days and have emailed them to update their card.
             </P>
             <Details
               rows={[
-                ["Reason", s.failure?.reason],
-                ["Attempts", String(s.failure?.attempts ?? 1)],
-                ["Card", `${s.card.brand} ending ${s.card.last4}`],
+                ["Reason", f("from Stripe")],
+                ["Attempts", f("number")],
+                ["Card", f("card")],
               ]}
             />
             <Button>Resolve</Button>
           </>
         ),
       };
-    }
-    case "listing-expiring": {
-      const s = billing.renewals.find((r) => !r.autoRenew) ?? billing.renewals[0];
+    case "listing-expiring":
       return {
         to: OWNER,
-        subject: `${s.name}'s listing ends ${day(s.renews)}`,
+        subject: `${f("Vendor")}'s listing ends ${f("date")}`,
         body: (
           <>
             <Heading>A listing is ending</Heading>
             <P>
-              {s.name} has auto-renew turned off, so their listing comes down on {day(s.renews, { weekday: true })}. A personal note from you usually brings them back.
+              <F>Vendor</F> has auto-renew turned off, so their listing comes down on <F>date</F>. A personal note from you usually brings them back.
             </P>
             <Button>View the vendor</Button>
           </>
         ),
       };
-    }
-    case "site-health": {
-      const i = uptime.incidents[0];
+    case "site-health":
       return {
         to: OWNER,
         subject: "The site is running slow",
         body: (
           <>
             <Heading>The site is running slow</Heading>
-            <P>{i.detail} We&apos;re checking every minute and will tell you when it recovers.</P>
+            <P>
+              <F>What the check found</F> We&apos;re checking every minute and will tell you when it recovers.
+            </P>
             <Details
               rows={[
-                ["Started", `${day(i.day, { weekday: true })} at ${i.at}`],
-                ["Lasted", `${i.minutes} minutes`],
-                ["Status", "Resolved"],
+                ["Started", f("date and time")],
+                ["Lasted", f("minutes")],
+                ["Status", f("status")],
               ]}
             />
           </>
         ),
       };
-    }
     case "vendor-enquiry":
       return {
         to: vendorEmail,
-        subject: `New enquiry from ${enquiry.couple}`,
+        subject: `New enquiry from ${f("couple's names")}`,
         body: (
           <>
-            <Heading>{enquiry.couple} would like to hear from you</Heading>
-            <P>{enquiry.message}</P>
+            <Heading>{couple} would like to hear from you</Heading>
+            <P>
+              <F>Their message</F>
+            </P>
             <Details
               rows={[
-                ["Wedding date", day(enquiry.weddingDate, { weekday: true, year: true })],
-                ["Guests", enquiry.guests],
-                ["Traditions", enquiry.traditions],
-                ["Email", enquiry.email],
-                ["Phone", enquiry.phone],
+                ["Wedding date", f("date")],
+                ["Email", f("email")],
+                ["Phone", f("phone")],
               ]}
             />
             <Button>Reply</Button>
@@ -274,37 +257,35 @@ export function build(id: string, vendorSlug: string): Email {
     case "vendor-reply-reminder":
       return {
         to: vendorEmail,
-        subject: `${enquiry.couple} are waiting to hear from you`,
+        subject: `${f("Couple's names")} are waiting to hear from you`,
         body: (
           <>
             <Heading>Still waiting on a reply</Heading>
             <P>
-              Hi {firstName}, {enquiry.couple} enquired two days ago and haven&apos;t heard back. Couples usually book whoever replies first.
+              Hi {firstName}, {couple} enquired two days ago and haven&apos;t heard back. Couples usually book whoever replies first.
             </P>
             <Button>Reply now</Button>
           </>
         ),
       };
-    case "vendor-review": {
-      const r = publishedReviews.find((x) => x.vendor === vendorSlug) ?? reviews[0];
+    case "vendor-review":
       return {
         to: vendorEmail,
-        subject: `${r.couple} left you a review`,
+        subject: `${f("Couple's names")} left you a review`,
         body: (
           <>
             <Heading>You have a new review</Heading>
             <P>
-              {r.couple} gave you {r.rating} of 5. It&apos;s now on your listing.
+              {couple} gave you <F>rating</F> of 5. It&apos;s now on your listing.
             </P>
-            <blockquote className="mt-6 border-l-2 border-ink/15 pl-4 text-[0.875rem] leading-relaxed text-ink">{r.text}</blockquote>
+            <blockquote className="mt-6 border-l-2 border-ink/15 pl-4 text-[0.875rem] leading-relaxed text-ink">
+              <F>Their review</F>
+            </blockquote>
             <Button>See your listing</Button>
           </>
         ),
       };
-    }
-    case "vendor-renewal": {
-      const s = subscriptionFor(vendorSlug);
-      const t = vendorTotals(vendorSlug, "month");
+    case "vendor-renewal":
       return {
         to: vendorEmail,
         subject: "Your listing renews soon",
@@ -312,44 +293,41 @@ export function build(id: string, vendorSlug: string): Email {
           <>
             <Heading>Your listing renews soon</Heading>
             <P>
-              Hi {firstName}, your {s ? tiers[s.tier].name : ""} listing renews on {s ? day(s.renews, { weekday: true }) : "soon"}
-              {s ? ` for ${aud(price(s))}` : ""}. Nothing to do if you&apos;d like to stay.
+              Hi {firstName}, your <F>plan</F> listing renews on <F>date</F> for <F>price</F>. Nothing to do if you&apos;d like to stay.
             </P>
             <Figures
               rows={[
-                ["Profile views, last 12 months", num(t.views.value)],
-                ["Enquiries, last 12 months", num(t.enquiries.value)],
+                ["Profile views, last 12 months", f("number")],
+                ["Enquiries, last 12 months", f("number")],
               ]}
             />
             <Button>Manage your plan</Button>
           </>
         ),
       };
-    }
     case "couple-confirmation":
       return {
-        to: couple.email,
-        subject: `Your enquiry to ${getVendor(enquiry.vendor)?.name}`,
+        to: f("couple's email"),
+        subject: `Your enquiry to ${vendorName}`,
         body: (
           <>
             <Heading>Your enquiry is on its way</Heading>
             <P>
-              We&apos;ve sent your details to {getVendor(enquiry.vendor)?.name}. They&apos;ll reply to {couple.email}, usually within two days.
+              We&apos;ve sent your details to {vendorName}. They&apos;ll reply to <F>your email</F>, usually within two days.
             </P>
             <Details
               rows={[
-                ["Wedding date", day(enquiry.weddingDate, { year: true })],
-                ["Guests", enquiry.guests],
-                ["Message", enquiry.message],
+                ["Wedding date", f("date")],
+                ["Message", f("their message")],
               ]}
             />
           </>
         ),
       };
     case "couple-matches": {
-      const v = getVendor("indelibleink-calligraphy") ?? getVendor(vendorSlug);
+      const v = getVendor("indelibleink-calligraphy") ?? vendor;
       return {
-        to: couple.email,
+        to: f("couple's email"),
         subject: "New vendors for your wedding",
         body: (
           <>

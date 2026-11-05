@@ -137,7 +137,7 @@ export function Approvals() {
     }
   };
 
-  // ── Real Weddings and reviews: the demo store, until they're real.
+  // ── Real Weddings and reviews: decided in the browser store until they come from the database.
   const nextAfter = (id: string) => {
     const i = open.findIndex((x) => x.data.id === id);
     return open[i + 1]?.data.id ?? open[i - 1]?.data.id ?? null;

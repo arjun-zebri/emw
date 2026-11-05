@@ -1,36 +1,33 @@
 "use client";
 
-import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
+import { tierOrder, tiers, type TierId } from "@/lib/admin/billing";
 import { aud, day } from "@/lib/admin/format";
-import { subscriptions, isPaying, tierOrder, tiers, type TierId } from "@/lib/admin/billing";
-import type { Member, Role } from "@/lib/admin/people";
-import { resetDemo, update, useAdmin } from "@/lib/admin/store";
-import { TODAY } from "@/lib/admin/time";
+import { resetDemo } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
-import { getVendor } from "@/lib/vendors";
-import { Drawer } from "../Drawer";
-import { Avatar, Btn, PageHeader, Tabs, TextField } from "../ui";
+import { supabase } from "@/lib/supabase/browser";
+import { Avatar, Btn, Empty, PageHeader, Tabs, TextField } from "../ui";
 
 type Tab = "team" | "business" | "plans" | "demo";
 
-const roles: Record<Role, { blurb: string; can: string[] }> = {
-  Owner: { blurb: "Runs the business", can: ["Everything an editor can do", "Billing and plans", "The team"] },
-  Editor: { blurb: "Looks after the directory", can: ["Vendors and approvals", "The journal", "Dashboards"] },
-  Viewer: { blurb: "Keeps an eye on things", can: ["Dashboards and reports", "Can't change anything"] },
+// The roles the database knows (team_role): owners manage the team, editors run the site.
+type Role = "owner" | "editor";
+const roles: Record<Role, { label: string; blurb: string }> = {
+  owner: { label: "Owner", blurb: "Runs the business" },
+  editor: { label: "Editor", blurb: "Looks after the directory" },
 };
 
 /** Who can do what, read across the roles. */
 const permissions: [string, Role[]][] = [
-  ["See dashboards and reports", ["Owner", "Editor", "Viewer"]],
-  ["Approve vendors, Real Weddings and reviews", ["Owner", "Editor"]],
-  ["Edit vendor listings", ["Owner", "Editor"]],
-  ["Write and publish journal posts", ["Owner", "Editor"]],
-  ["Billing, plans and refunds", ["Owner"]],
-  ["Invite and remove people", ["Owner"]],
+  ["See dashboards and reports", ["owner", "editor"]],
+  ["Approve vendors, Real Weddings and reviews", ["owner", "editor"]],
+  ["Edit vendor listings", ["owner", "editor"]],
+  ["Write and publish journal posts", ["owner", "editor"]],
+  ["Billing, plans and refunds", ["owner"]],
+  ["Change people's roles", ["owner"]],
 ];
 
 const expo = [0.16, 1, 0.3, 1] as const;
@@ -48,7 +45,7 @@ export function Settings() {
           { id: "team", label: "People" },
           { id: "business", label: "Business" },
           { id: "plans", label: "Listing plans" },
-          { id: "demo", label: "Demo data" },
+          { id: "demo", label: "This browser" },
         ]}
       />
       <AnimatePresence mode="wait" initial={false}>
@@ -65,97 +62,101 @@ export function Settings() {
 
 // ── Team ────────────────────────────────────────────────────────────────
 
+type Member = { id: string; name: string; role: Role; joined: string };
+
+/** The team, as the database has it (team_members). Owners can change roles; row level security enforces it. */
+function useTeam() {
+  const [team, setTeam] = useState<{ status: "loading" | "ready" | "error"; error?: string; members: Member[]; me?: string }>({ status: "loading", members: [] });
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const db = supabase();
+      const [{ data, error }, { data: auth }] = await Promise.all([db.from("team_members").select("user_id, name, role, created_at").order("created_at"), db.auth.getUser()]);
+      if (!live) return;
+      if (error) return setTeam({ status: "error", error: error.message, members: [] });
+      setTeam({
+        status: "ready",
+        me: auth.user?.id,
+        members: data.map((m) => ({ id: m.user_id, name: m.name ?? "Unnamed", role: m.role, joined: m.created_at })),
+      });
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+  const setRole = async (m: Member, role: Role) => {
+    const { error } = await supabase().from("team_members").update({ role }).eq("user_id", m.id);
+    if (error) return toast(`Couldn't change that: ${error.message}`);
+    setTeam((t) => ({ ...t, members: t.members.map((x) => (x.id === m.id ? { ...x, role } : x)) }));
+    toast(`${m.name} is now ${role === "owner" ? "an owner" : "an editor"}`);
+  };
+  return { ...team, setRole };
+}
+
 function Team() {
-  const state = useAdmin();
-  const [inviting, setInviting] = useState(false);
-  const [role, setRole] = useState<Role>("Editor");
-
-  const invite = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const name = String(data.get("name")).trim();
-    const email = String(data.get("email")).trim();
-    const member: Member = { id: `m${Date.now()}`, name, email, role, joined: TODAY };
-    update((s) => ({ team: [...s.team, member] }));
-    toast(`Invite sent to ${email}`);
-    setInviting(false);
-    setRole("Editor");
-  };
-
-  const setMemberRole = (m: Member, r: Role) => {
-    update((s) => ({ team: s.team.map((x) => (x.id === m.id ? { ...x, role: r } : x)) }));
-    toast(`${m.name} is now ${r === "Owner" ? "an" : "a"} ${r.toLowerCase()}`);
-  };
-
-  const remove = (m: Member) => {
-    const before = state.team;
-    update((s) => ({ team: s.team.filter((x) => x.id !== m.id) }));
-    toast(`${m.name} removed`, { label: "Undo", run: () => update(() => ({ team: before })) });
-  };
+  const team = useTeam();
+  const iAmOwner = team.members.some((m) => m.id === team.me && m.role === "owner");
 
   return (
     <div className="space-y-6">
       <section className="min-w-0 border border-ink/[0.09] bg-surface">
-        <div className="flex items-center justify-between gap-4 px-6 py-5">
-          <div>
-            <h2 className="text-[1.0625rem] font-medium">People</h2>
-            <p className="mt-0.5 text-[0.875rem] text-ink-mute">{state.team.length} with access to the admin</p>
-          </div>
-          <Btn variant="primary" icon="plus" onClick={() => setInviting(true)}>
-            Invite someone
-          </Btn>
+        <div className="px-6 py-5">
+          <h2 className="text-[1.0625rem] font-medium">People</h2>
+          <p className="mt-0.5 text-[0.875rem] text-ink-mute">
+            {team.status === "ready" ? `${team.members.length} with access to the admin` : "Who can sign in to the admin"}
+          </p>
         </div>
-        <ul>
-          {state.team.map((m) => (
-            <li key={m.id} className="group flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-ink/[0.06] px-6 py-5">
-              <Avatar name={m.name} size={44} />
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 text-[0.9375rem] text-ink">
-                  {m.name}
-                  {m.you && <span className="bg-ink/[0.06] px-1.5 py-0.5 text-[0.6875rem] text-ink-soft">You</span>}
-                </p>
-                <p className="truncate text-[0.875rem] text-ink-mute">
-                  {m.email} · since {day(m.joined)}
-                </p>
-              </div>
-              {m.you ? (
-                <span className="w-40 border border-transparent py-2 pl-3 text-[0.875rem] text-ink-soft">{m.role}</span>
-              ) : (
-                <label className="relative w-40">
-                  <span className="sr-only">Role for {m.name}</span>
-                  <select
-                    value={m.role}
-                    onChange={(e) => setMemberRole(m, e.target.value as Role)}
-                    className="w-full cursor-pointer appearance-none border border-ink/15 bg-surface py-2 pr-8 pl-3 text-[0.875rem] transition-colors hover:border-ink/40 focus:border-ink focus:outline-none"
-                  >
-                    {(Object.keys(roles) as Role[]).map((r) => (
-                      <option key={r}>{r}</option>
-                    ))}
-                  </select>
-                  <Icon name="chevron-down" className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-ink-mute" strokeWidth={1.25} />
-                </label>
-              )}
-              <div className="w-8">
-                {!m.you && (
-                  <button
-                    type="button"
-                    onClick={() => remove(m)}
-                    aria-label={`Remove ${m.name}`}
-                    className="flex size-8 items-center justify-center text-ink-mute opacity-0 transition-all group-hover:opacity-100 hover:bg-bad/10 hover:text-bad focus:opacity-100"
-                  >
-                    <Icon name="trash" className="size-4" strokeWidth={1.4} />
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+        {team.status === "loading" ? (
+          <Empty title="Loading" className="border-t border-ink/[0.06]" />
+        ) : team.status === "error" ? (
+          <Empty title="Couldn't load the team" className="border-t border-ink/[0.06]">
+            {team.error}
+          </Empty>
+        ) : (
+          <ul>
+            {team.members.map((m) => {
+              const you = m.id === team.me;
+              return (
+                <li key={m.id} className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-ink/[0.06] px-6 py-5">
+                  <Avatar name={m.name} size={44} />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-[0.9375rem] text-ink">
+                      {m.name}
+                      {you && <span className="bg-ink/[0.06] px-1.5 py-0.5 text-[0.6875rem] text-ink-soft">You</span>}
+                    </p>
+                    <p className="truncate text-[0.875rem] text-ink-mute">Since {day(m.joined, { year: true })}</p>
+                  </div>
+                  {you || !iAmOwner ? (
+                    <span className="w-40 border border-transparent py-2 pl-3 text-[0.875rem] text-ink-soft">{roles[m.role].label}</span>
+                  ) : (
+                    <label className="relative w-40">
+                      <span className="sr-only">Role for {m.name}</span>
+                      <select
+                        value={m.role}
+                        onChange={(e) => void team.setRole(m, e.target.value as Role)}
+                        className="w-full cursor-pointer appearance-none border border-ink/15 bg-surface py-2 pr-8 pl-3 text-[0.875rem] transition-colors hover:border-ink/40 focus:border-ink focus:outline-none"
+                      >
+                        {(Object.keys(roles) as Role[]).map((r) => (
+                          <option key={r} value={r}>
+                            {roles[r].label}
+                          </option>
+                        ))}
+                      </select>
+                      <Icon name="chevron-down" className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-ink-mute" strokeWidth={1.25} />
+                    </label>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="border-t border-ink/[0.06] px-6 py-4 text-[0.8125rem] text-ink-mute">New people are given an account and a password by your developer, then appear here.</p>
       </section>
 
       <section className="min-w-0 border border-ink/[0.09] bg-surface">
         <div className="px-6 py-5">
           <h2 className="text-[1.0625rem] font-medium">What each role can do</h2>
-          <p className="mt-0.5 text-[0.875rem] text-ink-mute">Change someone&apos;s role from the list above at any time</p>
+          <p className="mt-0.5 text-[0.875rem] text-ink-mute">An owner can change someone&apos;s role from the list above</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] border-collapse text-left">
@@ -164,7 +165,7 @@ function Team() {
                 <th className="px-6 py-4 text-[0.8125rem] font-normal text-ink-mute">Access</th>
                 {(Object.keys(roles) as Role[]).map((r) => (
                   <th key={r} className="w-[18%] px-4 py-4 text-center font-normal">
-                    <span className="block font-display text-[1.375rem] leading-none tracking-[-0.01em]">{r}</span>
+                    <span className="block font-display text-[1.375rem] leading-none tracking-[-0.01em]">{roles[r].label}</span>
                     <span className="mt-1.5 block text-[0.75rem] text-ink-mute">{roles[r].blurb}</span>
                   </th>
                 ))}
@@ -177,9 +178,9 @@ function Team() {
                   {(Object.keys(roles) as Role[]).map((r) => (
                     <td key={r} className="px-4 py-3.5 text-center">
                       {who.includes(r) ? (
-                        <Icon name="check" className="mx-auto size-4 text-ink" strokeWidth={1.75} title={`${r}: yes`} />
+                        <Icon name="check" className="mx-auto size-4 text-ink" strokeWidth={1.75} title={`${roles[r].label}: yes`} />
                       ) : (
-                        <span className="text-ink-mute/40" aria-label={`${r}: no`}>
+                        <span className="text-ink-mute/40" aria-label={`${roles[r].label}: no`}>
                           –
                         </span>
                       )}
@@ -192,50 +193,6 @@ function Team() {
         </div>
       </section>
 
-      <Drawer open={inviting} onClose={() => setInviting(false)} title="Team" width="max-w-lg">
-        <form onSubmit={invite} className="flex min-h-full flex-col px-6 py-8 sm:px-8">
-          <h3 className="font-display text-[2rem] leading-none tracking-[-0.02em]">Invite someone</h3>
-          <p className="mt-3 text-[0.9375rem] text-ink-soft">They&apos;ll get an email with a link to set their password.</p>
-          <div className="mt-8 space-y-6">
-            <TextField label="Name" name="name" required autoFocus autoComplete="off" />
-            <TextField label="Email" name="email" type="email" required autoComplete="off" />
-          </div>
-          <fieldset className="mt-8">
-            <legend className="mb-3 text-[0.75rem] text-ink-mute">Role</legend>
-            <div className="space-y-2">
-              {(Object.keys(roles) as Role[]).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  role="radio"
-                  aria-checked={role === r}
-                  onClick={() => setRole(r)}
-                  className={clsx(
-                    "flex w-full items-start gap-4 border p-4 text-left transition-colors duration-300",
-                    role === r ? "border-ink bg-surface" : "border-ink/12 hover:border-ink/35",
-                  )}
-                >
-                  <span className={clsx("mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors", role === r ? "border-ink" : "border-ink/30")}>
-                    <span className={clsx("size-2 rounded-full bg-ink transition-transform duration-300", role === r ? "scale-100" : "scale-0")} />
-                  </span>
-                  <span>
-                    <span className="block text-[0.9375rem]">{r}</span>
-                    <span className="mt-0.5 block text-[0.8125rem] text-ink-mute">{roles[r].can.join(", ")}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <div className="mt-auto flex gap-3 pt-10">
-            <Btn onClick={() => setInviting(false)} className="h-11 flex-1">
-              Cancel
-            </Btn>
-            <Btn variant="primary" type="submit" icon="send" className="h-11 flex-[2]">
-              Send invite
-            </Btn>
-          </div>
-        </form>
-      </Drawer>
     </div>
   );
 }
@@ -323,12 +280,10 @@ function Business() {
 // ── Plans ───────────────────────────────────────────────────────────────
 
 function Plans() {
-  const paying = subscriptions.filter(isPaying);
   return (
     <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {tierOrder.map((t: TierId, i) => {
-          const on = paying.filter((s) => s.tier === t);
           return (
             <section key={t} className="relative flex flex-col border border-ink/[0.09] bg-surface">
               <div className="flex flex-1 flex-col p-7">
@@ -350,22 +305,12 @@ function Plans() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-auto flex items-center gap-3 pt-8">
-                  <div className="flex -space-x-2">
-                    {on.slice(0, 5).map((s) => (
-                      <Avatar key={s.id} name={s.name} src={getVendor(s.slug)?.cover} size={28} className="ring-2 ring-surface" />
-                    ))}
-                  </div>
-                  <p className="text-[0.875rem] text-ink-soft">
-                    <span className="font-medium text-ink">{on.length}</span> {on.length === 1 ? "vendor" : "vendors"}
-                  </p>
-                </div>
               </div>
             </section>
           );
         })}
       </div>
-      <p className="mt-4 text-[0.8125rem] text-ink-mute">Plan names and prices are placeholders for the demo.</p>
+      <p className="mt-4 text-[0.8125rem] text-ink-mute">Plan names and prices are placeholders until they&apos;re confirmed. Vendors choose a plan when billing starts.</p>
     </>
   );
 }
@@ -376,10 +321,10 @@ function Demo() {
   const [confirm, setConfirm] = useState(false);
   return (
     <section className="max-w-2xl border border-ink/[0.09] bg-surface p-6 sm:p-8">
-      <h2 className="text-[1.0625rem] font-medium">Demo data</h2>
+      <h2 className="text-[1.0625rem] font-medium">Saved in this browser</h2>
       <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-soft">
-        The figures in this admin are simulated, and anything you change (posts, vendors, approvals, replies, settings) is kept in this browser so the walkthrough feels
-        real. Reset to start again from the original data.
+        Some changes are still kept in this browser until they move to the database: journal posts, vendors added here, listing edits and alert
+        settings. Approvals, enquiries and the team are already in the database and aren&apos;t affected. Reset clears what this browser holds.
       </p>
       <div className="mt-7 flex flex-wrap items-center gap-3">
         {confirm ? (
@@ -390,10 +335,10 @@ function Demo() {
               onClick={() => {
                 resetDemo();
                 setConfirm(false);
-                toast("Demo data reset");
+                toast("Cleared from this browser");
               }}
             >
-              Yes, reset everything
+              Yes, clear it
             </Btn>
             <Btn variant="ghost" onClick={() => setConfirm(false)}>
               Keep my changes
@@ -401,7 +346,7 @@ function Demo() {
           </>
         ) : (
           <Btn icon="refresh" onClick={() => setConfirm(true)}>
-            Reset demo data
+            Clear this browser&apos;s changes
           </Btn>
         )}
       </div>

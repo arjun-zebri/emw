@@ -9,10 +9,9 @@ import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
 import { useQueue } from "@/lib/admin/drafts";
+import { useEnquiries } from "@/lib/admin/enquiries";
 import { pendingCount } from "@/lib/admin/feed";
-import { enquiries } from "@/lib/admin/people";
 import { signOut, useSession, useVendorSlug } from "@/lib/admin/session";
-import { useAdmin } from "@/lib/admin/store";
 import { getVendor } from "@/lib/vendors";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationBell } from "./NotificationBell";
@@ -22,7 +21,6 @@ import { Avatar, Kbd } from "./ui";
 
 /** The frame around every admin and vendor-portal page: sidebar, top bar, search and notifications. */
 export function AdminShell({ role, children }: { role: "owner" | "vendor"; children: React.ReactNode }) {
-  const state = useAdmin();
   const { counts } = useQueue();
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
@@ -30,11 +28,13 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
   const session = useSession();
   const portalSlug = useVendorSlug();
   const vendorSlug = role === "vendor" ? portalSlug : undefined;
+  // The vendor's own enquiries, for the unread badge. The team's Enquiries page loads its own.
+  const enquiriesFor = useEnquiries(role === "vendor" ? portalSlug : undefined);
   const vendor = vendorSlug ? getVendor(vendorSlug) : undefined;
 
   const badges = {
     approvals: pendingCount(counts),
-    unreplied: vendorSlug ? enquiries.filter((e) => e.vendor === vendorSlug && !e.reply && !state.replies[e.id]).length : 0,
+    unreplied: vendorSlug ? enquiriesFor.list.filter((e) => !e.repliedAt).length : 0,
   };
 
   const user =
@@ -105,10 +105,6 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
             </span>
           </button>
           <div className="flex items-center gap-1 lg:ml-auto">
-            <span className="mr-2 hidden items-center gap-1.5 text-[0.75rem] text-ink-mute xl:flex" title="Figures are simulated for the demo">
-              <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-              Demo data
-            </span>
             <a href="/" target="_blank" rel="noreferrer" className="hidden h-9 items-center gap-1.5 px-3 text-[0.8125rem] text-ink-soft transition-colors hover:text-ink sm:flex">
               View site
               <Icon name="arrow-up-right" className="size-3.5" strokeWidth={1.5} />

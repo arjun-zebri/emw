@@ -3,27 +3,22 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons/Icon";
-import { subscriptionFor } from "@/lib/admin/billing";
-import { day, longDay, plural } from "@/lib/admin/format";
-import { enquiries, publishedReviews } from "@/lib/admin/people";
+import { useEnquiries } from "@/lib/admin/enquiries";
+import { longDay, plural } from "@/lib/admin/format";
 import { useVendorSlug } from "@/lib/admin/session";
-import { useAdmin } from "@/lib/admin/store";
-import { TODAY, hoursSince, monthKey } from "@/lib/admin/time";
+import { hoursSince, useToday } from "@/lib/admin/time";
 import { getVendor } from "@/lib/vendors";
-import { VendorPerformance } from "../shared/VendorPerformance";
-import { Btn, PageHeader, Panel } from "../ui";
-import { Stars } from "./Stars";
+import { Btn, NotYet, PageHeader, Panel } from "../ui";
 
 export function Dashboard() {
   const slug = useVendorSlug();
-  const state = useAdmin();
   const vendor = getVendor(slug);
+  const enquiries = useEnquiries(slug);
+  const now = useToday();
   const name = (vendor?.person ?? vendor?.signoff ?? vendor?.name ?? "there").split(" ")[0];
-  const waiting = enquiries.filter((e) => e.vendor === slug && !e.reply && !state.replies[e.id]);
+  const waiting = enquiries.list.filter((e) => !e.repliedAt);
   const late = waiting.filter((e) => hoursSince(e.sentAt) >= 48);
-  const sub = subscriptionFor(slug);
-  const cardExpiring = sub && sub.card.expires <= monthKey(TODAY);
-  const reviews = publishedReviews.filter((r) => r.vendor === slug);
+  const photos = vendor ? [vendor.cover, ...(vendor.gallery ?? [])].filter(Boolean).length : 0;
 
   const tasks: { icon: IconName; title: string; detail: string; href: string; action: string; warn?: boolean }[] = [];
   if (waiting.length)
@@ -31,25 +26,24 @@ export function Dashboard() {
       icon: "speech",
       warn: late.length > 0,
       title: `${plural(waiting.length, "enquiry", "enquiries")} waiting for a reply`,
-      detail: late.length ? `${late[0].couple} have waited ${Math.round(hoursSince(late[0].sentAt))} hours. Couples usually book whoever replies first.` : waiting.map((e) => e.couple).join(", "),
+      detail: late.length ? `${late[0].name} has waited ${Math.round(hoursSince(late[0].sentAt))} hours. Couples usually book whoever replies first.` : waiting.map((e) => e.name).join(", "),
       href: "/account/enquiries",
       action: "Reply",
     });
-  if (cardExpiring && sub)
+  if (vendor && photos < 3)
     tasks.push({
-      icon: "card",
-      warn: true,
-      title: "Your card expires this month",
-      detail: `${sub.card.brand} ending ${sub.card.last4}. Update it before ${day(sub.renews)} to keep your listing live.`,
-      href: "/account/billing",
-      action: "Update",
+      icon: "image",
+      title: photos === 0 ? "Your listing has no photos" : `Your listing has ${plural(photos, "photo")}`,
+      detail: "Listings with a few strong photos are the ones couples open. Add more from your listing.",
+      href: "/account/listing",
+      action: "Add photos",
     });
 
   return (
     <>
       <PageHeader
         title={`Hello, ${name}`}
-        description={longDay(TODAY)}
+        description={now ? longDay(now) : undefined}
         actions={
           <Btn icon="arrow-up-right" href={`/vendors/${slug}`} external>
             View your listing
@@ -81,26 +75,17 @@ export function Dashboard() {
         </Panel>
       )}
 
-      <VendorPerformance slug={slug} audience="vendor" />
-
-      <Panel title="Recent reviews" meta={reviews.length ? plural(reviews.length, "review") : undefined} className="mt-4" flush>
-        {reviews.length ? (
-          <ul>
-            {reviews.map((r) => (
-              <li key={r.id} className="border-t border-ink/[0.06] px-5 py-4 sm:px-6">
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-[0.875rem]">{r.couple}</p>
-                  <Stars rating={r.rating} />
-                </div>
-                <p className="mt-1.5 text-[0.875rem] leading-relaxed text-ink-soft">{r.text}</p>
-                <p className="mt-1.5 text-[0.75rem] text-ink-mute">Married {day(r.weddingDate)}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="t-small border-t border-ink/[0.06] px-6 py-6">Reviews from your couples will appear here once they&apos;re approved.</p>
-        )}
-      </Panel>
+      <NotYet
+        title="Your numbers start at launch"
+        items={[
+          { icon: "eye", title: "Profile views", detail: "How many couples open your listing, day by day." },
+          { icon: "arrow-up-right", title: "Clicks", detail: "Visits to your website, Instagram and Facebook from your listing." },
+          { icon: "speech", title: "Enquiries", detail: "How many couples write to you, and how quickly you reply." },
+          { icon: "search", title: "How they find you", detail: "The searches and categories that lead couples to you." },
+        ]}
+      >
+        Once the new site is live, you&rsquo;ll see how couples find and use your listing here.
+      </NotYet>
     </>
   );
 }

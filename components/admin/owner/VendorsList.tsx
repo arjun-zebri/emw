@@ -5,15 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { languages as languageNames } from "@/data/taxonomy";
-import { vendorTotals } from "@/lib/admin/analytics";
-import { tiers } from "@/lib/admin/billing";
 import { useQueue } from "@/lib/admin/drafts";
-import { day, num } from "@/lib/admin/format";
 import { useAdmin } from "@/lib/admin/store";
 import { adminVendors, statusLabels, type AdminVendor } from "@/lib/admin/vendors";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, inputCls, table } from "../ui";
 
-type Tab = "all" | "pending" | "failed" | "ending" | "new";
+type Tab = "all" | "pending" | "new";
 
 export function VendorsList() {
   const router = useRouter();
@@ -26,17 +23,13 @@ export function VendorsList() {
 
   const groups: Record<Exclude<Tab, "pending">, AdminVendor[]> = {
     all,
-    failed: all.filter((v) => v.status === "payment-failed"),
-    ending: all.filter((v) => v.status === "expiring" || v.status === "cancelling"),
-    new: all.filter((v) => v.isNew || v.sub.started >= "2026-10-01"),
+    new: all.filter((v) => v.isNew),
   };
-
-  const stats = new Map(all.map((v) => [v.slug, v.isNew ? null : vendorTotals(v.slug, "day")]));
 
   const q = query.trim().toLowerCase();
   const matches = (v: AdminVendor) =>
     !q ||
-    [v.name, v.discipline, v.location, ...v.languages, ...v.languages.map((l) => languageNames[l].native)].some((s) => s.toLowerCase().includes(q));
+    [v.name, v.discipline, v.location, ...v.languages, ...v.languages.map((l) => languageNames[l]?.native ?? l)].some((s) => s.toLowerCase().includes(q));
   const rows = tab === "pending" ? [] : groups[tab].filter(matches);
 
   return (
@@ -59,9 +52,7 @@ export function VendorsList() {
           tabs={[
             { id: "all", label: "All", count: groups.all.length },
             { id: "pending", label: "Awaiting approval", count: waiting },
-            { id: "failed", label: "Payment failed", count: groups.failed.length },
-            { id: "ending", label: "Expiring & cancelling", count: groups.ending.length },
-            { id: "new", label: "New", count: groups.new.length },
+            { id: "new", label: "Added here", count: groups.new.length },
           ]}
         />
         {tab !== "pending" && (
@@ -112,17 +103,15 @@ export function VendorsList() {
                   <tr>
                     <th className={table.th}>Vendor</th>
                     <th className={`${table.th} hidden lg:table-cell`}>Location</th>
-                    <th className={table.th}>Plan</th>
+                    <th className={`${table.th} hidden md:table-cell`}>Languages</th>
                     <th className={table.th}>Status</th>
-                    <th className={`${table.th} ${table.num}`}>Views</th>
-                    <th className={`${table.th} ${table.num}`}>Enquiries</th>
-                    <th className={`${table.th} ${table.num}`}>Renews</th>
+                    <th className={`${table.th} ${table.num}`}>Photos</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((v) => {
-                    const s = stats.get(v.slug);
                     const status = statusLabels[v.status];
+                    const tongues = v.languages.filter((l) => l !== "English");
                     return (
                       <tr key={v.slug} onClick={() => router.push(`/admin/vendors/${v.slug}`)} className={`${table.row} cursor-pointer`}>
                         <td className={table.td}>
@@ -135,13 +124,22 @@ export function VendorsList() {
                           </Link>
                         </td>
                         <td className={`${table.td} hidden max-w-[12rem] truncate text-ink-soft lg:table-cell`}>{v.location}</td>
-                        <td className={`${table.td} text-ink-soft`}>{tiers[v.sub.tier].name}</td>
+                        <td className={`${table.td} hidden max-w-[14rem] truncate text-ink-soft md:table-cell`}>
+                          {tongues.length ? (
+                            tongues.map((l, i) => (
+                              <span key={l} lang={languageNames[l]?.lang}>
+                                {i > 0 && ", "}
+                                {languageNames[l]?.native ?? l}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-ink-mute">English</span>
+                          )}
+                        </td>
                         <td className={table.td}>
                           <Badge tone={status.tone}>{status.label}</Badge>
                         </td>
-                        <td className={`${table.td} ${table.num}`}>{s ? num(s.views.value) : <span className="text-ink-mute">–</span>}</td>
-                        <td className={`${table.td} ${table.num}`}>{s ? num(s.enquiries.value) : <span className="text-ink-mute">–</span>}</td>
-                        <td className={`${table.td} ${table.num} text-ink-soft`}>{day(v.sub.renews)}</td>
+                        <td className={`${table.td} ${table.num}`}>{v.photos.length || <span className="text-warn">None</span>}</td>
                       </tr>
                     );
                   })}
@@ -151,7 +149,6 @@ export function VendorsList() {
           )}
         </Panel>
       )}
-      {tab !== "pending" && rows.length > 0 && <p className="t-small mt-3 text-[0.75rem]">Views and enquiries over the last 30 days.</p>}
     </>
   );
 }

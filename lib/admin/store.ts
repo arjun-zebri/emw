@@ -3,10 +3,10 @@ import { seedPosts, type Post } from "@/data/journal";
 import type { Language, Service, StateCode } from "@/data/types";
 import { alertDefs, type Channel } from "./alerts";
 import type { TierId } from "./billing";
-import { team as seedTeam, type Member } from "./people";
 
 /*
- * Everything the demo lets you change: posts, added vendors, approvals, replies and settings.
+ * What the portal keeps in this browser until it moves to the database: posts, vendors added
+ * here, listing edits, Real Wedding and review decisions, alert settings and read notifications.
  * It lives in localStorage, so it survives reloads and syncs across tabs (publish a post in one tab
  * and the landing page in another updates). The server renders the seed, and the browser's copy
  * takes over on hydration. In the full build this is the database.
@@ -40,15 +40,9 @@ export type ListingEdit = Partial<Pick<AddedVendor, "name" | "person" | "discipl
 export type AdminState = {
   posts: Post[];
   addedVendors: AddedVendor[];
-  /** Applicants, Real Wedding submissions and reviews, by id. */
+  /** Real Wedding submissions and reviews, by id. */
   decisions: Record<string, { verdict: "approved" | "declined"; at: string; note?: string }>;
-  /** Failed charges retried successfully, by subscription id. */
-  retried: Record<string, string>;
-  /** Vendors who were sent a nudge from the at-risk list, by slug. */
-  nudged: Record<string, string>;
   alerts: Record<string, Channel[]>;
-  team: Member[];
-  replies: Record<string, { at: string; text: string }>;
   listingEdits: Record<string, ListingEdit>;
   /** Notification ids that have been read. */
   read: string[];
@@ -60,11 +54,7 @@ export const seed: AdminState = {
   posts: seedPosts,
   addedVendors: [],
   decisions: {},
-  retried: {},
-  nudged: {},
   alerts: Object.fromEntries(alertDefs.map((a) => [a.id, a.defaults])),
-  team: seedTeam,
-  replies: {},
   listingEdits: {},
   read: [],
 };

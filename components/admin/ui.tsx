@@ -252,38 +252,6 @@ export function Btn({
   );
 }
 
-export function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-  label,
-}: {
-  options: { id: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-  label: string;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="inline-flex h-9 items-stretch border border-ink/15 bg-surface p-0.5">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={value === o.id}
-          onClick={() => onChange(o.id)}
-          className={clsx(
-            "px-3 text-[0.8125rem] transition-colors duration-200",
-            value === o.id ? "bg-ink text-paper" : "text-ink-soft hover:text-ink",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function Tabs<T extends string>({
   tabs,
   value,
@@ -536,3 +504,44 @@ export const table = {
   num: "text-right tabular-nums",
   row: "transition-colors hover:bg-paper/70",
 };
+
+/**
+ * A page or panel whose figures don't exist yet: what it will show, and when it starts filling.
+ * Used instead of placeholder numbers, so nothing on screen is made up.
+ */
+export function NotYet({
+  title,
+  children,
+  items,
+  className,
+}: {
+  title: string;
+  children?: React.ReactNode;
+  /** What will appear here, each with an icon. */
+  items?: { icon: IconName; title: string; detail: string }[];
+  className?: string;
+}) {
+  return (
+    <section className={clsx("min-w-0 border border-ink/[0.09] bg-surface", className)}>
+      <div className="px-6 pt-8 pb-6 sm:px-8 sm:pt-10">
+        <p className="font-display text-[1.625rem] leading-tight tracking-[-0.015em]">{title}</p>
+        {children && <p className="mt-2 max-w-[56ch] text-[0.875rem] leading-relaxed text-ink-soft">{children}</p>}
+      </div>
+      {items && items.length > 0 && (
+        <ul className="grid grid-cols-1 border-t hairline sm:grid-cols-2">
+          {items.map((it, i) => (
+            <li key={it.title} className={clsx("flex gap-4 px-6 py-5 sm:px-8", i > 0 && "border-t border-ink/[0.06]", i === 1 && "sm:border-t-0 sm:border-l", i > 1 && i % 2 === 1 && "sm:border-l")}>
+              <span className="flex size-9 shrink-0 items-center justify-center bg-ink/[0.05] text-ink-soft">
+                <Icon name={it.icon} className="size-4" strokeWidth={1.5} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[0.875rem] text-ink">{it.title}</span>
+                <span className="mt-0.5 block text-[0.8125rem] leading-snug text-ink-mute">{it.detail}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

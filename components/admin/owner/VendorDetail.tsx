@@ -1,31 +1,21 @@
 "use client";
 
 import clsx from "clsx";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import { chargesFor, price, tierOrder, tiers, type TierId } from "@/lib/admin/billing";
-import { aud, day, month } from "@/lib/admin/format";
-import { addVendor, nowIso, removeVendor, update, useAdmin } from "@/lib/admin/store";
-import { TODAY, monthKey } from "@/lib/admin/time";
+import { tiers } from "@/lib/admin/billing";
+import { addVendor, removeVendor, useAdmin } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
 import { findAdminVendor, isListed, statusLabels, type AdminVendor } from "@/lib/admin/vendors";
-import { VendorPerformance } from "../shared/VendorPerformance";
-import { Badge, Btn, Empty, PageHeader, Panel, Segmented, Tabs, table } from "../ui";
-
-type Tab = "performance" | "listing" | "billing";
+import { Badge, Btn, Empty, NotYet, PageHeader, Panel } from "../ui";
 
 export function VendorDetail() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
   const state = useAdmin();
   const vendor = findAdminVendor(state, slug);
-  const tab = (["performance", "listing", "billing"].includes(params.get("tab") ?? "") ? params.get("tab") : "performance") as Tab;
-  const setTab = (t: Tab) => router.replace(t === "performance" ? pathname : `${pathname}?tab=${t}`, { scroll: false });
 
   if (!vendor) {
     return (
@@ -89,20 +79,17 @@ export function VendorDetail() {
             </>
           }
         />
-        <Tabs
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { id: "performance", label: "Performance" },
-            { id: "listing", label: "Listing" },
-            { id: "billing", label: "Billing" },
-          ]}
-        />
       </div>
 
-      {tab === "performance" && <VendorPerformance slug={vendor.slug} />}
-      {tab === "listing" && <ListingTab vendor={vendor} />}
-      {tab === "billing" && <BillingTab vendor={vendor} />}
+      <ListingTab vendor={vendor} />
+      <NotYet
+        className="mt-4"
+        title="Views, enquiries and billing start at launch"
+        items={[
+          { icon: "overview", title: "Performance", detail: "Profile views, clicks to their website and socials, and enquiries." },
+          { icon: "card", title: "Billing", detail: vendor.tier ? `${tiers[vendor.tier].name} plan, with payments once they're taken through Stripe.` : "Their plan and payments, once they're taken through Stripe." },
+        ]}
+      />
     </>
   );
 }
@@ -134,9 +121,9 @@ function ListingTab({ vendor }: { vendor: AdminVendor }) {
       vendor.languages.length ? (
         <span className="flex flex-wrap gap-x-3 gap-y-1">
           {vendor.languages.map((l) => (
-            <span key={l} lang={languageNames[l].lang}>
-              {languageNames[l].native}
-              {languageNames[l].native !== l && <span className="ml-1.5 text-ink-mute">{l}</span>}
+            <span key={l} lang={languageNames[l]?.lang}>
+              {languageNames[l]?.native ?? l}
+              {languageNames[l] && languageNames[l].native !== l && <span className="ml-1.5 text-ink-mute">{l}</span>}
             </span>
           ))}
         </span>
@@ -193,142 +180,6 @@ function ListingTab({ vendor }: { vendor: AdminVendor }) {
           </Panel>
         )}
       </div>
-    </div>
-  );
-}
-
-function BillingTab({ vendor }: { vendor: AdminVendor }) {
-  const state = useAdmin();
-  const sub = vendor.sub;
-  const [tier, setTier] = useState<TierId>(sub.tier);
-  const retried = state.retried[sub.id];
-  const failed = sub.status === "past_due" && !retried;
-  const cardExpiring = sub.card.expires <= monthKey(TODAY);
-  const charged = vendor.isNew ? [] : chargesFor(vendor.slug);
-  // Show the failed attempt itself, even when it fell between the plan's usual billing days.
-  const failedCharge =
-    sub.failure && !charged.some((c) => c.status === "failed")
-      ? [{ id: `failed-${sub.id}`, sub, day: sub.failure.at, amount: price(sub), status: "failed" as const }]
-      : [];
-  const history = [...failedCharge, ...charged].slice(0, 12);
-
-  const retry = () => {
-    update((s) => ({ retried: { ...s.retried, [sub.id]: nowIso() } }));
-    toast(`Payment of ${aud(price(sub))} from ${vendor.name} went through`);
-  };
-
-  const changeTier = (t: TierId) => {
-    setTier(t);
-    toast(t === sub.tier ? `${vendor.name} stays on ${tiers[t].name}` : `${vendor.name} moves to ${tiers[t].name} from their next payment`);
-  };
-
-  const facts: [string, React.ReactNode][] = [
-    ["Price", `${aud(price({ tier, billing: sub.billing }))} ${sub.billing === "annual" ? "a year" : "a month"}`],
-    ["Billing", sub.billing === "annual" ? "Yearly" : "Monthly"],
-    ["Started", day(sub.started, { year: true })],
-    [sub.status === "cancelling" || !sub.autoRenew ? "Ends" : "Renews", day(sub.renews, { year: true })],
-    [
-      "Card",
-      <span key="card" className="flex items-center gap-2">
-        {sub.card.brand} ending {sub.card.last4}
-        <span className={clsx("text-[0.75rem]", cardExpiring ? "text-warn" : "text-ink-mute")}>
-          expires {month(sub.card.expires)} {sub.card.expires.slice(2, 4)}
-        </span>
-      </span>,
-    ],
-  ];
-
-  return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-      <div className="space-y-4">
-        {failed && sub.failure && (
-          <div className="border border-bad/25 bg-bad/[0.04] p-5">
-            <p className="flex items-center gap-2 text-[0.875rem] font-medium text-bad">
-              <Icon name="alert" className="size-4" strokeWidth={1.5} />
-              Payment failed {day(sub.failure.at)}
-            </p>
-            <p className="mt-1.5 text-[0.8125rem] text-ink-soft">
-              {sub.failure.reason}. Tried {sub.failure.attempts} times; the next try is automatic in two days.
-            </p>
-            <div className="mt-4 flex gap-2">
-              <Btn variant="primary" icon="refresh" onClick={retry}>
-                Retry now
-              </Btn>
-              {vendor.email && (
-                <Btn href={`mailto:${vendor.email}?subject=Your East Meets Wed payment`} external>
-                  Email them
-                </Btn>
-              )}
-            </div>
-          </div>
-        )}
-        {!failed && cardExpiring && (
-          <div className="border border-warn/25 bg-warn/[0.05] p-5">
-            <p className="flex items-center gap-2 text-[0.875rem] font-medium text-warn">
-              <Icon name="card" className="size-4" strokeWidth={1.5} />
-              Card expires this month
-            </p>
-            <p className="mt-1.5 text-[0.8125rem] text-ink-soft">They&apos;ve been sent a reminder to update it.</p>
-          </div>
-        )}
-        <Panel title="Plan" actions={<Badge>{tiers[tier].name}</Badge>} flush>
-          <dl>
-            {facts.map(([k, v]) => (
-              <div key={k} className="grid grid-cols-[6rem_1fr] gap-3 border-t border-ink/[0.06] px-5 py-3 text-[0.8125rem] sm:px-6">
-                <dt className="text-ink-mute">{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <div className="border-t border-ink/[0.06] px-5 py-4 sm:px-6">
-            <p className="mb-2 text-[0.75rem] text-ink-mute">Change plan</p>
-            <Segmented label="Change plan" value={tier} onChange={changeTier} options={tierOrder.map((t) => ({ id: t, label: tiers[t].name }))} />
-          </div>
-        </Panel>
-        {sub.cancelled && (
-          <Panel title="Cancellation">
-            <p className="text-[0.8125rem] text-ink-soft">
-              Cancelled {day(sub.cancelled.at)}: “{sub.cancelled.reason}”
-            </p>
-          </Panel>
-        )}
-      </div>
-
-      <Panel title="Payments" meta={history.length ? "Most recent first" : undefined} className="self-start xl:col-span-2" flush>
-        {history.length === 0 ? (
-          <Empty title="No payments yet">The first payment is taken when the listing goes live.</Empty>
-        ) : (
-          <div className={table.wrap}>
-            <table className={clsx(table.table, "min-w-[480px]")}>
-              <thead>
-                <tr>
-                  <th className={table.th}>Date</th>
-                  <th className={table.th}>Plan</th>
-                  <th className={table.th}>Status</th>
-                  <th className={`${table.th} ${table.num}`}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((c) => {
-                  const ok = c.status === "paid" || !!retried;
-                  return (
-                    <tr key={c.id} className={table.row}>
-                      <td className={table.td}>{day(c.day, { year: true })}</td>
-                      <td className={`${table.td} text-ink-soft`}>
-                        {tiers[c.sub.tier].name}, {c.sub.billing === "annual" ? "yearly" : "monthly"}
-                      </td>
-                      <td className={table.td}>
-                        <Badge tone={ok ? "good" : "bad"}>{ok ? (c.status === "failed" ? "Paid on retry" : "Paid") : "Failed"}</Badge>
-                      </td>
-                      <td className={`${table.td} ${table.num}`}>{aud(c.amount, true)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
     </div>
   );
 }

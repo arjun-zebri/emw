@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { day, month as monthName } from "@/lib/admin/format";
-import { addMonths, dayNumber, isoDay, TODAY } from "@/lib/admin/time";
+import { addMonths, dayNumber, isoDay, useToday } from "@/lib/admin/time";
 
 const GAP = 16; // between the row and the calendar
 const EDGE = 16; // kept clear at the window's edge
@@ -25,8 +25,9 @@ function weeks(key: string) {
  * Enter picks, Escape closes. Dates are "YYYY-MM-DD", as everywhere in the admin.
  */
 export function DatePicker({ id, value, onChange }: { id?: string; value: string; onChange: (iso: string) => void }) {
+  const now = useToday();
   const [open, setOpen] = useState(false);
-  const [focus, setFocus] = useState(value || TODAY);
+  const [focus, setFocus] = useState(value || now);
   const [place, setPlace] = useState({ up: false });
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -36,7 +37,7 @@ export function DatePicker({ id, value, onChange }: { id?: string; value: string
   const shown = focus.slice(0, 7);
 
   const show = () => {
-    setFocus(value || TODAY);
+    setFocus(value || now);
     setOpen(true);
   };
   const hide = (refocus = true) => {
@@ -74,7 +75,7 @@ export function DatePicker({ id, value, onChange }: { id?: string; value: string
     if (e.key in step) setFocus(isoDay(dayNumber(focus) + step[e.key]));
     else if (e.key === "PageUp") setFocus(addMonths(focus, -1));
     else if (e.key === "PageDown") setFocus(addMonths(focus, 1));
-    else if (e.key === "Home") setFocus(TODAY);
+    else if (e.key === "Home") setFocus(now);
     else if (e.key === "Escape") hide();
     else if (e.key === "Tab") return setOpen(false);
     else return;
@@ -98,7 +99,7 @@ export function DatePicker({ id, value, onChange }: { id?: string; value: string
         }}
         className="group flex w-full items-center justify-between gap-4 text-left text-[0.9375rem] text-ink focus:outline-none"
       >
-        {day(value || TODAY, { year: true, weekday: true })}
+        {value || now ? day(value || now, { year: true, weekday: true }) : "Pick a date"}
         <Icon name="calendar" className="size-3.5 shrink-0 text-ink-mute transition-colors group-hover:text-ink" strokeWidth={1.4} />
       </button>
 
@@ -154,7 +155,7 @@ export function DatePicker({ id, value, onChange }: { id?: string; value: string
                   {week.map((iso) => {
                     const selected = iso === value;
                     const outside = iso.slice(0, 7) !== shown;
-                    const today = iso === TODAY;
+                    const today = iso === now;
                     return (
                       <button
                         key={iso}
@@ -183,7 +184,7 @@ export function DatePicker({ id, value, onChange }: { id?: string; value: string
             </div>
 
             <div className="mt-3 border-t hairline pt-3 text-[0.75rem]">
-              <button type="button" onClick={() => pick(TODAY)} className="text-ink transition-colors hover:text-ink-soft">
+              <button type="button" onClick={() => pick(now)} className="text-ink transition-colors hover:text-ink-soft">
                 Today
               </button>
             </div>

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { postCategories, type Block, type Post } from "@/data/journal";
 import { day } from "@/lib/admin/format";
 import { deletePost, nowIso, savePost, slugify, useAdmin } from "@/lib/admin/store";
-import { TODAY } from "@/lib/admin/time";
+import { today, useToday } from "@/lib/admin/time";
 import { toast } from "@/lib/admin/toast";
 import { getVendor, vendors } from "@/lib/vendors";
 import { DatePicker } from "../shared/DatePicker";
@@ -36,7 +36,7 @@ const blank = (): Post => ({
   body: [{ id: "b1", type: "p", text: "" }],
   vendors: [],
   status: "draft",
-  date: TODAY,
+  date: "",
   updated: "",
   author: "East Meets Wed",
   description: "",
@@ -70,13 +70,15 @@ export function JournalEditor() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const dirty = useRef(false);
+  const now = useToday();
 
   // Autosave 600ms after the last change.
   useEffect(() => {
     if (!draft || !dirty.current) return;
     const t = setTimeout(() => {
       const isNew = !draft.id;
-      const post = { ...draft, id: draft.id || `p-${uid()}`, updated: nowIso() };
+      // A new post is dated the day it's first saved.
+      const post = { ...draft, id: draft.id || `p-${uid()}`, date: draft.date || today(), updated: nowIso() };
       savePost(post);
       dirty.current = false;
       setSaving("saved");
@@ -107,7 +109,7 @@ export function JournalEditor() {
   const setBlocks = (fn: (b: Block[]) => Block[]) => change({ body: fn(draft.body) });
 
   const commit = (patch: Partial<Post>, message: string, action?: { label: string; run: () => void }) => {
-    const post = { ...draft, ...patch, id: draft.id || `p-${uid()}`, updated: nowIso() };
+    const post = { ...draft, ...patch, id: draft.id || `p-${uid()}`, date: patch.date ?? (draft.date || today()), updated: nowIso() };
     if (!post.slug) post.slug = slugify(post.title) || post.id;
     savePost(post);
     dirty.current = false;
@@ -117,7 +119,7 @@ export function JournalEditor() {
     toast(message, action);
   };
 
-  const future = draft.date > TODAY;
+  const future = !!now && !!draft.date && draft.date > now;
   const primary =
     draft.status === "published"
       ? { label: "Update", run: () => commit({}, "Changes published") }
@@ -126,7 +128,7 @@ export function JournalEditor() {
         : {
             label: "Publish",
             run: () =>
-              commit({ status: "published", date: draft.date || TODAY }, "Published. It's on the home page now.", { label: "View", run: () => window.open("/#journal", "_blank") }),
+              commit({ status: "published", date: draft.date || today() }, "Published. It's on the home page now.", { label: "View", run: () => window.open("/#journal", "_blank") }),
           };
 
   const remove = () => {
@@ -169,7 +171,7 @@ export function JournalEditor() {
         <h1 className="min-w-0 truncate text-ink">{draft.id ? draft.title || "Untitled" : "New post"}</h1>
         <span className="ml-auto flex shrink-0 items-center gap-2 text-[0.75rem]" aria-live="polite">
           <span className={clsx("size-1.5 rounded-full", saving === "saving" ? "animate-pulse bg-warn" : "bg-good")} aria-hidden />
-          {saving === "saving" ? "Saving" : saving === "saved" ? "Saved" : draft.id ? `Saved ${day(draft.updated || TODAY)}` : "Saves as you write"}
+          {saving === "saving" ? "Saving" : saving === "saved" ? "Saved" : draft.id ? (draft.updated ? `Saved ${day(draft.updated)}` : "Saved") : "Saves as you write"}
         </span>
       </nav>
 
@@ -517,7 +519,7 @@ function Sidebar({
     <aside className="min-w-0 self-start xl:sticky xl:top-24 xl:col-span-5">
       <dl className="border-t hairline">
         <DetailRow label="Publish date" htmlFor="post-date">
-          <DatePicker id="post-date" value={post.date || TODAY} onChange={(date) => change({ date })} />
+          <DatePicker id="post-date" value={post.date} onChange={(date) => change({ date })} />
         </DetailRow>
         <DetailRow label="Category" htmlFor="post-category">
           <Dropdown id="post-category" options={postCategories.map((c) => ({ value: c, label: c }))} value={post.category} onChange={(c) => change({ category: c })} placeholder="Choose a category" />

@@ -1,10 +1,9 @@
 import type { Language, Service, StateCode } from "@/data/types";
 import { getVendor, locationLabel, vendors } from "@/lib/vendors";
-import { subscriptionFor, type Subscription, type TierId } from "./billing";
+import type { TierId } from "./billing";
 import type { AdminState } from "./store";
-import { TODAY, addMonths, daysUntil } from "./time";
 
-/** One shape for every vendor the admin manages: the 34 listed ones plus any added in the demo. */
+/** One shape for every vendor the admin manages: the 34 listed ones plus any added here. */
 export type AdminVendor = {
   slug: string;
   name: string;
@@ -24,33 +23,23 @@ export type AdminVendor = {
   instagram?: string;
   facebook?: string;
   featured: boolean;
-  sub: Subscription;
+  /** The plan picked when the vendor was added here; listed vendors have none until billing starts. */
+  tier?: TierId;
   status: VendorStatus;
-  /** Added through the portal in this demo, so it has no history yet. */
+  /** Added through the portal (kept in this browser for now), not one of the listed vendors. */
   isNew: boolean;
 };
 
-export type VendorStatus = "live" | "payment-failed" | "cancelling" | "expiring" | "new";
+export type VendorStatus = "live" | "new";
 
-export const statusLabels: Record<VendorStatus, { label: string; tone: "good" | "warn" | "bad" | "neutral" }> = {
+export const statusLabels: Record<VendorStatus, { label: string; tone: "good" | "neutral" }> = {
   live: { label: "Live", tone: "good" },
   new: { label: "New", tone: "neutral" },
-  expiring: { label: "Expiring", tone: "warn" },
-  cancelling: { label: "Cancelling", tone: "warn" },
-  "payment-failed": { label: "Payment failed", tone: "bad" },
 };
-
-function statusOf(sub: Subscription, retried: boolean): VendorStatus {
-  if (sub.status === "past_due" && !retried) return "payment-failed";
-  if (sub.status === "cancelling") return "cancelling";
-  if (!sub.autoRenew && daysUntil(sub.renews) <= 30) return "expiring";
-  return "live";
-}
 
 export function adminVendors(state: AdminState): AdminVendor[] {
   const listed = vendors.map((v): AdminVendor => {
     const edit = state.listingEdits[v.slug] ?? {};
-    const sub = subscriptionFor(v.slug)!;
     return {
       slug: v.slug,
       name: edit.name ?? v.name,
@@ -70,34 +59,21 @@ export function adminVendors(state: AdminState): AdminVendor[] {
       instagram: edit.instagram ?? v.socials?.instagram,
       facebook: edit.facebook ?? v.socials?.facebook,
       featured: v.featured,
-      sub,
-      status: statusOf(sub, !!state.retried[sub.id]),
+      status: "live",
       isNew: false,
     };
   });
-  const added = state.addedVendors.map((v): AdminVendor => {
-    const sub: Subscription = {
-      id: `sub_new_${v.slug}`,
-      slug: v.slug,
-      name: v.name,
-      tier: v.tier as TierId,
-      billing: v.billing,
-      started: v.added.slice(0, 10),
-      renews: addMonths(TODAY, v.billing === "annual" ? 12 : 1),
-      autoRenew: true,
-      status: "active",
-      card: { brand: "Visa", last4: "4242", expires: "2028-08" },
-    };
-    return {
+  const added = state.addedVendors.map(
+    (v): AdminVendor => ({
       ...v,
       location: v.based ? `${v.based}${v.serviceArea[0] ? `, ${v.serviceArea[0]}` : ""}` : v.serviceArea.join(", ") || "Location on request",
       cover: v.photos[0],
       featured: v.tier === "premier",
-      sub,
+      tier: v.tier,
       status: "new",
       isNew: true,
-    };
-  });
+    }),
+  );
   return [...added, ...listed];
 }
 
