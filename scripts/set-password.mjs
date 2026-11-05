@@ -18,6 +18,8 @@ if (!email?.includes("@")) throw new Error("Usage: node --env-file=.env.local sc
 
 const password = execFileSync("pbpaste", { encoding: "utf8" }).trim();
 if (password.length < 10) throw new Error("Copy a password of at least 10 characters first.");
+// Supabase allows 72 at most. Anything longer is usually the command itself, copied over the password.
+if (password.length > 72) throw new Error("The clipboard holds more than 72 characters. Copy just the password, then run this again.");
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
 
