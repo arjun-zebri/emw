@@ -1,12 +1,11 @@
 import { useSyncExternalStore } from "react";
 import { seedPosts, type Post } from "@/data/journal";
 import type { Language, Service, StateCode } from "@/data/types";
-import { alertDefs, type Channel } from "./alerts";
 import type { TierId } from "./billing";
 
 /*
  * What the portal keeps in this browser until it moves to the database: posts, vendors added
- * here, listing edits, Real Wedding and review decisions, alert settings and read notifications.
+ * here, listing edits, Real Wedding and review decisions and read notifications.
  * It lives in localStorage, so it survives reloads and syncs across tabs (publish a post in one tab
  * and the landing page in another updates). The server renders the seed, and the browser's copy
  * takes over on hydration. In the full build this is the database.
@@ -42,7 +41,6 @@ export type AdminState = {
   addedVendors: AddedVendor[];
   /** Real Wedding submissions and reviews, by id. */
   decisions: Record<string, { verdict: "approved" | "declined"; at: string; note?: string }>;
-  alerts: Record<string, Channel[]>;
   listingEdits: Record<string, ListingEdit>;
   /** Notification ids that have been read. */
   read: string[];
@@ -54,7 +52,6 @@ export const seed: AdminState = {
   posts: seedPosts,
   addedVendors: [],
   decisions: {},
-  alerts: Object.fromEntries(alertDefs.map((a) => [a.id, a.defaults])),
   listingEdits: {},
   read: [],
 };

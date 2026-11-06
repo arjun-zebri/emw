@@ -4,6 +4,7 @@ import type { Language, Service, StateCode } from "@/data/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
 import { EMAILS, emailAdmin, emailFrom, emailOrigin } from "./config";
+import { emailOn } from "./switches";
 import { applicationAdmin, applicationReceived, confirmEmail, listingLive, type Rendered } from "./templates";
 
 /*
@@ -38,7 +39,8 @@ async function deliver(to: string, email: Rendered, replyTo?: string): Promise<b
   }
 }
 
-async function load(vendorId: string) {
+/** A vendor as the emails show it. Also used by the previews in Admin → Notifications. */
+export async function load(vendorId: string) {
   const { data, error } = await admin()
     .from("vendors")
     .select("*, vendor_photos(path, position, width, height), vendor_review_notes(notes)")
@@ -62,47 +64,53 @@ async function load(vendorId: string) {
   };
 }
 
-/** When someone applies: the team hears about it, and the applicant gets a thank you. */
+/**
+ * When someone applies: the team hears about it, and the applicant gets a thank you. Each can be
+ * switched off in Admin → Notifications.
+ */
 export async function sendApplicationEmails(vendorId: string): Promise<void> {
-  if (!EMAILS.application) return;
+  const [toTeam, toApplicant] = await Promise.all([emailOn("application-team"), emailOn("application-received")]);
+  if (!toTeam && !toApplicant) return;
   const d = await load(vendorId);
   if (!d) return;
   const { vendor: v } = d;
   const origin = emailOrigin();
   const applicant = v.email ?? undefined;
 
-  await deliver(
-    emailAdmin(),
-    applicationAdmin({
-      origin,
-      business: v.name,
-      person: v.person ?? "Someone",
-      email: v.email ?? "",
-      phone: v.phone ?? undefined,
-      discipline: v.discipline,
-      services: d.services,
-      languages: d.languages,
-      based: v.based ?? undefined,
-      travels: d.travels,
-      website: v.website ?? undefined,
-      instagram: v.instagram ?? undefined,
-      facebook: v.facebook ?? undefined,
-      story: v.story,
-      notes: d.notes,
-      photos: d.photos,
-      photoCount: d.photos.length,
-    }),
-    applicant,
-  );
+  if (toTeam) {
+    await deliver(
+      emailAdmin(),
+      applicationAdmin({
+        origin,
+        business: v.name,
+        person: v.person ?? "Someone",
+        email: v.email ?? "",
+        phone: v.phone ?? undefined,
+        discipline: v.discipline,
+        services: d.services,
+        languages: d.languages,
+        based: v.based ?? undefined,
+        travels: d.travels,
+        website: v.website ?? undefined,
+        instagram: v.instagram ?? undefined,
+        facebook: v.facebook ?? undefined,
+        story: v.story,
+        notes: d.notes,
+        photos: d.photos,
+        photoCount: d.photos.length,
+      }),
+      applicant,
+    );
+  }
 
-  if (applicant) {
+  if (toApplicant && applicant) {
     await deliver(applicant, applicationReceived({ origin, first: d.first, card: { name: v.name, line: v.discipline, photo: d.photos[0] } }), emailAdmin());
   }
 }
 
-/** When the team approves a listing. Does nothing while EMAILS.approved is off. */
+/** When the team approves a listing. Switched on and off in Admin → Notifications. */
 export async function sendApprovedEmail(vendorId: string): Promise<void> {
-  if (!EMAILS.approved) return;
+  if (!(await emailOn("listing-live"))) return;
   const d = await load(vendorId);
   if (!d?.vendor.email) return;
   const origin = emailOrigin();

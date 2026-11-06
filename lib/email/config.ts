@@ -1,8 +1,9 @@
 import { SITE } from "@/lib/config";
 
 /*
- * Which emails go out, and from where. Each switch is checked by its send function, so an email
- * that's off is fully built and simply not sent.
+ * Which emails go out, and from where. The team switches emails on and off in Admin →
+ * Notifications (lib/email/switches.ts); these are the defaults when that setting can't be read.
+ * "Confirm your email" is only switched here, because sign-up breaks without it.
  */
 export const EMAILS = {
   /** To the team and the applicant when someone applies. */

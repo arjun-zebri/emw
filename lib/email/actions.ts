@@ -6,8 +6,8 @@ import { sendApprovedEmail } from "./send";
 
 /**
  * Tell a vendor their listing is live, after the team approves it in Admin → Approvals. Team only,
- * and only for a listing that really is published. Does nothing while EMAILS.approved is off
- * (lib/email/config.ts).
+ * and only for a listing that really is published. Does nothing while "Your listing is live" is
+ * switched off in Admin → Notifications.
  */
 export async function notifyApproved(vendorId: string) {
   const supabase = await createClient();

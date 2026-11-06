@@ -26,7 +26,7 @@ export const ownerNav: NavGroup[] = [
   {
     title: "Settings",
     items: [
-      { href: "/admin/notifications", label: "Notifications", icon: "bell", soon: true },
+      { href: "/admin/notifications", label: "Notifications", icon: "bell" },
       { href: "/admin/settings", label: "Team", icon: "people", soon: true },
     ],
   },
@@ -44,7 +44,7 @@ export const vendorNav: NavGroup[] = [
     title: "Settings",
     items: [
       { href: "/account/billing", label: "Plan & billing", icon: "card" },
-      { href: "/account/notifications", label: "Notifications", icon: "bell" },
+      { href: "/account/notifications", label: "Notifications", icon: "bell", soon: true },
     ],
   },
 ];
