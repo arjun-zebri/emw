@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useId, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
-import { type AccountResult, createAccount, signInToApply, signOutOfApply } from "@/lib/apply/account";
+import { type AccountResult, createAccount, signInToApply, signOutOfApply, skipConfirmation } from "@/lib/apply/account";
 import { supabase } from "@/lib/supabase/browser";
 
 /*
@@ -48,6 +48,7 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [resent, setResent] = useState(false);
+  const [canSkip, setCanSkip] = useState(false);
 
   // Back from Google or Microsoft without a session.
   useEffect(() => {
@@ -80,6 +81,7 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
     setBusy(null);
     if (res.status === "sent") {
       setSent(true);
+      setCanSkip(!!res.canSkip);
       setResent(again);
       return;
     }
@@ -137,6 +139,26 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
           <button type="button" className="t-nav link-line" disabled={!!busy} onClick={() => submit(true)}>
             {busy ? "Sending" : "Send it again"}
           </button>
+          {canSkip && (
+            <button
+              type="button"
+              className="t-nav link-line"
+              disabled={!!busy}
+              onClick={async () => {
+                setBusy("email");
+                const res = await skipConfirmation({ email, password }).catch(() => ({ status: "error" as const }));
+                setBusy(null);
+                if (res.status === "signed-in") {
+                  setPassword("");
+                  setSent(false);
+                  return onChange();
+                }
+                setError("That didn’t work. Try again, or sign in with Google or Microsoft.");
+              }}
+            >
+              Skip the email (staging)
+            </button>
+          )}
           <button
             type="button"
             className="t-nav link-line text-ink-soft"

@@ -19,7 +19,8 @@ import { isEmail } from "./application";
  */
 
 export type AccountResult =
-  | { status: "sent" | "signed-in" }
+  | { status: "sent"; canSkip?: boolean }
+  | { status: "signed-in" }
   | { status: "invalid"; message: string }
   | { status: "exists" | "wrong" | "error" };
 
@@ -37,6 +38,12 @@ function check(email: string, password: string): AccountResult | null {
   return null;
 }
 
+/**
+ * Staging only, until eastmeetswed.com is verified in Resend and the link can reach any inbox:
+ * a button that confirms the account without the email. Never on the live site.
+ */
+const skipAllowed = () => process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development";
+
 /** A fresh confirmation link, emailed. Only for an account that exists and isn't confirmed yet. */
 async function sendLink(email: string, password: string) {
   const { data, error } = await admin().auth.admin.generateLink({ type: "signup", email, password });
@@ -47,6 +54,8 @@ async function sendLink(email: string, password: string) {
   return sendConfirmEmail(email, `${emailOrigin()}/list-your-business/confirm?token=${encodeURIComponent(data.properties.hashed_token)}`);
 }
 
+const sent = (): AccountResult => ({ status: "sent", canSkip: skipAllowed() });
+
 /**
  * Sign in if the password is right, or send the link again if the account is still waiting for
  * it. Answering only to the right password means this can't be used to find out who has an
@@ -56,7 +65,7 @@ async function signInOrResend(email: string, password: string): Promise<AccountR
   const server = await createClient();
   const { error } = await server.auth.signInWithPassword({ email, password });
   if (!error) return { status: "signed-in" };
-  if (error.code === "email_not_confirmed") return (await sendLink(email, password)) ? { status: "sent" } : { status: "error" };
+  if (error.code === "email_not_confirmed") return (await sendLink(email, password)) ? sent() : { status: "error" };
   return { status: "wrong" };
 }
 
@@ -76,7 +85,26 @@ export async function createAccount(input: { email: string; password: string }):
     const again = await signInOrResend(email, password);
     return again.status === "wrong" ? { status: "exists" } : again;
   }
-  return (await sendLink(email, password)) ? { status: "sent" } : { status: "error" };
+  return (await sendLink(email, password)) ? sent() : { status: "error" };
+}
+
+/**
+ * Staging only (see skipAllowed): confirms the account without the email and signs them in. It
+ * needs the account's own password: Supabase checks the password before it says "not confirmed".
+ */
+export async function skipConfirmation(input: { email: string; password: string }): Promise<AccountResult> {
+  if (!skipAllowed()) return { status: "error" };
+  const email = String(input.email ?? "").trim().toLowerCase();
+  const password = String(input.password ?? "");
+  if (!isEmail(email) || !password) return { status: "error" };
+  const server = await createClient();
+  const first = await server.auth.signInWithPassword({ email, password });
+  if (!first.error) return { status: "signed-in" };
+  if (first.error.code !== "email_not_confirmed") return { status: "wrong" };
+  const { data, error } = await admin().auth.admin.generateLink({ type: "signup", email, password });
+  if (error || !data.properties?.hashed_token) return { status: "error" };
+  const done = await server.auth.verifyOtp({ token_hash: data.properties.hashed_token, type: "signup" });
+  return done.error ? { status: "error" } : { status: "signed-in" };
 }
 
 /** Password sign-in from the apply flow. Sends the link again if it hasn't been confirmed yet. */
