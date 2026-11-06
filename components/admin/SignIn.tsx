@@ -60,7 +60,7 @@ function SignInView({ next }: { next?: string }) {
 
   // Warm both destinations so the hand-off is instant.
   useEffect(() => {
-    router.prefetch("/admin");
+    router.prefetch("/admin/approvals");
     router.prefetch("/account");
   }, [router]);
 

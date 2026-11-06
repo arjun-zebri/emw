@@ -18,7 +18,7 @@ export function readSession(claims: Claims | null | undefined): Session | null {
 }
 
 /** Where a signed-in person lands, and whether a requested page is theirs to open. */
-export const homeOf = (session: Session) => (session.role === "team" ? "/admin" : "/account");
+export const homeOf = (session: Session) => (session.role === "team" ? "/admin/approvals" : "/account");
 
 export function canOpen(session: Session, path: string) {
   if (path.startsWith("/admin")) return session.role === "team";

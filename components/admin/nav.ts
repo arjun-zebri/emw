@@ -1,32 +1,33 @@
 import type { IconName } from "@/components/icons/Icon";
 
-export type NavItem = { href: string; label: string; icon: IconName; badge?: "approvals" | "unreplied" };
+/** `soon`: not built yet (still sample data). Greyed out in the sidebar and left out of search. */
+export type NavItem = { href: string; label: string; icon: IconName; badge?: "approvals" | "unreplied"; soon?: true };
 export type NavGroup = { title?: string; items: NavItem[] };
 
 export const ownerNav: NavGroup[] = [
-  { items: [{ href: "/admin", label: "Overview", icon: "overview" }] },
+  { items: [{ href: "/admin", label: "Overview", icon: "overview", soon: true }] },
   {
     title: "Insights",
     items: [
-      { href: "/admin/traffic", label: "Traffic", icon: "trend" },
-      { href: "/admin/enquiries", label: "Enquiries", icon: "speech" },
-      { href: "/admin/revenue", label: "Revenue", icon: "coin" },
+      { href: "/admin/traffic", label: "Traffic", icon: "trend", soon: true },
+      { href: "/admin/enquiries", label: "Enquiries", icon: "speech", soon: true },
+      { href: "/admin/revenue", label: "Revenue", icon: "coin", soon: true },
     ],
   },
   {
     title: "Manage",
     items: [
       { href: "/admin/approvals", label: "Approvals", icon: "inbox", badge: "approvals" },
-      { href: "/admin/vendors", label: "Vendors", icon: "store" },
-      { href: "/admin/couples", label: "Couples", icon: "heart" },
-      { href: "/admin/journal", label: "Journal", icon: "pen" },
+      { href: "/admin/vendors", label: "Vendors", icon: "store", soon: true },
+      { href: "/admin/couples", label: "Couples", icon: "heart", soon: true },
+      { href: "/admin/journal", label: "Journal", icon: "pen", soon: true },
     ],
   },
   {
     title: "Settings",
     items: [
-      { href: "/admin/notifications", label: "Notifications", icon: "bell" },
-      { href: "/admin/settings", label: "Team", icon: "people" },
+      { href: "/admin/notifications", label: "Notifications", icon: "bell", soon: true },
+      { href: "/admin/settings", label: "Team", icon: "people", soon: true },
     ],
   },
 ];

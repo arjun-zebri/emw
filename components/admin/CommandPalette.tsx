@@ -7,8 +7,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
 import { signOut } from "@/lib/admin/session";
-import { useAdmin } from "@/lib/admin/store";
-import { adminVendors } from "@/lib/admin/vendors";
 import { ownerNav, vendorNav } from "./nav";
 import { Avatar, Kbd } from "./ui";
 
@@ -17,7 +15,6 @@ type Command = { id: string; label: string; detail?: string; group: string; icon
 /** ⌘K: jump to any page, vendor or post, or start a common task, without reaching for the sidebar. */
 export function CommandPalette({ open, onClose, role }: { open: boolean; onClose: () => void; role: "owner" | "vendor" }) {
   const router = useRouter();
-  const state = useAdmin();
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -25,7 +22,7 @@ export function CommandPalette({ open, onClose, role }: { open: boolean; onClose
 
   const commands = useMemo<Command[]>(() => {
     const go = (href: string) => () => router.push(href);
-    const nav = (role === "owner" ? ownerNav : vendorNav).flatMap((g) => g.items);
+    const nav = (role === "owner" ? ownerNav : vendorNav).flatMap((g) => g.items).filter((n) => !n.soon);
     const pages = nav.map((n) => ({ id: n.href, label: n.label, group: "Go to", icon: n.icon, run: go(n.href) }));
     if (role === "vendor") {
       return [
@@ -35,24 +32,11 @@ export function CommandPalette({ open, onClose, role }: { open: boolean; onClose
       ];
     }
     return [
-      { id: "new-vendor", label: "Add a vendor", group: "Do", icon: "plus", run: go("/admin/vendors/new") },
-      { id: "new-post", label: "Write a journal post", group: "Do", icon: "pen", run: go("/admin/journal/new") },
       { id: "approvals", label: "Review what's waiting for approval", group: "Do", icon: "inbox", run: go("/admin/approvals") },
-      { id: "weekly", label: "Preview the weekly summary email", group: "Do", icon: "mail", run: go("/admin/notifications?preview=weekly-summary") },
-      { id: "export", label: "Export couples as CSV", group: "Do", icon: "download", run: go("/admin/couples?export=1") },
       ...pages,
-      ...adminVendors(state).map((v) => ({
-        id: `v-${v.slug}`,
-        label: v.name,
-        detail: v.discipline,
-        group: "Vendors",
-        avatar: { name: v.name, src: v.cover },
-        run: go(`/admin/vendors/${v.slug}`),
-      })),
-      ...state.posts.map((p) => ({ id: `p-${p.id}`, label: p.title, detail: p.status === "published" ? "Published" : p.status === "draft" ? "Draft" : "Scheduled", group: "Journal", icon: "pen" as const, run: go(`/admin/journal/${p.id}`) })),
       { id: "out", label: "Sign out", group: "Do", icon: "logout", run: signOut },
     ];
-  }, [role, router, state]);
+  }, [role, router]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
