@@ -126,9 +126,11 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
   if (sent) {
     return (
       <div className="max-w-[26rem] border hairline bg-surface p-6 sm:p-7" aria-live="polite">
-        <Icon name="mail" className="size-6 text-ink" />
-        <h2 className="t-title mt-4 text-[1.5rem]">Check your inbox</h2>
-        <p className="t-body mt-2">
+        <h2 className="t-title flex items-center gap-3 text-[1.5rem]">
+          <Icon name="mail" className="size-5 shrink-0 text-ink" />
+          Check your inbox
+        </h2>
+        <p className="t-body mt-3">
           {resent ? "We’ve sent a new link to" : "We’ve sent a link to"} <span className="text-ink">{email}</span>. Open it and your application starts straight away.
         </p>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">

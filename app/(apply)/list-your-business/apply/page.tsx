@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 // Vendors at work and the things they make, from their own listings.
 const images: FlowPhotos = {
-  welcome: ["/images/vendors/candy-ng-art/02.jpg", "/images/vendors/gabiera-film-photographer/06.jpg", "/images/vendors/folkstone-weddings/01.jpg"],
+  welcome: "/images/vendors/kindred-visuals/01.jpg",
   about: "/images/vendors/invictus-quartet/01.jpg",
   show: "/images/vendors/dillon-reyn-live-event-illustration/00.jpg",
   finish: "/images/vendors/at-last-film-and-photography/03.jpg",

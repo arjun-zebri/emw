@@ -51,7 +51,7 @@ const flow: { id: StepId; section?: 0 | 1 | 2; intro?: boolean }[] = [
 const SAVED = "emw-apply";
 type Saved = { a: Application; step: StepId; startedAt: number };
 
-export type FlowPhotos = { about: string; show: string; finish: string; welcome: [string, string, string] };
+export type FlowPhotos = { about: string; show: string; finish: string; welcome: string };
 
 type Phase = { kind: "form" } | { kind: "sending"; done: number; total: number } | { kind: "sent"; duplicate?: boolean };
 
@@ -269,12 +269,13 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
   return (
     <MotionConfig reducedMotion="user">
       <div className="min-h-svh bg-paper">
-        <header className="fixed inset-x-0 top-0 z-30 bg-paper/90 backdrop-blur-xl">
+        {/* On the first screen the photo runs to the top: no bar, the way out sits on the photo. */}
+        <header className={clsx("inset-x-0 top-0 z-30", index === 0 ? "absolute bg-paper/90 backdrop-blur-xl lg:bg-transparent lg:backdrop-blur-none" : "fixed bg-paper/90 backdrop-blur-xl")}>
           <div className="shell flex h-[var(--header-h)] items-center justify-between">
             <Link href="/list-your-business" aria-label="East Meets Wed, list your business">
               <Monogram className="w-[4.5rem] transition-opacity hover:opacity-60" />
             </Link>
-            <Link href="/list-your-business" className="t-nav inline-flex h-10 items-center border hairline px-5 transition-colors hover:border-ink">
+            <Link href="/list-your-business" className={clsx("t-nav link-line", index === 0 && "lg:text-white")}>
               {index === 0 ? "Exit" : "Save and exit"}
             </Link>
           </div>
@@ -300,14 +301,14 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
               exit={{ opacity: 0, y: dir * -12, transition: { duration: 0.2, ease: [0.25, 1, 0.5, 1] } }}
               id="main"
               className={clsx(
-                "pt-[calc(var(--header-h)+clamp(1.5rem,6vh,4rem))] pb-[calc(6rem+clamp(2rem,6vh,4rem))]",
-                step.intro || step.id === "welcome" ? "shell" : "mx-auto w-full px-[var(--gutter)]",
+                step.id !== "welcome" && "pt-[calc(var(--header-h)+clamp(1.5rem,6vh,4rem))] pb-[calc(6rem+clamp(2rem,6vh,4rem))]",
+                step.id === "welcome" ? "" : step.intro ? "shell" : "mx-auto w-full px-[var(--gutter)]",
                 wide(step.id) ? "max-w-[64rem]" : !step.intro && step.id !== "welcome" && "max-w-[46rem]",
               )}
             >
               {step.id === "welcome" && (
                 <Welcome
-                  images={images.welcome}
+                  image={images.welcome}
                   headingId={headingId}
                   returning={returning}
                   name={a.name}
@@ -495,8 +496,9 @@ const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.f
 
 // ── Screens ─────────────────────────────────────────────────────────────
 
+/** The first screen: one photo of a vendor at work, and beside it the account and the way in. */
 function Welcome({
-  images,
+  image,
   headingId,
   returning,
   name,
@@ -506,7 +508,7 @@ function Welcome({
   onResume,
   onRestart,
 }: {
-  images: [string, string, string];
+  image: string;
   headingId: string;
   returning: boolean;
   name: string;
@@ -516,71 +518,48 @@ function Welcome({
   onResume: () => void;
   onRestart: () => void;
 }) {
-  const rows = [
-    { title: "Tell us about your work", body: "What you do, the languages you speak and where you travel.", time: "3 min", src: images[0] },
-    { title: "Show couples your work", body: "Your photos, shown large, and your story in your own words.", time: "5 min", src: images[1] },
-    { title: "Check it and send it", body: "See your listing exactly as couples will, then send it to the team.", time: "2 min", src: images[2] },
-  ];
-  const promises = [
-    { icon: "clock" as const, text: "About 10 minutes" },
-    { icon: "check" as const, text: "Saved as you go" },
-    { icon: "eye" as const, text: "Reviewed by our team" },
-  ];
   return (
-    <div className="grid min-h-[calc(100svh-var(--header-h)-8rem)] grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-8">
-      <div className="lg:col-span-5">
-        <h1 id={headingId} tabIndex={-1} className="t-display text-[clamp(2.75rem,5.4vw,5.5rem)] text-balance outline-none">
-          {returning ? "Welcome back" : "List your business on East Meets Wed"}
-        </h1>
-        <p className="t-body mt-6 max-w-[40ch]">
-          {returning
-            ? `Your answers${name ? ` for ${name}` : ""} are saved in this browser. Pick up where you left off.`
-            : "Join the directory couples use to find vendors who understand both sides of the family."}
-        </p>
-        {!returning && (
-          <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3">
-            {promises.map((p) => (
-              <li key={p.text} className="flex items-center gap-2 text-[0.875rem] text-ink">
-                <Icon name={p.icon} className="size-4 text-ink-soft" />
-                {p.text}
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="mt-10">
-          <AccountPanel account={account} onChange={onAccount} />
-          {account?.confirmed && (
-            <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-4">
-              <Button type="button" onClick={returning ? onResume : onStart} className="min-w-[10rem]">
-                {returning ? "Continue" : "Get started"}
-              </Button>
-              {returning && (
-                <button type="button" onClick={onRestart} className="t-nav link-line">
-                  Start again
-                </button>
-              )}
-            </div>
-          )}
+    <div className="grid grid-cols-1 pt-[var(--header-h)] lg:min-h-svh lg:grid-cols-2 lg:pt-0">
+      <div className="relative aspect-[4/3] overflow-hidden lg:order-2 lg:aspect-auto">
+        <motion.div
+          initial={{ scale: 1.04, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 1.4, ease }}
+          className="absolute inset-0 lg:sticky lg:inset-auto lg:top-0 lg:h-svh"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- a site photo */}
+          <img src={image} alt="Kindred Visuals filming at a wedding reception" className="absolute inset-0 size-full object-cover object-[50%_30%]" />
+          {/* Just enough shade behind Exit to read on a bright sky. */}
+          <div aria-hidden className="absolute inset-x-0 top-0 hidden h-40 bg-gradient-to-b from-ink/40 to-transparent lg:block" />
+        </motion.div>
+      </div>
+      <div className="flex items-center px-[var(--gutter)] pt-10 pb-16 lg:order-1 lg:pt-[calc(var(--header-h)+3rem)] lg:pb-16 lg:pr-[clamp(2rem,6vw,7rem)] min-[1760px]:pl-[calc((100vw-1760px)/2+var(--gutter))]">
+        <div className="w-full max-w-[34rem]">
+          <h1 id={headingId} tabIndex={-1} className="t-display text-[clamp(2.75rem,4.6vw,5rem)] text-balance outline-none">
+            {returning ? "Welcome back" : "List your business on East Meets Wed"}
+          </h1>
+          <p className="t-body mt-6 max-w-[40ch]">
+            {returning
+              ? `Your answers${name ? ` for ${name}` : ""} are saved in this browser. Pick up where you left off.`
+              : "Tell us about your work and show us your photos. It takes about ten minutes, saves as you go, and our team reads every one."}
+          </p>
+          <div className="mt-10">
+            <AccountPanel account={account} onChange={onAccount} />
+            {account?.confirmed && (
+              <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-4">
+                <Button type="button" onClick={returning ? onResume : onStart} className="min-w-[10rem]">
+                  {returning ? "Continue" : "Get started"}
+                </Button>
+                {returning && (
+                  <button type="button" onClick={onRestart} className="t-nav link-line">
+                    Start again
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      <ol className="lg:col-span-6 lg:col-start-7">
-        {rows.map((r, i) => (
-          <li key={r.title} className={clsx("flex items-center gap-6 py-5 sm:gap-10 sm:py-6", i > 0 && "border-t hairline")}>
-            <div className="min-w-0 flex-1">
-              <h2 className="t-title text-[clamp(1.375rem,2vw,1.75rem)]">{r.title}</h2>
-              <p className="t-body mt-2">{r.body}</p>
-              <p className="t-small mt-2 flex items-center gap-1.5">
-                <Icon name="clock" className="size-3.5" />
-                {r.time}
-              </p>
-            </div>
-            <div className="relative aspect-[4/5] w-20 shrink-0 overflow-hidden sm:w-28">
-              {/* eslint-disable-next-line @next/next/no-img-element -- a small site photo, already sized */}
-              <img src={r.src} alt="" className="absolute inset-0 size-full object-cover" />
-            </div>
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
