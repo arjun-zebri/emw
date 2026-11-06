@@ -88,7 +88,7 @@ function shell(o: { origin: string; preheader: string; body: string; title: stri
 ${o.body}
 <tr><td class="px" style="padding:56px 48px 48px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid ${LINE};padding-top:24px;font-family:${SANS};font-size:12px;line-height:19px;color:${MUTE};">
-    East Meets Wed. Weddings that belong to two worlds.<br>
+    East Meets Wed. Wedding vendors for couples bringing two cultures together.<br>
     <a href="${attr(o.origin)}" style="color:${MUTE};text-decoration:underline;">eastmeetswed.com</a>
   </td></tr></table>
 </td></tr>
@@ -314,86 +314,79 @@ export function applicationAdmin(d: ApplicationData): Rendered {
 export function applicationReceived(d: VendorData): Rendered {
   const subject = `We have your application for ${d.card.name}`;
   const hello = d.first ? `Thank you, ${d.first}` : "Thank you";
+  const intro = `Your application for ${esc(d.card.name)} is with us, and we’re glad you sent it. We read every one ourselves, so couples only ever find people we’d recommend to a friend.`;
+  const nextSteps = [
+    { title: "Application received", body: "Your photos, your story and how couples reach you.", done: true },
+    { title: "We read it", body: "One of us reads it properly. If anything needs a second look, we’ll write to you." },
+    { title: "You go live", body: "We’ll email you the moment couples can find you, beside vendors who, like you, know their way around a wedding with two families and two sets of traditions." },
+  ];
+  const changes = "Need to change something in the meantime? Reply to this email and we’ll take care of it.";
   const body = [
     row(h1(hello)),
-    row(
-      p(
-        `Your application for ${esc(d.card.name)} is with us. Every listing on East Meets Wed is looked at by our team before it goes live, so couples only ever find people we would recommend ourselves.`,
-      ),
-    ),
+    row(p(intro)),
     row(card(d.card), "40px 96px 0"),
-    row(
-      `<div style="font-family:${SERIF};font-size:21px;line-height:26px;color:${INK};padding-bottom:14px;">What happens next</div>${steps([
-        { title: "Application received", body: "Your photos, your story and how couples reach you.", done: true },
-        { title: "Our team reviews it", body: "We read every application by hand. If anything needs a second look, we’ll write to you." },
-        { title: "Your listing goes live", body: "We’ll email you the moment couples can find you in the directory." },
-      ])}`,
-      "48px 48px 0",
-    ),
-    row(p("If you need to change anything in the meantime, simply reply to this email.", 28)),
+    row(`<div style="font-family:${SERIF};font-size:21px;line-height:26px;color:${INK};padding-bottom:14px;">What happens next</div>${steps(nextSteps)}`, "48px 48px 0"),
+    row(p(changes, 28)),
     row(p(`Warmly,<br><span style="color:${INK};">The East Meets Wed team</span>`, 22)),
   ].join("\n");
 
   const text = [
     hello,
     "",
-    `Your application for ${d.card.name} is with us. Every listing on East Meets Wed is looked at by our team before it goes live, so couples only ever find people we would recommend ourselves.`,
+    `Your application for ${d.card.name} is with us, and we’re glad you sent it. We read every one ourselves, so couples only ever find people we’d recommend to a friend.`,
     "",
     "What happens next",
-    "- Application received: your photos, your story and how couples reach you.",
-    "- Our team reviews it. We read every application by hand. If anything needs a second look, we’ll write to you.",
-    "- Your listing goes live. We’ll email you the moment couples can find you in the directory.",
+    ...nextSteps.map((s) => `- ${s.title}. ${s.body}`),
     "",
-    "If you need to change anything in the meantime, simply reply to this email.",
+    changes,
     "",
     "Warmly,",
     "The East Meets Wed team",
   ].join("\n");
 
-  return { subject, html: shell({ origin: d.origin, title: subject, preheader: "Our team looks at every listing before it goes live. Here’s what happens next.", body }), text };
+  return { subject, html: shell({ origin: d.origin, title: subject, preheader: "We read every application ourselves. Here’s what happens next.", body }), text };
 }
 
 // ── To the vendor: approved ─────────────────────────────────────────────
 
 export function listingLive(d: VendorData & { url: string }): Rendered {
   const subject = `${d.card.name} is live on East Meets Wed`;
+  const heading = `Welcome to East Meets Wed${d.first ? `, ${d.first}` : ""}`;
+  const intro = `${esc(d.card.name)} is live. From today, couples planning a wedding across two cultures can find you by what you do, where you work and the languages you speak. You’re in good company: every vendor here was approved by hand, and each of them knows what it takes to bring two families together on one day.`;
+  const notes = [
+    { title: "Your cover photo does the work", body: "It’s what couples see first, in the directory and on your page. If you’d rather lead with a different one, reply and we’ll swap it." },
+    { title: "Couples reach you from your page", body: "When one writes, answer as you would any couple. A quick, personal reply is the thing they remember." },
+    { title: "Keep your page true to you", body: "New work, a new language, a new city you travel to. Reply with the change and we’ll update it." },
+  ];
+  const applyUrl = `${d.origin}/list-your-business`;
+  const invite = "Know a vendor who belongs here? The directory is better for every good one in it.";
   const body = [
-    row(h1(`Welcome to East Meets Wed${d.first ? `, ${d.first}` : ""}`)),
-    row(
-      p(
-        `${esc(d.card.name)} is now in the directory. Couples planning a wedding across two cultures can find you by what you do, where you work and the languages you speak.`,
-      ),
-    ),
+    row(h1(heading)),
+    row(p(intro)),
     row(card(d.card, d.url), "40px 96px 0"),
     row(button(d.url, "See your listing"), "8px 96px 0"),
-    row(
-      `<div style="font-family:${SERIF};font-size:21px;line-height:26px;color:${INK};padding-bottom:14px;">Making the most of it</div>${steps([
-        { title: "Lead with your best photograph", body: "The cover is what couples see first, in the directory and on your page." },
-        { title: "Reply quickly", body: "Enquiries come straight to your inbox. Couples remember who wrote back first." },
-        { title: "Keep it current", body: "New work, new languages, new places you travel to. Tell us and we’ll update it." },
-      ])}`,
-      "48px 48px 0",
-    ),
-    row(p(`Warmly,<br><span style="color:${INK};">The East Meets Wed team</span>`, 28)),
+    row(`<div style="font-family:${SERIF};font-size:21px;line-height:26px;color:${INK};padding-bottom:14px;">A few things worth knowing</div>${steps(notes)}`, "48px 48px 0"),
+    row(p(`${invite} Send them to ${link(applyUrl)}.`, 28)),
+    row(p(`Warmly,<br><span style="color:${INK};">The East Meets Wed team</span>`, 22)),
   ].join("\n");
 
   const text = [
-    `Welcome to East Meets Wed${d.first ? `, ${d.first}` : ""}`,
+    heading,
     "",
-    `${d.card.name} is now in the directory. Couples planning a wedding across two cultures can find you by what you do, where you work and the languages you speak.`,
+    `${d.card.name} is live. From today, couples planning a wedding across two cultures can find you by what you do, where you work and the languages you speak. You’re in good company: every vendor here was approved by hand, and each of them knows what it takes to bring two families together on one day.`,
     "",
     `See your listing: ${d.url}`,
     "",
-    "Making the most of it",
-    "- Lead with your best photograph. The cover is what couples see first.",
-    "- Reply quickly. Enquiries come straight to your inbox.",
-    "- Keep it current. Tell us about new work and we’ll update it.",
+    "A few things worth knowing",
+    ...notes.map((n) => `- ${n.title} ${n.body}`),
+    "",
+    `${invite} Send them to ${applyUrl}`,
     "",
     "Warmly,",
     "The East Meets Wed team",
   ].join("\n");
 
-  return { subject, html: shell({ origin: d.origin, title: subject, preheader: "Couples can now find you in the directory.", body }), text };
+  return { subject, html: shell({ origin: d.origin, title: subject, preheader: "Couples can find you from today.", body }), text };
 }
 
 // ── To the applicant: confirm your email ────────────────────────────────
@@ -401,26 +394,17 @@ export function listingLive(d: VendorData & { url: string }): Rendered {
 /** Sent when someone makes an account to apply. The link proves the address is theirs. */
 export function confirmEmail(d: { origin: string; url: string }): Rendered {
   const subject = "Confirm your email for East Meets Wed";
+  const intro = "Good to have you here. East Meets Wed is a directory of wedding vendors who work with couples bringing two cultures together, and we’d love to see what you do. Confirm this is your address and your application is open.";
+  const after = "The link works for 24 hours. If this wasn’t you, ignore this email and nothing more will happen.";
   const body = [
     row(h1("Confirm your email")),
-    row(p("Thank you for making an account to list your business on East Meets Wed. Confirm this is your address and you can start your application straight away.")),
+    row(p(intro)),
     row(button(d.url, "Confirm my email"), "8px 48px 0"),
-    row(p("The link works for 24 hours. If you didn’t make an account, you can ignore this email and nothing more will happen.", 28)),
+    row(p(after, 28)),
     row(p(`Warmly,<br><span style="color:${INK};">The East Meets Wed team</span>`, 22)),
   ].join("\n");
 
-  const text = [
-    "Confirm your email",
-    "",
-    "Thank you for making an account to list your business on East Meets Wed. Confirm this is your address and you can start your application straight away.",
-    "",
-    `Confirm my email: ${d.url}`,
-    "",
-    "The link works for 24 hours. If you didn’t make an account, you can ignore this email and nothing more will happen.",
-    "",
-    "Warmly,",
-    "The East Meets Wed team",
-  ].join("\n");
+  const text = ["Confirm your email", "", intro, "", `Confirm my email: ${d.url}`, "", after, "", "Warmly,", "The East Meets Wed team"].join("\n");
 
-  return { subject, html: shell({ origin: d.origin, title: subject, preheader: "One click and you can start your application.", body }), text };
+  return { subject, html: shell({ origin: d.origin, title: subject, preheader: "One click and your application is open.", body }), text };
 }
