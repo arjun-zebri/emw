@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { Language, Service, StateCode } from "@/data/types";
+import { notifyApproved } from "@/lib/email/actions";
 import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
 import { imageUrl } from "@/lib/supabase/storage";
@@ -261,6 +262,8 @@ async function rpc(vendor: string, verdict: Verdict, note = "") {
 /** Approve (publish) or decline (hide) a draft, with an optional reason. Resolves once it's saved. */
 export async function decide(row: QueueRow, verdict: "approved" | "declined", note = "") {
   await rpc(row.id, verdict, note.trim());
+  // "Your listing is live". Off until EMAILS.approved is switched on.
+  if (verdict === "approved") void notifyApproved(row.id).catch(() => undefined);
   const tab = row.missing.length ? "missing" : "ready";
   set({
     list: { ...state.list, rows: state.list.rows.filter((r) => r.id !== row.id), total: state.list.total === null ? null : state.list.total - 1 },

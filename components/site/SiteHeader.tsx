@@ -53,7 +53,9 @@ export function SiteHeader() {
     return () => removeEventListener("keydown", onKey);
   }, [open]);
 
-  const light = pathname === "/" && heroUnderHeader && !open;
+  // Pages that open on a full photograph: the header is light while it's behind it.
+  const photoHero = pathname === "/" || pathname === "/list-your-business";
+  const light = photoHero && heroUnderHeader && !open;
 
 
   return (
@@ -71,7 +73,7 @@ export function SiteHeader() {
         <div className="shell flex h-[var(--header-h)] items-center justify-between">
           <Link href="/" aria-label={`${SITE.name}, home`} className="relative z-[60]">
             {/* From lg the home hero puts the logo over the cream panel, so it stays ink. */}
-            <Monogram className={clsx("w-[4.5rem] transition-[opacity,color] duration-500 hover:opacity-60", light && "lg:text-ink")} />
+            <Monogram className={clsx("w-[4.5rem] transition-[opacity,color] duration-500 hover:opacity-60", light && pathname === "/" && "lg:text-ink")} />
           </Link>
 
           <nav aria-label="Primary" className="hidden items-center gap-10 md:flex">

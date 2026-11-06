@@ -70,6 +70,19 @@ body {
   color: var(--color-paper);
 }
 
+/* Browsers paint autofilled fields pale blue, edge to edge. Keep them on the page's own ground and
+   ink; a field on a white panel sets --autofill to the surface colour. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-ink);
+  -webkit-box-shadow: 0 0 0 100px var(--autofill, var(--color-paper)) inset;
+  caret-color: var(--color-ink);
+  transition: background-color 9999s ease-out 0s;
+}
+
 /* In the base layer so a field with its own focus style (e.g. focus:outline-none plus an underline) can opt out. */
 @layer base {
   :focus-visible {

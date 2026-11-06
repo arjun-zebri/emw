@@ -37,8 +37,9 @@ export type MediaProps = {
 
 export function Media({ src, alt, brief, className, sizes = "100vw", priority, tone, quiet, position }: MediaProps) {
   // Photos in Supabase Storage are served straight from its CDN at a size picked by srcset, never
-  // through next/image: Vercel's image optimiser is metered and these are hundreds of photos.
-  if (src && /^https?:\/\//.test(src)) {
+  // through next/image: Vercel's image optimiser is metered and these are hundreds of photos. Local
+  // blob and data URLs (a vendor's own photos in the apply preview) take the same path.
+  if (src && /^(https?:\/\/|blob:|data:)/.test(src)) {
     return (
       <span className={clsx("relative block overflow-hidden bg-paper-soft", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element -- deliberate, see above */}

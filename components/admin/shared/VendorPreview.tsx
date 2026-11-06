@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Button } from "@/components/ui/Button";
+import { Story } from "@/components/vendor/Story";
 import { vendorCover } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
@@ -95,11 +96,7 @@ function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValu
             )}
             {v.lede && <p className="t-title mt-8 text-[1.5rem] leading-[1.3] text-pretty">{v.lede}</p>}
             {story.length > 0 && (
-              <div className="t-body mt-5 space-y-4 text-ink">
-                {story.map((para, i) => (
-                  <p key={i}>{para}</p>
-                ))}
-              </div>
+              <Story blocks={story} className="mt-5" />
             )}
 
             <div className={clsx("mt-8", gallery.length === 0 && "lg:mt-auto lg:pt-10")}>

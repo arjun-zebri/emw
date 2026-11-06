@@ -32,7 +32,7 @@ const user = data.users.find((u) => u.email?.toLowerCase() === email);
 
 const result = user
   ? await admin.auth.admin.updateUserById(user.id, { password })
-  : await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  : await admin.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { emw_via: "team" } });
 if (result.error) throw result.error;
 
 // Clear the clipboard so the password doesn't linger.

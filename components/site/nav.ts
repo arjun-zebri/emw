@@ -5,5 +5,4 @@ export const primaryNav = [
   { href: "/#about", label: "About" },
 ];
 
-// The invitation opens the footer, which is on every page, so this scrolls in place rather than going home.
-export const vendorCta = { href: "#for-vendors", label: "List your business" };
+export const vendorCta = { href: "/list-your-business", label: "List your business" };

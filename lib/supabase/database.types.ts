@@ -277,6 +277,7 @@ export type Database = {
       }
       vendor_review_notes: {
         Row: {
+          applicant_id: string | null
           categories_original: string | null
           confidence: Database["public"]["Enums"]["review_confidence"] | null
           created_at: string
@@ -288,6 +289,7 @@ export type Database = {
           years_attended: string | null
         }
         Insert: {
+          applicant_id?: string | null
           categories_original?: string | null
           confidence?: Database["public"]["Enums"]["review_confidence"] | null
           created_at?: string
@@ -299,6 +301,7 @@ export type Database = {
           years_attended?: string | null
         }
         Update: {
+          applicant_id?: string | null
           categories_original?: string | null
           confidence?: Database["public"]["Enums"]["review_confidence"] | null
           created_at?: string

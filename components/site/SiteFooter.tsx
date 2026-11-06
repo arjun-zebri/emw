@@ -24,14 +24,13 @@ export async function SiteFooter() {
       <div className="shell grid gap-14 pt-[clamp(4.5rem,8vw,7rem)] pb-14 md:grid-cols-12 md:gap-8">
         <div className="md:col-span-5">
           <Logo title="East Meets Wed" className="w-32" />
-          {/* The header's "List your business" scrolls here, on every page. */}
-          <div id="for-vendors" className="mt-[clamp(2.5rem,5vw,4rem)] scroll-mt-[calc(var(--header-h)+2rem)]">
+          <div className="mt-[clamp(2.5rem,5vw,4rem)]">
             <h2 className="t-title text-[1.75rem]">Join the directory</h2>
             <p className="mt-3 max-w-[36ch] leading-[1.65] text-paper/60">
               Show couples your work, the languages you speak and the traditions you know.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-x-7 gap-y-4">
-              <Button href={`${SITE.url}/registration/`} variant="paper">
+              <Button href="/list-your-business" variant="paper">
                 List your business
               </Button>
               <Link href="/login?as=vendor" className="t-nav link-line text-paper/60 hover:text-paper">
