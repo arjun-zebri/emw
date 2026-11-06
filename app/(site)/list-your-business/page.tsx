@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/icons/Icon";
 import { Questions } from "@/components/join/Questions";
-import { ValueStory } from "@/components/join/ValueStory";
 import { Media } from "@/components/media/Media";
 import { PageTransition } from "@/components/motion/PageTransition";
+import { ArrowLink } from "@/components/ui/ArrowLink";
 import { Button } from "@/components/ui/Button";
 import { sectionTitle } from "@/components/ui/SectionHeading";
 import { vendorCover } from "@/data/images";
 import { showcase } from "@/data/events";
-import { languages, serviceLabels } from "@/data/taxonomy";
+import { languages } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { getListings } from "@/lib/listings";
-import { languageCounts, locationLabel } from "@/lib/vendors";
+import { locationLabel } from "@/lib/vendors";
 
 export const metadata: Metadata = {
   title: "List your business",
@@ -20,79 +20,86 @@ export const metadata: Metadata = {
 };
 
 const APPLY = "/list-your-business/apply";
+const HERO_VENDOR = "invictus-quartet";
 const d = (s: number) => ({ "--d": `${s}s` }) as React.CSSProperties;
 
-// The vendor whose page is shown in miniature: the first of these that's published with enough photos.
-const spreadPicks = ["gabiera-film-photographer", "yaya-films", "at-last-film-and-photography", "stephanie-nguyen-artistry", "sugar-bee-flowers"];
+// The listing shown as the example: the first of these that's published with two more photos and a language besides English.
+const examplePicks = ["gabiera-film-photographer", "yaya-films", "at-last-film-and-photography", "stephanie-nguyen-artistry", "sugar-bee-flowers"];
 
+// Why here and not a general directory. Each line is something the site does today; keep it that way.
+const gives = [
+  {
+    title: "Couples who need what you know",
+    body: "Every couple here is planning a wedding across two cultures. They’re looking for someone who already knows how a tea ceremony sits beside a church service, not someone they’ll have to explain it to.",
+  },
+  {
+    title: "Found in their family’s language",
+    body: "Couples and their parents search by language, and yours show in their own script. A family looking for a Teochew-speaking celebrant or an MC who works in Filipino finds you.",
+  },
+  {
+    title: "Enquiries that arrive with the details",
+    body: "Couples write with their date, their guest numbers and the traditions they’re bringing together, so you know from the first message whether it’s right for you.",
+  },
+  {
+    title: "A short list, chosen by hand",
+    body: "The team approves every listing. Couples trust what they find here, and your work isn’t lost among every supplier in the country.",
+  },
+];
+
+/*
+ * What vendors ask before they apply, in the order they ask it. Every answer is how the site works
+ * today. Still to come from the client: prices, cancelling a plan, how long review takes, and the
+ * Showcase; add those answers when they're confirmed, not before.
+ */
 const questions = [
   { q: "Who can apply?", a: "Any wedding business that works with couples bringing two cultures together, wherever you are in Australia. Celebrants, photographers, florists, musicians, planners, venues and everyone in between." },
+  { q: "Is it only for certain cultures?", a: "No. East Meets Wed is open to every culture. If the couples you work with are blending two families and their traditions, you belong here." },
+  { q: "What does it cost to apply?", a: "Nothing. If your listing is approved you choose a plan, and it goes live once you subscribe. You’ll see each plan and its price before you pay anything." },
+  { q: "What do I need to apply?", a: "Your business name, what you do, the languages you work in, where you’re based and where you’ll travel, up to 12 photos, a few words about your work, and an email for enquiries." },
   { q: "How long does it take?", a: "About ten minutes. Your answers are saved in your browser as you go, so you can stop and pick up where you left off." },
-  { q: "What happens after I apply?", a: "Someone from the East Meets Wed team looks at your listing. We’ll email you when it’s live, or tell you if anything’s missing." },
+  { q: "Do I need an account?", a: "Yes, so the listing stays yours to manage. Sign in with Google or Microsoft, or use your email and a password." },
+  { q: "What photos work best?", a: "Your own work, large and sharp: 1200 pixels or more on the long side. We can’t take anything under 800. You can add up to 12, and five or more fills your page well." },
+  { q: "Can I use photos a photographer took for me?", a: "Yes, with their permission. Before you send your application you confirm the photos are yours to share, or that the photographer has said yes." },
+  { q: "Who writes my listing?", a: "You do, in your own words. Before you send it you can preview your page exactly as couples will see it." },
+  { q: "Will my email and phone number be public?", a: "No. They stay private, and enquiries come to you directly. Your website, Instagram and Facebook are linked from your listing." },
+  { q: "How do couples find me?", a: "They browse the directory by what you do, where you work and the languages you speak, and each listing has its own page." },
+  { q: "What happens after I apply?", a: "Someone from the East Meets Wed team looks at your listing. We’ll email you when it’s approved, or tell you if anything’s missing." },
   { q: "Can I change my listing later?", a: "Yes. Once you’re live you can sign in and update your photos, your story and your details whenever you like." },
-  { q: "What photos work best?", a: "Your own work, large and sharp: at least 1200 pixels on the long side. Five or more lets your page breathe." },
+  { q: "I was listed on the old East Meets Wed site. Do I need to apply?", a: "No. Your listing has moved across to the new site. Use Vendor login to manage it." },
   { q: "Can I list more than one business?", a: "Yes. Apply once for each business, with its own photos and story." },
 ];
 
 /*
- * The invitation to vendors, made like the rest of the site: photography first, few words. A vendor
- * at work fills the screen; then what a listing gives them, shown rather than told (their page,
- * their languages, the enquiry couples send, the company they keep); the Showcase; how quick it is;
- * a few answers; and the way in, over a wall of the vendors already here.
+ * The invitation to vendors, made like the rest of the site: photography first, few words. Vendors
+ * at work fill the screen; then a real listing beside what one gives you; the Showcase; how quick
+ * it is; the answers; and the way in, over a wall of the vendors already here.
  */
 export default async function ListYourBusiness() {
   const vendors = await getListings();
   const withCover = vendors.filter((v) => v.cover);
-  const spread = spreadPicks.map((s) => withCover.find((v) => v.slug === s && (v.gallery?.length ?? 0) >= 3)).find(Boolean) ?? withCover.find((v) => (v.gallery?.length ?? 0) >= 3);
-  const tongues = languageCounts(vendors)
-    .map(([l]) => l)
-    .filter((l) => l !== "English");
-  const others = withCover.filter((v) => v.slug !== spread?.slug);
-  const company = others.slice(0, 6);
-  // A different set for the closing wall where there are enough, so the page doesn't repeat itself.
-  const wall = others.length >= 18 ? others.slice(6, 18) : others.slice(0, 12);
-
-  const values = [
-    {
-      title: "Your work, shown large",
-      body: "Listings lead with your photography, every frame uncropped, with nothing competing for attention. No ads, no clutter.",
-      visual: spread ? <Spread vendor={spread} /> : null,
-    },
-    {
-      title: "Found in your languages",
-      body: "Couples search by the languages you work in, and your listing shows each one in its own script.",
-      visual: <Scripts tongues={tongues} />,
-    },
-    {
-      title: "Enquiries come to you",
-      body: "Couples write from your page with their date and the traditions they’re bringing together. It lands in your inbox.",
-      visual: <EnquiryCard name={spread?.name ?? "Your business"} />,
-    },
-    {
-      title: "In good company",
-      body: "Every listing is approved by hand, so the directory stays worth browsing, and you sit beside vendors couples already trust.",
-      visual: <Company vendors={company} />,
-    },
-  ].filter((v) => v.visual);
+  const fits = (v: Vendor) => v.slug !== HERO_VENDOR && (v.gallery?.length ?? 0) >= 2 && (v.languages ?? []).some((l) => l !== "English");
+  const example = examplePicks.map((s) => withCover.find((v) => v.slug === s && fits(v))).find(Boolean) ?? withCover.find(fits);
+  const others = withCover.filter((v) => v.slug !== example?.slug);
+  const wall = others.slice(0, 12);
 
   return (
     <PageTransition>
       <div>
-        {/* A celebrant mid-ceremony, edge to edge. */}
+        {/* A string quartet playing a ceremony, edge to edge. */}
         <section id="hero" className="relative h-[100svh] min-h-[40rem] overflow-hidden bg-night text-paper">
           <div className="hero-media absolute inset-0">
             <Media
-              src="/images/vendors/katrina-lai/03.jpg"
-              alt="Katrina Lai, microphone in hand, beside a laughing couple at their ceremony"
+              src={`/images/vendors/${HERO_VENDOR}/02.jpg`}
+              alt="Invictus Quartet playing a ceremony under an arched glass roof, the guests seated before them"
               brief=""
               tone="dark"
               priority
               sizes="100vw"
-              position="60% 35%"
+              position="50% 45%"
               className="size-full"
             />
           </div>
-          <span className="absolute inset-0 bg-gradient-to-t from-night/80 via-night/20 to-night/0" />
+          <span className="absolute inset-0 bg-gradient-to-t from-night/85 via-night/25 to-night/0" />
           <span className="absolute inset-0 bg-gradient-to-r from-night/55 via-night/10 to-night/0" />
           <span className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-night/45 to-night/0" />
           <div className="shell absolute inset-x-0 bottom-0 grid grid-cols-1 gap-8 pb-[clamp(2rem,5vw,4rem)] lg:grid-cols-12">
@@ -124,21 +131,40 @@ export default async function ListYourBusiness() {
                   Reviewed by our team
                 </li>
               </ul>
-              <Link href="/vendors/katrina-lai" className="t-small link-line text-paper/55 hover:text-paper">
-                Katrina Lai
+              <Link href={`/vendors/${HERO_VENDOR}`} className="t-small link-line text-paper/55 hover:text-paper">
+                Invictus Quartet
               </Link>
             </div>
           </div>
         </section>
 
         <section className="shell py-[var(--section)]">
-          <h2 data-reveal suppressHydrationWarning className={`${sectionTitle} mb-[clamp(2.5rem,5vw,4rem)] max-w-[20ch]`}>
-            What a listing gives you
-          </h2>
-          <ValueStory items={values} />
+          <div className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:grid-rows-[1fr_auto_auto_1fr] lg:gap-x-8 lg:gap-y-0">
+            <div data-reveal suppressHydrationWarning className="lg:col-span-5 lg:col-start-8 lg:row-start-2">
+              <h2 className={`${sectionTitle} max-w-[16ch]`}>Not another wedding directory</h2>
+              <p className="t-body mt-5 max-w-[44ch] text-[1.0625rem] text-ink">
+                General directories list everyone for everyone. This one is only for couples marrying across two cultures, and the
+                vendors who know how.
+              </p>
+            </div>
+            {example && (
+              <div className="lg:col-span-7 lg:col-start-1 lg:row-span-4 lg:row-start-1">
+                <Example vendor={example} />
+              </div>
+            )}
+            <ul className="border-t hairline lg:col-span-5 lg:col-start-8 lg:row-start-3 lg:mt-[clamp(1.75rem,3vw,2.5rem)] lg:self-start">
+              {gives.map((g, i) => (
+                <li key={g.title} data-reveal suppressHydrationWarning style={d(0.06 * i)} className="border-b hairline py-5">
+                  <h3 className="t-title text-[clamp(1.3125rem,1.7vw,1.5rem)]">{g.title}</h3>
+                  <p className="t-body mt-2 max-w-[46ch]">{g.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
 
         <Showcase />
+
 
         <section className="shell py-[var(--section)]">
           <div className="grid grid-cols-1 gap-10 md:grid-cols-12 md:gap-8">
@@ -153,7 +179,7 @@ export default async function ListYourBusiness() {
               {[
                 { title: "Tell us about your work", body: "What you do, your languages and where you travel.", time: "3 minutes" },
                 { title: "Add your photos and story", body: "Your best work, and a few words in your own voice.", time: "5 minutes" },
-                { title: "Send it to the team", body: "We review it by hand and email you when it’s live.", time: "2 minutes" },
+                { title: "Send it to the team", body: "We review it by hand and email you when it’s approved.", time: "2 minutes" },
               ].map((s, i) => (
                 <li key={s.title} data-reveal suppressHydrationWarning style={d(i * 0.08)} className="border-b hairline py-7 sm:border-b-0 sm:border-l sm:px-7 sm:first:border-l-0 sm:first:pl-0">
                   <p className="t-small flex items-center gap-2">
@@ -170,9 +196,10 @@ export default async function ListYourBusiness() {
 
         <section className="shell pb-[var(--section)]">
           <div className="grid grid-cols-1 gap-10 border-t hairline pt-[var(--section)] md:grid-cols-12 md:gap-8">
-            <h2 data-reveal suppressHydrationWarning className={`${sectionTitle} md:col-span-4`}>
-              Questions
-            </h2>
+            <div data-reveal suppressHydrationWarning className="md:col-span-4">
+              <h2 className={sectionTitle}>Questions</h2>
+              <p className="t-body mt-5 max-w-[30ch]">Everything vendors ask us before they apply.</p>
+            </div>
             <div data-reveal suppressHydrationWarning className="md:col-span-8">
               <Questions items={questions} />
             </div>
@@ -185,167 +212,93 @@ export default async function ListYourBusiness() {
   );
 }
 
-/** A vendor's page in miniature: the cover and justified photos left, their name and details right. */
-function Spread({ vendor }: { vendor: Vendor }) {
-  const gallery = (vendor.gallery ?? []).slice(0, 3);
-  const tongues = vendor.languages ?? [];
+/**
+ * A real listing, as the work leads it: the cover beside two more of their photos, then their
+ * name, one line and their languages in their own scripts, and the way to their page.
+ */
+function Example({ vendor }: { vendor: Vendor }) {
+  const [a, b] = vendor.gallery ?? [];
+  const tongues = (vendor.languages ?? []).filter((l) => l !== "English");
   return (
-    <div aria-hidden className="bg-paper-soft p-[clamp(1rem,2.4vw,2rem)]">
-      <div className="bg-paper p-[clamp(1rem,2vw,1.75rem)] shadow-[0_40px_80px_-48px_rgb(22_20_18/0.35)]">
-        <div className="grid grid-cols-12 gap-[clamp(0.75rem,1.6vw,1.5rem)]">
-          <div className="col-span-7 space-y-2">
-            <Media {...vendorCover(vendor)} sizes="(min-width: 1024px) 32vw, 60vw" className="aspect-[4/5] w-full" />
-            <div className="grid grid-cols-3 gap-2">
-              {gallery.map((src) => (
-                <Media key={src} src={src} alt="" brief="" sizes="12vw" className="aspect-square w-full" />
-              ))}
-            </div>
-          </div>
-          <div className="col-span-5 flex flex-col">
-            <p className="font-display text-[clamp(1.25rem,2.4vw,2.25rem)] leading-[0.98] tracking-[-0.02em]">{vendor.name}</p>
-            <p className="mt-2 text-[clamp(0.625rem,0.9vw,0.8125rem)] text-ink">
-              {vendor.discipline}, {locationLabel(vendor)}
-            </p>
-            {tongues.length > 0 && (
-              <p className="mt-1.5 flex flex-wrap gap-x-2 font-display text-[clamp(0.75rem,1.1vw,1rem)] text-ink-soft">
-                {tongues.map((l) => (
-                  <span key={l} lang={languages[l].lang}>
-                    {languages[l].native}
-                  </span>
-                ))}
-              </p>
-            )}
-            {vendor.story[0] && (
-              <p className="mt-4 line-clamp-6 text-[clamp(0.5625rem,0.8vw,0.75rem)] leading-[1.6] text-ink-soft">{vendor.story[0].replace(/^## |^- |\*\*/gm, "")}</p>
-            )}
-            <div className="mt-auto pt-4">
-              {[
-                ["Services", vendor.services.map((s) => serviceLabels[s]).join(", ")],
-                ["Service area", (vendor.serviceArea ?? []).length >= 8 ? "Australia-wide" : (vendor.serviceArea ?? []).join(", ") || "On request"],
-              ].map(([l, v]) => (
-                <div key={l} className="flex justify-between gap-3 border-t hairline py-1.5 text-[clamp(0.5625rem,0.75vw,0.6875rem)]">
-                  <span className="text-ink-mute">{l}</span>
-                  <span className="truncate text-ink">{v}</span>
-                </div>
-              ))}
-              <span className="mt-2 flex h-[clamp(1.5rem,2.6vw,2.25rem)] items-center justify-center bg-ink text-[clamp(0.5rem,0.7vw,0.625rem)] font-medium tracking-[0.1em] text-paper uppercase">
-                Enquire
-              </span>
-            </div>
+    <figure data-reveal suppressHydrationWarning>
+      <Link href={`/vendors/${vendor.slug}`} className="group grid grid-cols-5 gap-[clamp(0.375rem,0.8vw,0.75rem)]" aria-label={`${vendor.name}’s page`}>
+        <div className="col-span-3 overflow-hidden">
+          <div className="transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.03]">
+            <Media {...vendorCover(vendor)} sizes="(min-width: 1024px) 35vw, 60vw" className="aspect-[4/5] w-full" />
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** The languages vendors on the site work in, set large in their own scripts. */
-function Scripts({ tongues }: { tongues: string[] }) {
-  return (
-    <div aria-hidden className="flex aspect-[4/3] flex-wrap content-center items-baseline gap-x-[clamp(1rem,2.4vw,2rem)] gap-y-2 bg-night p-[clamp(1.5rem,4vw,3.5rem)] text-paper">
-      {tongues.map((l, i) => {
-        const lang = languages[l as keyof typeof languages];
-        return (
-          <span key={l} lang={lang.lang} className={`font-display leading-[1.1] tracking-[-0.02em] ${i % 3 === 0 ? "text-[clamp(2.5rem,5.4vw,5rem)]" : "text-[clamp(1.75rem,3.6vw,3.25rem)] text-paper/55"}`}>
-            {lang.native}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-/** The enquiry form couples fill in on a vendor's page, as it opens. */
-function EnquiryCard({ name }: { name: string }) {
-  return (
-    <div aria-hidden className="relative aspect-[4/3] overflow-hidden bg-paper-soft">
-      <Media src="/images/vendors/kindred-visuals/03.jpg" alt="" brief="" sizes="(min-width: 1024px) 50vw, 100vw" className="absolute inset-0 size-full" position="35% 50%" />
-      <span className="absolute inset-0 bg-night/25" />
-      <div className="absolute inset-y-[8%] right-[6%] flex w-[min(22rem,52%)] flex-col bg-paper p-[clamp(1rem,2.2vw,1.75rem)] shadow-[0_40px_80px_-32px_rgb(22_20_18/0.5)]">
-        <p className="font-display text-[clamp(1.125rem,2vw,1.75rem)] leading-[1.05] tracking-[-0.02em]">{name}</p>
-        <div className="mt-4 space-y-1">
-          {["Your names", "Email", "Wedding date", "Cultures and traditions"].map((f) => (
-            <p key={f} className="border-b hairline py-[clamp(0.375rem,0.8vw,0.625rem)] text-[clamp(0.6875rem,0.95vw,0.875rem)] text-ink-mute/70">
-              {f}
-            </p>
+        <div className="col-span-2 grid grid-rows-2 gap-[clamp(0.375rem,0.8vw,0.75rem)]">
+          {[a, b].map((src) => (
+            <Media key={src} src={src} alt="" brief="" sizes="(min-width: 1024px) 23vw, 40vw" className="size-full" />
           ))}
         </div>
-        <p className="mt-4 text-[clamp(0.5625rem,0.8vw,0.75rem)] text-ink-mute">Guests</p>
-        <div className="mt-1.5 grid grid-cols-4 gap-1">
-          {["Under 80", "80–200", "200–400", "400+"].map((g, i) => (
-            <span key={g} className={`border py-[clamp(0.25rem,0.5vw,0.375rem)] text-center text-[clamp(0.5rem,0.75vw,0.6875rem)] ${i === 2 ? "border-ink bg-ink text-paper" : "hairline text-ink-soft"}`}>
-              {g}
-            </span>
-          ))}
+      </Link>
+      <figcaption className="mt-5 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div>
+          <p className="t-title text-[clamp(1.5rem,2.2vw,2rem)]">{vendor.name}</p>
+          <p className="t-small mt-1 text-ink">
+            {vendor.discipline}, {locationLabel(vendor)}
+          </p>
+          {tongues.length > 0 && (
+            <p className="mt-1.5 flex flex-wrap gap-x-3 font-display text-[1.0625rem] text-ink-soft">
+              {tongues.map((l) => (
+                <span key={l} lang={languages[l].lang}>
+                  {languages[l].native}
+                </span>
+              ))}
+            </p>
+          )}
         </div>
-        <p className="mt-3 min-h-[3.5em] flex-1 border-b hairline py-[clamp(0.375rem,0.8vw,0.625rem)] text-[clamp(0.6875rem,0.95vw,0.875rem)] text-ink-mute/70">Message</p>
-        <span className="mt-4 flex h-[clamp(2rem,3vw,2.75rem)] items-center justify-center bg-ink text-[clamp(0.5625rem,0.75vw,0.6875rem)] font-medium tracking-[0.1em] text-paper uppercase">
-          Send enquiry
-        </span>
-      </div>
-    </div>
+        <ArrowLink href={`/vendors/${vendor.slug}`}>See their page</ArrowLink>
+      </figcaption>
+    </figure>
   );
 }
 
-/** Six vendors already listed, as their cards sit in the directory. */
-function Company({ vendors }: { vendors: Vendor[] }) {
-  return (
-    <div className="grid grid-cols-3 gap-x-[clamp(0.5rem,1vw,0.875rem)] gap-y-5">
-      {vendors.map((v) => (
-        <Link key={v.slug} href={`/vendors/${v.slug}`} className="group block">
-          <div className="overflow-hidden">
-            <div className="transition-transform duration-[1200ms] ease-out-expo group-hover:scale-[1.04]">
-              <Media {...vendorCover(v)} sizes="(min-width: 1024px) 18vw, 33vw" className="aspect-[4/5] w-full" />
-            </div>
-          </div>
-          <p className="mt-2.5 truncate font-display text-[clamp(0.9375rem,1.2vw,1.125rem)] leading-tight">{v.name}</p>
-          <p className="t-small mt-0.5 truncate text-[0.75rem]">{v.discipline}</p>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-/** The Showcase: a night band, the event on the left and three moments from it on the right. */
+/**
+ * The Showcase, told by the event itself: the room opens the section edge to edge with its name on
+ * it, then what it is and what listed vendors get beside two moments from the day.
+ */
 function Showcase() {
-  const [big, ...rest] = showcase.moments;
+  const { floor, moments } = showcase.photos;
   return (
-    <section className="bg-night text-paper">
-      <div className="shell grid grid-cols-1 gap-12 py-[var(--section)] lg:grid-cols-12 lg:gap-8">
-        <div data-reveal suppressHydrationWarning className="flex flex-col lg:sticky lg:top-[calc(var(--header-h)+2rem)] lg:col-span-5 lg:self-start">
-          <p className="text-[0.875rem] text-paper/55">
+    <section>
+      <div className="relative overflow-hidden bg-night text-paper">
+        <div data-reveal-media suppressHydrationWarning>
+          <Media src={floor.src} alt={floor.alt} brief={floor.brief} tone="dark" sizes="100vw" className="aspect-[4/5] w-full sm:aspect-[16/9] lg:aspect-[21/9]" />
+        </div>
+        <span className="absolute inset-0 bg-gradient-to-t from-night/75 via-night/10 to-night/0" />
+        <div className="shell absolute inset-x-0 bottom-0 pb-[clamp(1.75rem,4vw,3.5rem)]">
+          <p data-reveal suppressHydrationWarning className="text-[0.9375rem] text-paper/75">
             {showcase.when} · {showcase.where}
           </p>
-          <h2 className="t-display mt-5 text-[clamp(2.5rem,4.6vw,4.75rem)] text-balance">{showcase.name}</h2>
-          <p className="mt-6 max-w-[40ch] text-[1.0625rem] leading-[1.65] text-paper/70">{showcase.summary}</p>
-          <ul className="mt-10 border-t border-paper/15">
+          <h2 data-reveal suppressHydrationWarning style={d(0.08)} className="t-display mt-3 max-w-[16ch] text-[clamp(2.5rem,5.4vw,5.5rem)] text-balance">
+            {showcase.name}
+          </h2>
+        </div>
+      </div>
+      <div className="shell mt-[clamp(2.5rem,5vw,4.5rem)] grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-8">
+        <div data-reveal suppressHydrationWarning className="lg:col-span-5 lg:self-center">
+          <p className="t-body max-w-[42ch] text-[1.125rem] text-ink">{showcase.summary}</p>
+          <ul className="mt-8 border-t hairline">
             {showcase.forVendors.map((p) => (
-              <li key={p} className="flex items-start gap-4 border-b border-paper/15 py-4 text-paper/90">
-                <Icon name="check" className="mt-1 size-4 shrink-0 text-accent" />
+              <li key={p} className="t-body border-b hairline py-4">
                 {p}
               </li>
             ))}
           </ul>
-          <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
-            <Button href={APPLY} variant="paper">
-              Start your listing
-            </Button>
-            <p className="text-[0.875rem] text-paper/55">Next showcase {showcase.next}</p>
+          <div className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-4">
+            <Button href={APPLY}>Start your listing</Button>
+            <p className="t-small">Next Showcase {showcase.next}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-[clamp(0.5rem,1vw,1rem)] lg:col-span-6 lg:col-start-7">
-          <figure data-reveal suppressHydrationWarning className="col-span-2">
-            <div data-reveal-media suppressHydrationWarning>
-              <Media src={big.src} alt={big.alt} brief="" tone="dark" sizes="(min-width: 1024px) 50vw, 100vw" className="aspect-[16/10] w-full" />
-            </div>
-            <figcaption className="mt-3 text-[0.8125rem] text-paper/55">{big.caption}</figcaption>
-          </figure>
-          {rest.map((m, i) => (
-            <figure key={m.src} data-reveal suppressHydrationWarning style={d(0.08 * (i + 1))}>
+          {moments.map((m, i) => (
+            <figure key={m.caption} data-reveal suppressHydrationWarning style={d(0.08 * (i + 1))}>
               <div data-reveal-media suppressHydrationWarning>
-                <Media src={m.src} alt={m.alt} brief="" tone="dark" sizes="(min-width: 1024px) 25vw, 50vw" className="aspect-[4/5] w-full" />
+                <Media src={m.src} alt={m.alt} brief={m.brief} tone={i + 1} sizes="(min-width: 1024px) 25vw, 50vw" className="aspect-[4/5] w-full" />
               </div>
-              <figcaption className="mt-3 text-[0.8125rem] text-paper/55">{m.caption}</figcaption>
+              <figcaption className="t-small mt-3">{m.caption}</figcaption>
             </figure>
           ))}
         </div>
