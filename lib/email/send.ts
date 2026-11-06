@@ -18,17 +18,30 @@ const admin = () =>
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+/**
+ * Test mode, for staging before eastmeetswed.com is verified in Resend: EMAIL_TEST_INBOX sends
+ * every email to that one address instead, with the real recipient at the front of the subject.
+ * Pair it with EMAIL_FROM="East Meets Wed <onboarding@resend.dev>", which Resend only delivers to
+ * the account's own address. Never on the live site.
+ */
+function testInbox() {
+  const inbox = process.env.EMAIL_TEST_INBOX?.trim();
+  return inbox && process.env.VERCEL_ENV !== "production" ? inbox : null;
+}
+
 async function deliver(to: string, email: Rendered, replyTo?: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.info(`[email] RESEND_API_KEY isn't set, so "${email.subject}" to ${to} wasn't sent`);
     return false;
   }
+  const inbox = testInbox();
+  const subject = inbox ? `[To ${to}] ${email.subject}` : email.subject;
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: emailFrom(), to: [to], subject: email.subject, html: email.html, text: email.text, ...(replyTo ? { reply_to: replyTo } : {}) }),
+      body: JSON.stringify({ from: emailFrom(), to: [inbox ?? to], subject, html: email.html, text: email.text, ...(replyTo ? { reply_to: replyTo } : {}) }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) console.error(`[email] Resend refused "${email.subject}" to ${to}: ${res.status} ${await res.text()}`);
