@@ -6,6 +6,7 @@ import { languages } from "@/data/taxonomy";
 import type { Language } from "@/data/types";
 import { Section, Stage, Token } from "./parts";
 import { Swatch } from "./Swatch";
+import { Vietnamese } from "./Vietnamese";
 
 // ── Logo ────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,8 @@ export function Type() {
           ))}
         </ul>
       </Stage>
+
+      <Vietnamese />
     </Section>
   );
 }
