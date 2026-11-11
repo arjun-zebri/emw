@@ -11,6 +11,29 @@ import { lockScroll } from "@/lib/lenis";
 const guestOptions = ["Under 80", "80–200", "200–400", "400+"];
 const input =
   "w-full border-b hairline bg-transparent py-3 text-ink placeholder:text-ink-mute/70 focus:border-ink focus:outline-none transition-colors";
+const naClass = (on: boolean) =>
+  clsx("t-small shrink-0 border px-2.5 py-1 transition-colors", on ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink");
+
+/** A text field that can be answered "Not applicable" instead, e.g. a date for an engagement shoot. */
+function OrNotApplicable({ id, label, na, onNa, ...props }: { id: string; label: string; na: boolean; onNa: (na: boolean) => void } & React.ComponentProps<"input">) {
+  return (
+    <div className="flex items-center gap-3 border-b hairline transition-colors focus-within:border-ink">
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <input
+        id={id}
+        placeholder={na ? `${label}: not applicable` : label}
+        disabled={na}
+        className="min-w-0 flex-1 bg-transparent py-3 text-ink placeholder:text-ink-mute/70 focus:outline-none disabled:placeholder:text-ink-mute"
+        {...props}
+      />
+      <button type="button" aria-pressed={na} aria-label={`${label}: not applicable`} onClick={() => onNa(!na)} className={naClass(na)}>
+        Not applicable
+      </button>
+    </div>
+  );
+}
 
 /**
  * Enquire button and its slide-over form. Once the button has scrolled away, a slim bar keeps it
@@ -21,6 +44,7 @@ export function Enquire({ vendorName, className }: { vendorName: string; classNa
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState(false);
   const [guests, setGuests] = useState<string | null>(null);
+  const [na, setNa] = useState({ date: false, venue: false });
   const [docked, setDocked] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -123,20 +147,33 @@ export function Enquire({ vendorName, className }: { vendorName: string; classNa
                       <input id={`${id}-names`} required placeholder="Your names" autoComplete="name" className={input} />
                       <label htmlFor={`${id}-email`} className="sr-only">Email</label>
                       <input id={`${id}-email`} type="email" required placeholder="Email" autoComplete="email" className={input} />
-                      <label htmlFor={`${id}-date`} className="sr-only">Wedding date</label>
-                      <input id={`${id}-date`} placeholder="Wedding date" className={input} />
+                      <OrNotApplicable id={`${id}-date`} label="Wedding date" na={na.date} onNa={(date) => setNa((n) => ({ ...n, date }))} />
+                      <OrNotApplicable id={`${id}-venue`} label="Location or venue" na={na.venue} onNa={(venue) => setNa((n) => ({ ...n, venue }))} />
                       <label htmlFor={`${id}-traditions`} className="sr-only">Cultures and traditions</label>
                       <input id={`${id}-traditions`} placeholder="Cultures and traditions" className={input} />
                     </div>
                     <fieldset className="mt-8">
-                      <legend className="t-small mb-3">Guests</legend>
+                      <legend className="mb-3 flex w-full items-center justify-between gap-3">
+                        <span className="t-small">
+                          Guests <span className="text-ink-mute">(optional)</span>
+                        </span>
+                        <button
+                          type="button"
+                          aria-pressed={guests === "Not applicable"}
+                          aria-label="Guests: not applicable"
+                          onClick={() => setGuests(guests === "Not applicable" ? null : "Not applicable")}
+                          className={naClass(guests === "Not applicable")}
+                        >
+                          Not applicable
+                        </button>
+                      </legend>
                       <div className="grid grid-cols-4 gap-1.5">
                         {guestOptions.map((g) => (
                           <button
                             key={g}
                             type="button"
                             aria-pressed={guests === g}
-                            onClick={() => setGuests(g)}
+                            onClick={() => setGuests(guests === g ? null : g)}
                             className={clsx(
                               "t-small border py-2 transition-colors",
                               guests === g ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink",
