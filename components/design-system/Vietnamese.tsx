@@ -1,19 +1,7 @@
-import localFont from "next/font/local";
 import { Stage } from "./parts";
 
-// Neue Montreal v1 has 50 of Vietnamese's 146 letters. These copies add the other 96, built from the
-// font's own accents plus a drawn hook, horn and dot below. Preview only: loaded on this page and
-// nowhere else, until EMW decides between licensing v3 and a fallback font.
-const built = localFont({
-  src: [
-    { path: "./fonts/NeueMontreal-vietnamese-regular.otf", weight: "400", style: "normal" },
-    { path: "./fonts/NeueMontreal-vietnamese-italic.otf", weight: "400", style: "italic" },
-    { path: "./fonts/NeueMontreal-vietnamese-medium.otf", weight: "500", style: "normal" },
-  ],
-  display: "swap",
-  preload: false,
-});
-
+// Neue Montreal v1 shipped with 50 of Vietnamese's 146 letters. Our copies in app/fonts add the other
+// 96 (regular, italic, medium), built from the font's own accents plus a drawn hook, horn and dot below.
 const sample = "Nguyễn Thị Phượng, Trần Đức Việt. Tiệc cưới ở Hội An, ảnh cưới ở Sài Gòn.";
 const vowels = "aăâeêioôơuưy";
 const tones = ["", "̀", "́", "̉", "̃", "̣"];
@@ -23,21 +11,14 @@ const rows = (upper: boolean) =>
 export function Vietnamese() {
   return (
     <div className="grid grid-cols-1 gap-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Stage ground="paper" className="p-[clamp(1.25rem,3vw,2.5rem)]" caption="Vietnamese today: missing letters come from another font">
-          <p lang="vi" className="font-sans text-[clamp(1.5rem,2.6vw,2rem)] leading-snug tracking-[-0.01em]">
-            {sample}
-          </p>
-        </Stage>
-        <Stage ground="paper" className="p-[clamp(1.25rem,3vw,2.5rem)]" caption="Vietnamese with the built letters (preview)">
-          <p lang="vi" className={`${built.className} text-[clamp(1.5rem,2.6vw,2rem)] leading-snug tracking-[-0.01em]`}>
-            {sample}
-          </p>
-        </Stage>
-      </div>
+      <Stage ground="paper" className="p-[clamp(1.25rem,3vw,2.5rem)]" caption="Vietnamese in Neue Montreal">
+        <p lang="vi" className="font-sans text-[clamp(1.5rem,2.6vw,2rem)] leading-snug tracking-[-0.01em]">
+          {sample}
+        </p>
+      </Stage>
 
-      <Stage ground="soft" className="p-[clamp(1.25rem,3vw,2.5rem)]" caption="Every Vietnamese vowel in the built letters: regular, italic, medium">
-        <div lang="vi" className={`${built.className} grid grid-cols-1 gap-x-10 gap-y-6 text-[1.375rem] leading-relaxed sm:grid-cols-2 xl:grid-cols-3`}>
+      <Stage ground="soft" className="p-[clamp(1.25rem,3vw,2.5rem)]" caption="Every Vietnamese vowel: regular, italic, medium">
+        <div lang="vi" className="grid grid-cols-1 gap-x-10 gap-y-6 font-sans text-[1.375rem] leading-relaxed sm:grid-cols-2 xl:grid-cols-3">
           {[
             { label: "Regular", className: "" },
             { label: "Italic", className: "italic" },
