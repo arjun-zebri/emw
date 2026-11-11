@@ -26,6 +26,8 @@ type Props<T extends string> = {
   placeholder: string;
   /** Show a search field at the top of the list. On by default for long lists. */
   searchable?: boolean;
+  /** Reads as plain text: the chevron only shows on hover or focus, and the placeholder is ink soft. */
+  quiet?: boolean;
 } & ({ multiple: true; value: T[]; onChange: (v: T[]) => void } | { multiple?: false; value: T; onChange: (v: T) => void });
 
 /**
@@ -142,7 +144,7 @@ export function Dropdown<T extends string>(props: Props<T>) {
         }}
         className="group flex w-full items-start justify-between gap-4 text-left text-[0.9375rem] focus:outline-none"
       >
-        <span className={clsx("min-w-0", labels.length ? "text-ink" : "text-ink-mute/45")}>
+        <span className={clsx("min-w-0", labels.length ? "text-ink" : props.quiet ? "text-ink-soft" : "text-ink-mute/45")}>
           {labels.length
             ? labels.map((o, i) => (
                 <span key={o.value} lang={o.lang}>
@@ -155,7 +157,8 @@ export function Dropdown<T extends string>(props: Props<T>) {
         <Icon
           name="chevron-down"
           className={clsx(
-            "mt-[0.3em] size-3.5 shrink-0 text-ink-mute transition-transform duration-500 ease-out-expo group-hover:text-ink",
+            "mt-[0.3em] size-3.5 shrink-0 text-ink-mute transition duration-500 ease-out-expo group-hover:text-ink",
+            props.quiet && !open && "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
             open && "rotate-180",
           )}
           strokeWidth={1.4}

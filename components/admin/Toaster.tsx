@@ -9,7 +9,7 @@ export function Toaster() {
   const toasts = useToasts();
   return (
     <Portal>
-      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-5 z-[80] flex flex-col items-center gap-2 px-4">
+      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(1.25rem+var(--toast-lift,0px))] z-[80] transition-[bottom] duration-500 ease-out-expo flex flex-col items-center gap-2 px-4">
         <AnimatePresence initial={false}>
           {toasts.map((t) => (
             <motion.div

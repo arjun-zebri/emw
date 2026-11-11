@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { Language, Service, StateCode } from "@/data/types";
 import { LIMITS, socialUrl, withScheme } from "@/lib/apply/application";
-import { preparePhoto } from "@/lib/apply/photos";
+import type { ApplyPhoto } from "@/lib/apply/photos";
 import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
 import { imageUrl, VARIANT_WIDTHS, variantPath } from "@/lib/supabase/storage";
@@ -9,15 +9,22 @@ import { imageUrl, VARIANT_WIDTHS, variantPath } from "@/lib/supabase/storage";
 /*
  * A vendor's own listing, for the portal: read and saved in Supabase as the signed-in vendor, so row
  * level security decides what they reach (their own row and photos, nothing else; the database
- * keeps status, featuring and the address for the team). Changes show on the public pages straight
- * away: each save refreshes the cached listings.
+ * keeps status, featuring and the address for the team).
  *
- * Photos are prepared in the browser exactly as for an application (upright, JPEG, 2000px plus the
- * 1200 and 480 copies) and uploaded to vendor-photos/<vendor id>/, each under its own random name so
- * a reorder or a removal never has to rename a file.
+ * The editor keeps every change, photos included, on the screen until the vendor saves; then
+ * saveListing writes it all and refreshes the public pages, so a half-made edit never goes live.
+ * New photos are prepared in the browser exactly as for an application (upright, JPEG, 2000px plus
+ * the 1200 and 480 copies) and uploaded to vendor-photos/<vendor id>/, each under its own random
+ * name so a reorder or a removal never has to rename a file.
  */
 
-export type OwnPhoto = { id: string; path: string; src: string; width: number | null; height: number | null };
+export type OwnPhoto = {
+  id: string;
+  path: string;
+  src: string;
+  width: number | null;
+  height: number | null;
+};
 
 export type OwnListing = {
   id: string;
@@ -38,18 +45,44 @@ export type OwnListing = {
   instagram: string;
   facebook: string;
   photos: OwnPhoto[];
+  updatedAt: string;
 };
 
-export type ListingDetails = Omit<OwnListing, "id" | "slug" | "status" | "photos">;
+export type ListingDetails = Omit<
+  OwnListing,
+  "id" | "slug" | "status" | "photos" | "updatedAt"
+>;
 
-type State = { status: "loading" | "ready" | "error"; error?: string; listing?: OwnListing; uploading: number };
+/** A photo in the editor: one already saved (id and path), or one added since (upload). */
+export type EditPhoto = {
+  key: string;
+  src: string;
+  width: number | null;
+  height: number | null;
+  id?: string;
+  path?: string;
+  upload?: ApplyPhoto;
+};
 
-const loading: State = { status: "loading", uploading: 0 };
-const stores = new Map<string, { state: State; listeners: Set<() => void>; started: boolean }>();
+type State = {
+  status: "loading" | "ready" | "error";
+  error?: string;
+  listing?: OwnListing;
+};
+
+const loading: State = { status: "loading" };
+const stores = new Map<
+  string,
+  { state: State; listeners: Set<() => void>; started: boolean }
+>();
 
 const storeFor = (slug: string) => {
   let s = stores.get(slug);
-  if (!s) stores.set(slug, (s = { state: loading, listeners: new Set(), started: false }));
+  if (!s)
+    stores.set(
+      slug,
+      (s = { state: loading, listeners: new Set(), started: false }),
+    );
   return s;
 };
 
@@ -60,12 +93,15 @@ function set(slug: string, next: Partial<State>) {
 }
 
 const current = (slug: string) => storeFor(slug).state.listing;
-/** The listing as it stands now, outside React (after an await, say). */
-export const readListing = current;
 const db = () => supabase();
 const str = (s: string | null) => s ?? "";
 
-const toPhoto = (p: { id: string; path: string; width: number | null; height: number | null }): OwnPhoto => ({
+const toPhoto = (p: {
+  id: string;
+  path: string;
+  width: number | null;
+  height: number | null;
+}): OwnPhoto => ({
   id: p.id,
   path: p.path,
   src: imageUrl("vendor-photos", p.path),
@@ -76,10 +112,16 @@ const toPhoto = (p: { id: string; path: string; width: number | null; height: nu
 async function load(slug: string) {
   const { data: v, error } = await db()
     .from("vendors")
-    .select("id, slug, status, name, person, discipline, lede, story, services, based, service_area, languages, email, phone, website, instagram, facebook, vendor_photos(id, path, width, height, position)")
+    .select(
+      "id, slug, status, name, person, discipline, lede, story, services, based, service_area, languages, email, phone, website, instagram, facebook, updated_at, vendor_photos(id, path, width, height, position, created_at)",
+    )
     .eq("slug", slug)
     .maybeSingle();
-  if (error || !v) return set(slug, { status: "error", error: error?.message ?? "We couldn’t find your listing." });
+  if (error || !v)
+    return set(slug, {
+      status: "error",
+      error: error?.message ?? "We couldn’t find your listing.",
+    });
   set(slug, {
     status: "ready",
     error: undefined,
@@ -101,7 +143,13 @@ async function load(slug: string) {
       website: str(v.website),
       instagram: str(v.instagram),
       facebook: str(v.facebook),
-      photos: [...v.vendor_photos].sort((a, b) => a.position - b.position).map(toPhoto),
+      photos: [...v.vendor_photos]
+        .sort((a, b) => a.position - b.position)
+        .map(toPhoto),
+      // A photo change doesn't touch the vendor row, so the latest of either is when it was last saved.
+      updatedAt: [v.updated_at, ...v.vendor_photos.map((p) => p.created_at)]
+        .sort()
+        .at(-1)!,
     },
   });
 }
@@ -126,164 +174,169 @@ export function useOwnListing(slug: string | null) {
 
 const publish = () => refreshListings().catch(() => undefined);
 
-// ── Details ─────────────────────────────────────────────────────────────
+/** The saved photos, as the editor starts with them. */
+export const editPhotos = (l: OwnListing): EditPhoto[] =>
+  l.photos.map((p) => ({
+    key: p.id,
+    src: p.src,
+    width: p.width,
+    height: p.height,
+    id: p.id,
+    path: p.path,
+  }));
 
-const clip = (s: string, max: number) => s.replace(/\s+/g, " ").trim().slice(0, max);
+const clip = (s: string, max: number) =>
+  s.replace(/\s+/g, " ").trim().slice(0, max);
 const orNull = (s: string) => s.trim() || null;
+const alt = (name: string, i: number) =>
+  i === 0 ? name : `${name}, photo ${i + 1}`;
+const filesOf = (path: string) => [
+  path,
+  ...VARIANT_WIDTHS.map((w) => variantPath(path, w)),
+];
 
-/** Save the words and details. Resolves once the database has them and the public pages are refreshed. */
-export async function saveDetails(slug: string, d: ListingDetails) {
-  const listing = current(slug);
-  if (!listing) throw new Error("Your listing hasn’t loaded yet.");
-  const row = {
-    name: clip(d.name, LIMITS.name),
-    person: orNull(clip(d.person, LIMITS.person)),
-    discipline: clip(d.discipline, LIMITS.discipline),
-    lede: d.lede.trim().slice(0, 400),
-    story: d.story,
-    services: d.services,
-    based: orNull(clip(d.based, LIMITS.based)),
-    service_area: d.serviceArea,
-    languages: d.languages,
-    email: orNull(d.email.trim().toLowerCase()),
-    phone: orNull(d.phone),
-    website: withScheme(d.website) || null,
-    instagram: socialUrl(d.instagram, "instagram") || null,
-    facebook: socialUrl(d.facebook, "facebook") || null,
-  };
-  if (!row.name) throw new Error("Add your business name.");
-  const { error } = await db().from("vendors").update(row).eq("id", listing.id);
-  if (error) throw new Error(error.message);
-  // Photo descriptions carry the business name.
-  if (row.name !== listing.name) await enqueue(() => savePositions(row.name, current(slug)?.photos ?? [])).catch(() => undefined);
-  set(slug, {
-    listing: {
-      // Field by field: the form's values carry more than the details (its own photos, a plan).
-      ...(current(slug) ?? listing),
-      story: row.story,
-      services: row.services,
-      serviceArea: row.service_area,
-      languages: row.languages,
-      name: row.name,
-      person: str(row.person),
-      discipline: row.discipline,
-      lede: row.lede,
-      based: str(row.based),
-      email: str(row.email),
-      phone: str(row.phone),
-      website: str(row.website),
-      instagram: str(row.instagram),
-      facebook: str(row.facebook),
-    },
-  });
-  await publish();
-}
-
-// ── Photos ──────────────────────────────────────────────────────────────
-
-const alt = (name: string, i: number) => (i === 0 ? name : `${name}, photo ${i + 1}`);
-const filesOf = (path: string) => [path, ...VARIANT_WIDTHS.map((w) => variantPath(path, w))];
-
-function setPhotos(slug: string, photos: OwnPhoto[]) {
-  const listing = current(slug);
-  if (listing) set(slug, { listing: { ...listing, photos } });
-}
-
-// Photo changes run one after another, so quick successive moves land in the order they were made.
-let queue: Promise<unknown> = Promise.resolve();
-const enqueue = <T>(job: () => Promise<T>) => {
-  const run = queue.then(job);
-  queue = run.catch(() => {});
-  return run;
-};
-
-/** Write every photo's position (and its alt text, which follows the position). */
-async function savePositions(name: string, photos: OwnPhoto[]) {
-  const results = await Promise.all(photos.map((p, i) => db().from("vendor_photos").update({ position: i, alt: alt(name, i) }).eq("id", p.id)));
-  const failed = results.find((r) => r.error)?.error;
-  if (failed) throw new Error(failed.message);
+/** A failed save. `partial`: some of it was written, so the editor should start again from what's saved. */
+export class SaveError extends Error {
+  constructor(
+    message: string,
+    readonly partial: boolean,
+  ) {
+    super(message);
+  }
 }
 
 /**
- * Add photos to the end of the gallery, one at a time, so each appears as soon as it's in. Returns
- * the problems with any that couldn't be added (too small, unreadable, over the limit).
+ * Save everything the editor holds: new photos are uploaded and recorded, the order and descriptions
+ * written, removed photos deleted, then the words and details. New photos go first because a failed
+ * upload should leave the live listing exactly as it was. Afterwards the listing is read again, so
+ * the editor starts from what the database really has.
  */
-export function addPhotos(slug: string, files: File[]): Promise<string[]> {
-  return enqueue(async () => {
-    const listing = current(slug);
-    if (!listing) return ["Your listing hasn’t loaded yet."];
-    const room = LIMITS.photosMax - listing.photos.length;
-    const take = files.slice(0, Math.max(0, room));
-    const problems: string[] = files.length > take.length ? [`Listings hold up to ${LIMITS.photosMax} photos, so ${files.length - take.length === 1 ? "one wasn’t" : `${files.length - take.length} weren’t`} added.`] : [];
-    set(slug, { uploading: take.length });
-    for (const file of take) {
-      try {
-        const photo = await preparePhoto(file);
-        const path = `${listing.id}/${crypto.randomUUID()}.jpg`;
-        const bucket = db().storage.from("vendor-photos");
-        const blobs = [photo.full, photo.w1200, photo.w480];
-        const uploads = await Promise.all(filesOf(path).map((p, i) => bucket.upload(p, blobs[i], { contentType: "image/jpeg", cacheControl: "31536000", upsert: false })));
-        URL.revokeObjectURL(photo.url);
-        const failed = uploads.find((u) => u.error)?.error;
-        if (failed) {
-          await bucket.remove(filesOf(path));
-          throw new Error(failed.message);
-        }
-        const photos = current(slug)?.photos ?? [];
-        const { data, error } = await db()
-          .from("vendor_photos")
-          .insert({ vendor_id: listing.id, path, width: photo.width, height: photo.height, position: photos.length, alt: alt(listing.name, photos.length) })
-          .select("id, path, width, height")
-          .single();
-        if (error) {
-          await bucket.remove(filesOf(path));
-          throw new Error(error.message);
-        }
-        setPhotos(slug, [...photos, toPhoto(data)]);
-      } catch (e) {
-        problems.push(`${file.name}: ${(e as Error).message}`);
-      } finally {
-        set(slug, { uploading: Math.max(0, storeFor(slug).state.uploading - 1) });
-      }
-    }
-    await publish();
-    return problems;
-  });
-}
-
-/** Move a photo to a new place; position 0 is the cover. Goes back if the database refuses. */
-export function movePhoto(slug: string, from: number, to: number) {
+export async function saveListing(
+  slug: string,
+  d: ListingDetails,
+  photos: EditPhoto[],
+  progress?: (message: string) => void,
+) {
   const listing = current(slug);
-  if (!listing || from === to) return Promise.resolve();
-  const before = listing.photos;
-  const next = [...before];
-  const [photo] = next.splice(from, 1);
-  next.splice(to, 0, photo);
-  setPhotos(slug, next);
-  return enqueue(async () => {
-    try {
-      await savePositions(listing.name, next);
-    } catch (e) {
-      setPhotos(slug, before);
-      throw e;
-    }
-    await publish();
-  });
-}
+  if (!listing) throw new Error("Your listing hasn’t loaded yet.");
+  const name = clip(d.name, LIMITS.name);
+  if (!name) throw new Error("Add your business name.");
+  if (photos.length > LIMITS.photosMax)
+    throw new Error(`Listings hold up to ${LIMITS.photosMax} photos.`);
+  const bucket = db().storage.from("vendor-photos");
 
-/** Remove a photo for good: its record, then its files. */
-export function removePhoto(slug: string, id: string) {
-  return enqueue(async () => {
-    const listing = current(slug);
-    const photo = listing?.photos.find((p) => p.id === id);
-    if (!listing || !photo) return;
-    const { error } = await db().from("vendor_photos").delete().eq("id", id);
-    if (error) throw new Error(error.message);
-    const rest = listing.photos.filter((p) => p.id !== id);
-    setPhotos(slug, rest);
-    await savePositions(listing.name, rest).catch(() => undefined);
-    // The record is gone, so the photo is off the listing even if a file lingers.
-    await db().storage.from("vendor-photos").remove(filesOf(photo.path));
+  try {
+    // 1. Upload the new photos. Nothing a couple sees has changed yet.
+    const fresh = photos.filter((p) => p.upload);
+    const paths = new Map<string, string>();
+    try {
+      for (const [n, p] of fresh.entries()) {
+        progress?.(
+          fresh.length === 1
+            ? "Uploading your photo"
+            : `Uploading photo ${n + 1} of ${fresh.length}`,
+        );
+        const path = `${listing.id}/${crypto.randomUUID()}.jpg`;
+        paths.set(p.key, path);
+        const blobs = [p.upload!.full, p.upload!.w1200, p.upload!.w480];
+        const results = await Promise.all(
+          filesOf(path).map((f, i) =>
+            bucket.upload(f, blobs[i], {
+              contentType: "image/jpeg",
+              cacheControl: "31536000",
+              upsert: false,
+            }),
+          ),
+        );
+        const failed = results.find((r) => r.error)?.error;
+        if (failed) throw new Error(failed.message);
+      }
+      progress?.("Saving");
+      if (fresh.length) {
+        const { error } = await db()
+          .from("vendor_photos")
+          .insert(
+            photos.flatMap((p, i) =>
+              p.upload
+                ? [
+                    {
+                      vendor_id: listing.id,
+                      path: paths.get(p.key)!,
+                      width: p.width,
+                      height: p.height,
+                      position: i,
+                      alt: alt(name, i),
+                    },
+                  ]
+                : [],
+            ),
+          );
+        if (error) throw new Error(error.message);
+      }
+    } catch (e) {
+      // Take back whatever made it up, so a retry starts clean.
+      const uploaded = [...paths.values()].flatMap(filesOf);
+      if (uploaded.length) await bucket.remove(uploaded);
+      throw new SaveError((e as Error).message, false);
+    }
+
+    try {
+      // 2. The order of the photos already saved, and their descriptions, which carry the name.
+      const kept = photos.flatMap((p, i) => (p.id ? [{ id: p.id, i }] : []));
+      const order = await Promise.all(
+        kept.map(({ id, i }) =>
+          db()
+            .from("vendor_photos")
+            .update({ position: i, alt: alt(name, i) })
+            .eq("id", id),
+        ),
+      );
+      const misordered = order.find((r) => r.error)?.error;
+      if (misordered) throw new Error(misordered.message);
+
+      // 3. Photos taken out: the records first (that takes them off the listing), then the files.
+      const removed = listing.photos.filter(
+        (p) => !photos.some((x) => x.id === p.id),
+      );
+      if (removed.length) {
+        const { error } = await db()
+          .from("vendor_photos")
+          .delete()
+          .in(
+            "id",
+            removed.map((p) => p.id),
+          );
+        if (error) throw new Error(error.message);
+        await bucket.remove(removed.flatMap((p) => filesOf(p.path)));
+      }
+
+      // 4. The words and details.
+      const { error } = await db()
+        .from("vendors")
+        .update({
+          name,
+          person: orNull(clip(d.person, LIMITS.person)),
+          discipline: clip(d.discipline, LIMITS.discipline),
+          lede: d.lede.trim().slice(0, 400),
+          story: d.story,
+          services: d.services,
+          based: orNull(clip(d.based, LIMITS.based)),
+          service_area: d.serviceArea,
+          languages: d.languages,
+          email: orNull(d.email.trim().toLowerCase()),
+          phone: orNull(d.phone),
+          website: withScheme(d.website) || null,
+          instagram: socialUrl(d.instagram, "instagram") || null,
+          facebook: socialUrl(d.facebook, "facebook") || null,
+        })
+        .eq("id", listing.id);
+      if (error) throw new Error(error.message);
+    } catch (e) {
+      throw new SaveError((e as Error).message, true);
+    }
+  } finally {
+    // Whatever happened, show what the database now holds and refresh the public pages.
+    await load(slug);
     await publish();
-  });
+  }
 }

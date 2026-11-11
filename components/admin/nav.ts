@@ -43,7 +43,7 @@ export const vendorNav: NavGroup[] = [
   {
     title: "Settings",
     items: [
-      { href: "/account/billing", label: "Plan & billing", icon: "card" },
+      { href: "/account/billing", label: "Plan & billing", icon: "card", soon: true },
       { href: "/account/notifications", label: "Notifications", icon: "bell", soon: true },
     ],
   },
