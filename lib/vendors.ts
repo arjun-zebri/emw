@@ -186,6 +186,18 @@ export function relatedVendors(vendors: Vendor[], vendor: Vendor, count = 3): Ve
  * link has no plain handle (a Facebook "profile.php?id=" link, say), so the label falls back to the
  * site's name.
  */
+/** A YouTube channel's name from its link: @handle, /c/name or /user/name. Video and /channel/UC… links have none to show. */
+export function youtubeChannel(url: string): string | undefined {
+  try {
+    const [first, second] = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).pathname.split("/").filter(Boolean).map(decodeURIComponent);
+    if (first?.startsWith("@")) return first;
+    if ((first === "c" || first === "user") && second) return second;
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function socialHandle(url: string): string | undefined {
   try {
     const first = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).pathname.split("/").filter(Boolean)[0];

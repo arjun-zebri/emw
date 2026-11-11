@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Button } from "@/components/ui/Button";
-import { areas, languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
+import { areaOptions, languages as languageNames, serviceLabels } from "@/data/taxonomy";
 import type { AreaCode, Language, Service } from "@/data/types";
 import { tierOrder, tiers, type TierId } from "@/lib/admin/billing";
 import { aud } from "@/lib/admin/format";
@@ -57,7 +57,7 @@ export const emptyVendor: VendorFormValues = {
 
 const serviceOptions = (Object.keys(serviceLabels) as Service[]).map((s) => ({ value: s, label: serviceLabels[s] }));
 // States by code, overseas regions by name.
-const stateOptions = (Object.keys(areas) as AreaCode[]).map((s) => ({ value: s, label: s in states ? s : areas[s] }));
+const stateOptions = areaOptions(true);
 const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
   value: l,
   label: languageNames[l].native,

@@ -105,7 +105,7 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
         </nav>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-5 text-ink-mute">
           {/* A row of its own on phones, so the hint reads in full. */}
-          <label className="group flex min-w-0 basis-full items-center gap-2.5 border-b hairline pb-1.5 transition-colors focus-within:border-ink md:w-60 md:basis-auto">
+          <label className="group flex min-w-0 basis-full items-center gap-2.5 py-1.5 md:w-60 md:basis-auto">
             <Icon name="search" className="size-4 shrink-0 transition-colors group-focus-within:text-ink" />
             <span className="sr-only">Search vendors</span>
             <input

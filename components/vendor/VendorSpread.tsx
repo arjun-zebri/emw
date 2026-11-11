@@ -9,9 +9,9 @@ import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { type Slot, vendorImages } from "@/data/images";
-import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
+import { areaParts, languages, serviceLabels } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
-import { locationLabel, socialHandle } from "@/lib/vendors";
+import { locationLabel, socialHandle, youtubeChannel } from "@/lib/vendors";
 
 function displayUrl(url: string) {
   return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
@@ -23,7 +23,7 @@ function contactLinks(vendor: Vendor) {
     contact.website && { href: contact.website, label: displayUrl(contact.website), site: "Website", icon: "globe" },
     socials.instagram && { href: socials.instagram, label: socialHandle(socials.instagram) ?? "Instagram", site: "Instagram", icon: "instagram" },
     socials.facebook && { href: socials.facebook, label: socialHandle(socials.facebook) ?? "Facebook", site: "Facebook", icon: "facebook" },
-    socials.youtube && { href: socials.youtube, label: "YouTube", site: "YouTube", icon: "youtube" },
+    socials.youtube && { href: socials.youtube, label: youtubeChannel(socials.youtube) ?? "YouTube", site: "YouTube", icon: "youtube" },
   ].filter(Boolean) as { href: string; label: string; site: string; icon: IconName }[];
 }
 
@@ -62,7 +62,7 @@ function rows(images: Slot[], target = 2.4) {
 export function VendorSpread({ vendor, related, still }: { vendor: Vendor; related: Vendor[]; still?: boolean }) {
   const images = vendorImages(vendor);
   const landscape = ratioOf(images[0]) >= 1.2;
-  const area = vendor.serviceArea ?? [];
+  const area = areaParts(vendor.serviceArea ?? []);
   const tongues = vendor.languages ?? [];
   const otherTongues = vendor.otherLanguages ?? [];
   const links = contactLinks(vendor);
@@ -71,9 +71,10 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
 
   const details = [
     { label: "Services", value: vendor.services.map((s) => serviceLabels[s]).join(", ") || "On request" },
-    { label: "Service area", value: areaLabel(area) },
+    { label: "Service area", value: area.home || (area.abroad ? null : "On request") },
+    { label: "Overseas", value: area.abroad || null },
     vendor.travels ? { label: "Travel", value: vendor.travels } : null,
-  ].filter(Boolean) as { label: string; value: React.ReactNode }[];
+  ].filter((d) => d?.value) as { label: string; value: React.ReactNode }[];
 
   return (
     <Gallery images={images} name={vendor.name} slug={vendor.slug}>

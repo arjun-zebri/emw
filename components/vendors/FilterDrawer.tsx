@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { Fragment, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { Portal } from "@/components/ui/Portal";
@@ -52,32 +52,33 @@ export function FilterDrawer({
   const sections = [
     {
       key: "languages" as const,
+      id: "languages",
       title: "Language",
       items: options.languages.map(([l]) => ({
         value: l,
         label: l === "Other" || languages[l].native === l ? l : `${languages[l].native}  ${l}`,
         lang: l === "Other" ? undefined : languages[l].lang,
         selected: filters.languages.includes(l),
-        newLine: false,
       })),
     },
     {
       key: "services" as const,
+      id: "services",
       title: "Service",
-      items: options.services.map(([s]) => ({ value: s, label: serviceLabels[s], lang: undefined, selected: filters.services.includes(s), newLine: false })),
+      items: options.services.map(([s]) => ({ value: s, label: serviceLabels[s], lang: undefined, selected: filters.services.includes(s) })),
     },
-    {
+    // Australian states and overseas regions filter the same way, but read as two separate lists.
+    ...[
+      { id: "australia", title: "Service area", abroad: false },
+      { id: "overseas", title: "Overseas", abroad: true },
+    ].map((group) => ({
       key: "areas" as const,
-      title: "Service area",
-      // Overseas regions start their own line under the states.
-      items: options.areas.map(([a], i) => ({
-        value: a,
-        label: areas[a],
-        lang: undefined,
-        selected: filters.areas.includes(a),
-        newLine: i > 0 && isOverseas(a) && !isOverseas(options.areas[i - 1][0]),
-      })),
-    },
+      id: group.id,
+      title: group.title,
+      items: options.areas
+        .filter(([a]) => isOverseas(a) === group.abroad)
+        .map(([a]) => ({ value: a, label: areas[a], lang: undefined, selected: filters.areas.includes(a) })),
+    })),
   ];
 
   return (
@@ -115,28 +116,26 @@ export function FilterDrawer({
 
               <div className="flex-1 overflow-y-auto overscroll-contain px-6 sm:px-8">
                 {sections.map((section) => (
-                  <fieldset key={section.key} className="border-t hairline py-7">
+                  <fieldset key={section.id} className="border-t hairline py-7">
                     <legend className="sr-only">{section.title}</legend>
                     <p aria-hidden className="mb-4">
                       {section.title}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {section.items.map((item) => (
-                        <Fragment key={item.value}>
-                          {item.newLine && <span aria-hidden className="basis-full" />}
-                          <button
-                            type="button"
-                            aria-pressed={item.selected}
-                            onClick={() => toggle(section.key, item.value)}
-                            lang={item.lang}
-                            className={clsx(
-                              "t-small border px-3 py-2 whitespace-pre transition-colors duration-200",
-                              item.selected ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink",
-                            )}
-                          >
-                            {item.label}
-                          </button>
-                        </Fragment>
+                        <button
+                          key={item.value}
+                          type="button"
+                          aria-pressed={item.selected}
+                          onClick={() => toggle(section.key, item.value)}
+                          lang={item.lang}
+                          className={clsx(
+                            "t-small border px-3 py-2 whitespace-pre transition-colors duration-200",
+                            item.selected ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink",
+                          )}
+                        >
+                          {item.label}
+                        </button>
                       ))}
                     </div>
                   </fieldset>

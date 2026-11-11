@@ -137,10 +137,22 @@ export const australiaWide = (area: readonly string[]) => (Object.keys(states) a
 
 /** "Australia-wide" or the states by name, then any overseas regions. */
 export function areaLabel(area: readonly string[], none = "On request") {
+  const { home, abroad } = areaParts(area);
+  return [home, abroad].filter(Boolean).join(", ") || none;
+}
+
+/** Where in Australia, and where overseas, as two separate lines of text (either may be empty). */
+export function areaParts(area: readonly string[]) {
   const home = australiaWide(area) ? ["Australia-wide"] : area.filter((a) => a in states).map((a) => states[a as StateCode]);
   const abroad = area.filter((a) => a in overseas).map((a) => overseas[a as OverseasCode]);
-  return [...home, ...abroad].join(", ") || none;
+  return { home: home.join(", "), abroad: abroad.join(", ") };
 }
+
+/** Every area as a choice, Australian states first and then overseas regions, each under its own heading. */
+export const areaOptions = (short = false) => [
+  ...(Object.keys(states) as StateCode[]).map((s) => ({ value: s as AreaCode, label: short ? s : states[s], group: "Australia" })),
+  ...(Object.keys(overseas) as OverseasCode[]).map((o) => ({ value: o as AreaCode, label: overseas[o], group: "Overseas" })),
+];
 
 /** Languages outside our list, as the vendor wrote them. English is everyone's, so it's never "other". */
 export const otherLanguagesOf = (values: readonly string[]) => values.filter((v) => !(v in languages));

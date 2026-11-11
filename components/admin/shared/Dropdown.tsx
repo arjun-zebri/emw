@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 
 const LIST_MAX = 296; // px, about seven options
@@ -18,6 +18,8 @@ export type DropdownOption<T extends string> = {
   /** A second line under the label. */
   detail?: string;
   lang?: string;
+  /** Options sharing a group sit under its name, e.g. "Australia" and "Overseas". */
+  group?: string;
 };
 
 type Props<T extends string> = {
@@ -209,43 +211,50 @@ export function Dropdown<T extends string>(props: Props<T>) {
             >
               {shown.map((o, i) => {
                 const on = selected.includes(o.value);
+                const heading = o.group && o.group !== shown[i - 1]?.group ? o.group : null;
                 return (
-                  <li
-                    key={o.value}
-                    id={`${uid}-${o.value}`}
-                    role="option"
-                    aria-selected={on}
-                    data-index={i}
-                    onPointerMove={() => setActive(i)}
-                    onClick={() => pick(o.value)}
-                    className={clsx(
-                      "flex cursor-pointer items-start gap-3 px-4 py-2.5 text-[0.875rem] transition-colors duration-150",
-                      i === active ? "bg-paper" : "bg-transparent",
+                  <Fragment key={o.value}>
+                    {heading && (
+                      <li role="presentation" className={clsx("px-4 pb-1 text-[0.75rem] text-ink-mute", i > 0 ? "mt-1.5 border-t hairline pt-3" : "pt-1.5")}>
+                        {heading}
+                      </li>
                     )}
-                  >
-                    {props.multiple && (
-                      <span
-                        className={clsx(
-                          "mt-[0.2em] flex size-3.5 shrink-0 items-center justify-center border transition-colors duration-200",
-                          on ? "border-ink bg-ink text-paper" : "border-ink/25",
-                        )}
-                        aria-hidden
-                      >
-                        {on && <Icon name="check" className="size-2.5" strokeWidth={2.25} />}
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline justify-between gap-4">
-                        <span lang={o.lang} className={clsx("inline-flex items-center gap-2", on ? "text-ink" : "text-ink-soft")}>
-                          {o.label}
-                          {/* One choice: a small tick beside the chosen name, so no row gives up a column for it. */}
-                          {!props.multiple && on && <Icon name="check" className="size-3 shrink-0" strokeWidth={2} />}
+                    <li
+                      id={`${uid}-${o.value}`}
+                      role="option"
+                      aria-selected={on}
+                      data-index={i}
+                      onPointerMove={() => setActive(i)}
+                      onClick={() => pick(o.value)}
+                      className={clsx(
+                        "flex cursor-pointer items-start gap-3 px-4 py-2.5 text-[0.875rem] transition-colors duration-150",
+                        i === active ? "bg-paper" : "bg-transparent",
+                      )}
+                    >
+                      {props.multiple && (
+                        <span
+                          className={clsx(
+                            "mt-[0.2em] flex size-3.5 shrink-0 items-center justify-center border transition-colors duration-200",
+                            on ? "border-ink bg-ink text-paper" : "border-ink/25",
+                          )}
+                          aria-hidden
+                        >
+                          {on && <Icon name="check" className="size-2.5" strokeWidth={2.25} />}
                         </span>
-                        {o.hint && <span className="shrink-0 text-[0.75rem] text-ink-mute tabular-nums">{o.hint}</span>}
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-4">
+                          <span lang={o.lang} className={clsx("inline-flex items-center gap-2", on ? "text-ink" : "text-ink-soft")}>
+                            {o.label}
+                            {/* One choice: a small tick beside the chosen name, so no row gives up a column for it. */}
+                            {!props.multiple && on && <Icon name="check" className="size-3 shrink-0" strokeWidth={2} />}
+                          </span>
+                          {o.hint && <span className="shrink-0 text-[0.75rem] text-ink-mute tabular-nums">{o.hint}</span>}
+                        </span>
+                        {o.detail && <span className="mt-0.5 block text-[0.75rem] leading-snug text-ink-mute">{o.detail}</span>}
                       </span>
-                      {o.detail && <span className="mt-0.5 block text-[0.75rem] leading-snug text-ink-mute">{o.detail}</span>}
-                    </span>
-                  </li>
+                    </li>
+                  </Fragment>
                 );
               })}
               {shown.length === 0 && <li className="px-4 py-3 text-[0.8125rem] text-ink-mute">Nothing matches &lsquo;{query}&rsquo;</li>}

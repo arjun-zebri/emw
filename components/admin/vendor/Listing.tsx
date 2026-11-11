@@ -8,8 +8,8 @@ import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
-import { areas, languages as languageNames, serviceLabels } from "@/data/taxonomy";
-import type { AreaCode, Language, Service } from "@/data/types";
+import { areaOptions as allAreas, languages as languageNames, serviceLabels } from "@/data/taxonomy";
+import type { Language, Service } from "@/data/types";
 import { editPhotos, LINE_MAX, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
@@ -63,7 +63,7 @@ const valuesOf = (l: OwnListing): Values => ({
 
 const serviceOptions = (Object.keys(serviceLabels) as Service[]).map((s) => ({ value: s, label: serviceLabels[s] }));
 // The states, then the overseas regions, by name.
-const areaOptions = (Object.keys(areas) as AreaCode[]).map((a) => ({ value: a, label: areas[a] }));
+const areaOptions = allAreas();
 const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
   value: l,
   label: languageNames[l].native,
