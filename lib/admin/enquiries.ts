@@ -65,11 +65,12 @@ async function load(key: string, slug?: string) {
   });
 }
 
-/** Enquiries for one vendor (by slug), or every vendor's when no slug is given. */
-export function useEnquiries(slug?: string) {
+/** Enquiries for one vendor (by slug), or every vendor's when no slug is given; null waits (the slug isn't known yet). */
+export function useEnquiries(slug?: string | null) {
   const key = slug ?? "*";
   return useSyncExternalStore(
     (listener) => {
+      if (slug === null) return () => {};
       const s = storeFor(key);
       s.listeners.add(listener);
       if (!s.started) {
@@ -78,7 +79,7 @@ export function useEnquiries(slug?: string) {
       }
       return () => s.listeners.delete(listener);
     },
-    () => storeFor(key).state,
+    () => (slug === null ? loading : storeFor(key).state),
     () => loading,
   );
 }

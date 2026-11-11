@@ -58,9 +58,13 @@ export async function signOut() {
   location.assign("/login");
 }
 
-/** The vendor the portal is showing: the signed-in vendor's own, or a demo listing when the team is looking. */
+/**
+ * The vendor the portal is showing: the signed-in vendor's own, or a real listing the team can look
+ * at (read-only) when the team is signed in. Null until the session is read, so a vendor never sees
+ * someone else's listing for a moment first.
+ */
 export const DEMO_VENDOR = "katrina-lai";
 export function useVendorSlug() {
   const session = useSession();
-  return session?.role === "vendor" ? session.slug : DEMO_VENDOR;
+  return session ? (session.role === "vendor" ? session.slug : DEMO_VENDOR) : null;
 }

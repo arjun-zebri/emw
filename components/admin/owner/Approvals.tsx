@@ -590,6 +590,7 @@ const previewValues = (d: Draft): VendorFormValues => ({
   person: d.person ?? "",
   discipline: d.discipline,
   lede: "",
+  story: "",
   services: d.services,
   based: "",
   serviceArea: d.serviceArea,

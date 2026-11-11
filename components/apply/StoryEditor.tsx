@@ -89,7 +89,8 @@ type Format = "p" | "h" | "ul" | "ol";
 type Mark = "bold" | "italic" | "underline";
 type Tool = Format | Mark;
 
-export function StoryEditor({ value, onChange, label }: { value: string; onChange: (story: string) => void; label: string }) {
+/** `compact` sizes it to its text (for the listing form) rather than a tall page of its own (the application). */
+export function StoryEditor({ value, onChange, label, compact }: { value: string; onChange: (story: string) => void; label: string; compact?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [empty, setEmpty] = useState(!value.trim());
   const [format, setFormat] = useState<Format>("p");
@@ -233,7 +234,7 @@ export function StoryEditor({ value, onChange, label }: { value: string; onChang
             document.execCommand("insertText", false, text);
           }}
           className={clsx(
-            "min-h-[30rem] p-6 text-[1.0625rem] leading-[1.7] text-ink outline-none sm:p-7",
+            compact ? "min-h-[10rem] p-5 text-[1.0625rem] leading-[1.7] text-ink outline-none" : "min-h-[30rem] p-6 text-[1.0625rem] leading-[1.7] text-ink outline-none sm:p-7",
             "[&_p+p]:mt-4 [&_p+h3]:mt-8 [&_ul+h3]:mt-8 [&_ol+h3]:mt-8 [&_*+ul]:mt-4 [&_*+ol]:mt-4 [&_ul+p]:mt-4 [&_ol+p]:mt-4 [&_h3+p]:mt-3 [&_h3+ul]:mt-4 [&_h3+ol]:mt-4",
             "[&_h3]:font-display [&_h3]:text-[1.375rem] [&_h3]:leading-[1.2] [&_h3]:tracking-[-0.01em]",
             "[&_strong]:font-medium [&_b]:font-medium [&_u]:decoration-1 [&_u]:underline-offset-[0.2em]",

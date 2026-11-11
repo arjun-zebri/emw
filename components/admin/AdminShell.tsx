@@ -8,11 +8,12 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
+import { useOwnListing } from "@/lib/account/listing";
 import { useQueue } from "@/lib/admin/drafts";
 import { useEnquiries } from "@/lib/admin/enquiries";
 import { pendingCount } from "@/lib/admin/feed";
 import { signOut, useSession, useVendorSlug } from "@/lib/admin/session";
-import { getVendor } from "@/lib/static-vendors";
+import { thumbUrl } from "@/lib/supabase/storage";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationBell } from "./NotificationBell";
 import { activeHref, ownerNav, vendorNav, type NavGroup } from "./nav";
@@ -30,7 +31,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
   const vendorSlug = role === "vendor" ? portalSlug : undefined;
   // The vendor's own enquiries, for the unread badge. The team's Enquiries page loads its own.
   const enquiriesFor = useEnquiries(role === "vendor" ? portalSlug : undefined);
-  const vendor = vendorSlug ? getVendor(vendorSlug) : undefined;
+  const { listing: vendor } = useOwnListing(vendorSlug ?? null);
 
   const badges = {
     approvals: pendingCount(counts),
@@ -40,7 +41,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
   const user =
     role === "owner"
       ? { name: "East Meets Wed", email: session?.email ?? "", src: undefined }
-      : { name: vendor?.name ?? "Your business", email: vendor?.contact?.email ?? "", src: vendor?.cover };
+      : { name: vendor?.name ?? "Your business", email: session?.email ?? "", src: vendor?.photos[0] && thumbUrl(vendor.photos[0].src) };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

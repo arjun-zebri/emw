@@ -5,7 +5,7 @@ import type { TierId } from "./billing";
 
 /*
  * What the portal keeps in this browser until it moves to the database: posts, vendors added
- * here, listing edits, Real Wedding and review decisions and read notifications.
+ * here, Real Wedding and review decisions and read notifications.
  * It lives in localStorage, so it survives reloads and syncs across tabs (publish a post in one tab
  * and the landing page in another updates). The server renders the seed, and the browser's copy
  * takes over on hydration. In the full build this is the database.
@@ -34,14 +34,11 @@ export type AddedVendor = {
   via: "admin" | "application";
 };
 
-export type ListingEdit = Partial<Pick<AddedVendor, "name" | "person" | "discipline" | "lede" | "based" | "serviceArea" | "email" | "phone" | "website" | "instagram" | "facebook" | "languages" | "services">>;
-
 export type AdminState = {
   posts: Post[];
   addedVendors: AddedVendor[];
   /** Real Wedding submissions and reviews, by id. */
   decisions: Record<string, { verdict: "approved" | "declined"; at: string; note?: string }>;
-  listingEdits: Record<string, ListingEdit>;
   /** Notification ids that have been read. */
   read: string[];
 };
@@ -52,7 +49,6 @@ export const seed: AdminState = {
   posts: seedPosts,
   addedVendors: [],
   decisions: {},
-  listingEdits: {},
   read: [],
 };
 

@@ -3,22 +3,22 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons/Icon";
+import { useOwnListing } from "@/lib/account/listing";
 import { useEnquiries } from "@/lib/admin/enquiries";
 import { longDay, plural } from "@/lib/admin/format";
 import { useVendorSlug } from "@/lib/admin/session";
 import { hoursSince, useToday } from "@/lib/admin/time";
-import { getVendor } from "@/lib/static-vendors";
 import { Btn, NotYet, PageHeader, Panel } from "../ui";
 
 export function Dashboard() {
   const slug = useVendorSlug();
-  const vendor = getVendor(slug);
+  const { listing: vendor } = useOwnListing(slug);
   const enquiries = useEnquiries(slug);
   const now = useToday();
-  const name = (vendor?.person ?? vendor?.signoff ?? vendor?.name ?? "there").split(" ")[0];
+  const name = vendor ? (vendor.person || vendor.name).split(" ")[0] : "";
   const waiting = enquiries.list.filter((e) => !e.repliedAt);
   const late = waiting.filter((e) => hoursSince(e.sentAt) >= 48);
-  const photos = vendor ? [vendor.cover, ...(vendor.gallery ?? [])].filter(Boolean).length : 0;
+  const photos = vendor?.photos.length ?? 0;
 
   const tasks: { icon: IconName; title: string; detail: string; href: string; action: string; warn?: boolean }[] = [];
   if (waiting.length)
@@ -42,12 +42,14 @@ export function Dashboard() {
   return (
     <>
       <PageHeader
-        title={`Hello, ${name}`}
+        title={name ? `Hello, ${name}` : "Hello"}
         description={now ? longDay(now) : undefined}
         actions={
-          <Btn icon="arrow-up-right" href={`/vendors/${slug}`} external>
-            View your listing
-          </Btn>
+          vendor?.status === "published" && (
+            <Btn icon="arrow-up-right" href={`/vendors/${vendor.slug}`} external>
+              View your listing
+            </Btn>
+          )
         }
       />
 
