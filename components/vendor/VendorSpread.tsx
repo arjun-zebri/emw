@@ -11,7 +11,7 @@ import { VendorCard } from "@/components/vendors/VendorCard";
 import { type Slot, vendorImages } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
-import { locationLabel } from "@/lib/vendors";
+import { locationLabel, socialHandle } from "@/lib/vendors";
 
 function displayUrl(url: string) {
   return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
@@ -20,11 +20,11 @@ function displayUrl(url: string) {
 function contactLinks(vendor: Vendor) {
   const { contact = {}, socials = {} } = vendor;
   return [
-    contact.website && { href: contact.website, label: displayUrl(contact.website), icon: "globe" },
-    socials.instagram && { href: socials.instagram, label: "Instagram", icon: "instagram" },
-    socials.facebook && { href: socials.facebook, label: "Facebook", icon: "facebook" },
-    socials.youtube && { href: socials.youtube, label: "YouTube", icon: "youtube" },
-  ].filter(Boolean) as { href: string; label: string; icon: IconName }[];
+    contact.website && { href: contact.website, label: displayUrl(contact.website), site: "Website", icon: "globe" },
+    socials.instagram && { href: socials.instagram, label: socialHandle(socials.instagram) ?? "Instagram", site: "Instagram", icon: "instagram" },
+    socials.facebook && { href: socials.facebook, label: socialHandle(socials.facebook) ?? "Facebook", site: "Facebook", icon: "facebook" },
+    socials.youtube && { href: socials.youtube, label: "YouTube", site: "YouTube", icon: "youtube" },
+  ].filter(Boolean) as { href: string; label: string; site: string; icon: IconName }[];
 }
 
 const ratioOf = (img: Slot) => img.ratio ?? 0.8;
@@ -100,7 +100,8 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
               )}
             />
 
-            <div className={clsx("lg:col-span-5 lg:col-start-8 lg:row-start-1", gallery.length > 0 && "lg:row-span-2")}>
+            {/* min-w-0 and anywhere-wrapping, so one very long word can't push the page wider than the screen. */}
+            <div className={clsx("min-w-0 [overflow-wrap:anywhere] lg:col-span-5 lg:col-start-8 lg:row-start-1", gallery.length > 0 && "lg:row-span-2")}>
               <StickyColumn
                 className={clsx(
                   "flex flex-col lg:pt-1",
@@ -160,7 +161,7 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
                             href={l.href}
                             target="_blank"
                             rel="noreferrer"
-                            aria-label={l.icon === "globe" ? `Website: ${l.label}` : l.label}
+                            aria-label={l.label === l.site ? l.label : `${l.site}: ${l.label}`}
                             className="t-small inline-flex h-10 items-center gap-2 border hairline px-3.5 text-ink transition-colors duration-300 hover:border-ink"
                           >
                             <Icon name={l.icon} className="size-4" />

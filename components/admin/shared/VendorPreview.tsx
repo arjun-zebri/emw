@@ -10,7 +10,8 @@ import { vendorCover } from "@/data/images";
 import { languages, serviceLabels, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { vendors } from "@/lib/static-vendors";
-import { locationLabel } from "@/lib/vendors";
+import { socialUrl } from "@/lib/apply/application";
+import { locationLabel, socialHandle } from "@/lib/vendors";
 import { PreviewFrame } from "./PreviewFrame";
 import type { VendorFormValues } from "./VendorForm";
 
@@ -61,8 +62,9 @@ function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValu
   ].filter(Boolean) as { label: string; value: string }[];
   const links = [
     v.website && { label: displayUrl(v.website), icon: "globe" },
-    v.instagram && { label: "Instagram", icon: "instagram" },
-    v.facebook && { label: "Facebook", icon: "facebook" },
+    // As the live page labels them: the handle, from whatever was typed ("@studio" or a full link).
+    v.instagram && { label: socialHandle(socialUrl(v.instagram, "instagram") || v.instagram) ?? "Instagram", icon: "instagram" },
+    v.facebook && { label: socialHandle(socialUrl(v.facebook, "facebook") || v.facebook) ?? "Facebook", icon: "facebook" },
   ].filter(Boolean) as { label: string; icon: IconName }[];
 
   return (
@@ -81,7 +83,7 @@ function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValu
           <Photo src={photos[0]} brief={`${v.name || "The vendor"}. Signature image.`} sizes="(min-width: 1024px) 58vw, 100vw" />
         </div>
 
-        <div className={clsx("lg:col-span-5 lg:col-start-8 lg:row-start-1", gallery.length > 0 && "lg:row-span-2")}>
+        <div className={clsx("min-w-0 [overflow-wrap:anywhere] lg:col-span-5 lg:col-start-8 lg:row-start-1", gallery.length > 0 && "lg:row-span-2")}>
           <div className={clsx("flex flex-col lg:pt-1", gallery.length > 0 ? "lg:sticky lg:top-6" : "lg:h-full")}>
             <h1 className={clsx("t-display text-[clamp(2.5rem,4.4vw,4.75rem)] text-balance", !v.name && "text-ink-mute/35")}>{v.name || "Business name"}</h1>
             <p className="t-body mt-4 text-ink">{[v.discipline || "What they do", location].join(", ")}</p>

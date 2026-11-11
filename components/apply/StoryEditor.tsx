@@ -100,6 +100,7 @@ export function StoryEditor({
   label,
   inline,
   lead,
+  onLength,
 }: {
   value: string;
   onChange: (story: string) => void;
@@ -107,6 +108,11 @@ export function StoryEditor({
   inline?: boolean;
   /** Set the first paragraph large, as the page sets the introduction (the vendor's own listing). */
   lead?: boolean;
+  /**
+   * The length as written, before the house rules trim anything, for a form that enforces its own
+   * limits (and then shows its own count, so this one's is left out).
+   */
+  onLength?: (chars: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [empty, setEmpty] = useState(!value.trim());
@@ -140,6 +146,7 @@ export function StoryEditor({
     if (raw.some((b) => (b.type === "ul" || b.type === "ol") && b.items.length > STORY_RULES.maxItems)) next.push(`Lists keep their first ${STORY_RULES.maxItems} points.`);
     if (raw.some((b) => b.type === "h" && b.text.trim().length > STORY_RULES.headingChars)) next.push("Subheadings are kept short; try fewer words.");
     setNotes(next);
+    onLength?.(storyLength(raw));
     onChange(clean.map(serialiseBlock).join("\n\n"));
   }
 
@@ -278,7 +285,7 @@ export function StoryEditor({
             document.execCommand("insertText", false, text);
           }}
           className={clsx(
-            inline ? "min-h-[3.4em] text-[1rem] leading-[1.7] text-ink outline-none" : "min-h-[30rem] p-6 text-[1.0625rem] leading-[1.7] text-ink outline-none sm:p-7",
+            inline ? "min-h-[3.4em] text-[1rem] leading-[1.7] text-ink outline-none [overflow-wrap:anywhere]" : "min-h-[30rem] p-6 text-[1.0625rem] leading-[1.7] text-ink outline-none sm:p-7",
             lead && "min-h-[7.5em] [&>p:first-child]:font-display [&>p:first-child]:text-[1.5rem] [&>p:first-child]:leading-[1.3] [&>p:first-child]:tracking-[-0.01em] [&>p:first-child+*]:mt-5",
             "[&_p+p]:mt-4 [&_p+h3]:mt-8 [&_ul+h3]:mt-8 [&_ol+h3]:mt-8 [&_*+ul]:mt-4 [&_*+ol]:mt-4 [&_ul+p]:mt-4 [&_ol+p]:mt-4 [&_h3+p]:mt-3 [&_h3+ul]:mt-4 [&_h3+ol]:mt-4",
             "[&_h3]:font-display [&_h3]:text-[1.375rem] [&_h3]:leading-[1.2] [&_h3]:tracking-[-0.01em]",
@@ -289,12 +296,14 @@ export function StoryEditor({
           )}
         />
       </div>
-      {(!inline || notes.length > 0 || length > STORY_RULES.maxChars * 0.8) && (
+      {(!inline || notes.length > 0 || (!onLength && length > STORY_RULES.maxChars * 0.8)) && (
         <div className={clsx("flex items-baseline justify-between gap-4", inline ? "mt-3" : "border-t hairline px-6 py-3 sm:px-7")}>
           <p className="t-small">{notes[0] ?? (inline ? "" : "Short paragraphs read best. Use a list for what you offer.")}</p>
-          <p className={clsx("t-small shrink-0 tabular-nums", length > STORY_RULES.maxChars && "text-bad")}>
-            {length} / {STORY_RULES.maxChars}
-          </p>
+          {!onLength && (
+            <p className={clsx("t-small shrink-0 tabular-nums", length > STORY_RULES.maxChars && "text-bad")}>
+              {length} / {STORY_RULES.maxChars}
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -171,6 +171,8 @@ export const editPhotos = (l: OwnListing): EditPhoto[] =>
 
 const clip = (s: string, max: number) => s.replace(/\s+/g, " ").trim().slice(0, max);
 const orNull = (s: string) => s.trim() || null;
+/** The line under the name, made from every service chosen. */
+export const LINE_MAX = 120;
 const alt = (name: string, i: number) => (i === 0 ? name : `${name}, photo ${i + 1}`);
 const filesOf = (path: string) => [path, ...VARIANT_WIDTHS.map((w) => variantPath(path, w))];
 
@@ -306,7 +308,8 @@ export async function saveListing(
         .update({
           name,
           person: orNull(clip(d.person, LIMITS.person)),
-          discipline: clip(d.discipline, LIMITS.discipline),
+          // Built from the services chosen, so it can be longer than a line someone types.
+        discipline: clip(d.discipline, LINE_MAX),
           lede: d.lede.trim().slice(0, 400),
           story: d.story,
           services: d.services,

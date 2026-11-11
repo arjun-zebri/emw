@@ -109,3 +109,18 @@ export function relatedVendors(vendors: Vendor[], vendor: Vendor, count = 3): Ve
     .slice(0, count)
     .map(({ v }) => v);
 }
+
+/**
+ * "@studio" from a link to an Instagram or Facebook profile, for the link's label. Nothing when the
+ * link has no plain handle (a Facebook "profile.php?id=" link, say), so the label falls back to the
+ * site's name.
+ */
+export function socialHandle(url: string): string | undefined {
+  try {
+    const first = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).pathname.split("/").filter(Boolean)[0];
+    if (!first || /\.php$/i.test(first) || ["pages", "people", "groups", "p", "reel"].includes(first.toLowerCase())) return undefined;
+    return `@${decodeURIComponent(first)}`;
+  } catch {
+    return undefined;
+  }
+}

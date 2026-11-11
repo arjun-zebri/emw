@@ -10,12 +10,12 @@ import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
 import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
 import type { Language, Service, StateCode } from "@/data/types";
-import { editPhotos, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
+import { editPhotos, LINE_MAX, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
-import { disciplineSuggestions, isEmail, isWebsite, LIMITS, socialUrl } from "@/lib/apply/application";
+import { isEmail, isWebsite, LIMITS, socialUrl } from "@/lib/apply/application";
 import { PhotoError, preparePhoto } from "@/lib/apply/photos";
-import { inlineText, normaliseStory, parseBlock, serialiseBlock, splitStory } from "@/lib/story";
+import { inlineText, normaliseStory, parseBlock, serialiseBlock, splitStory, STORY_RULES, storyLength } from "@/lib/story";
 import { DetailRow, bare } from "../shared/DetailRow";
 import { Dropdown } from "../shared/Dropdown";
 import { emptyVendor } from "../shared/VendorForm";
@@ -72,6 +72,10 @@ const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
 
 // "MC" stays as it is; "Photography" becomes "photography" after the first.
 const lower = (t: string) => (/^[A-Z]{2,}\b/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1));
+
+/** The one text (introduction and story together): enough to say something, and no more than the page holds. */
+const TEXT_MIN = 100;
+const TEXT_MAX = STORY_RULES.maxChars;
 
 const row = clsx(bare, "text-[0.9375rem] placeholder:text-ink-mute/50");
 // Words set as on the page still read as editable: a fine outline just outside the text, faint on
@@ -160,14 +164,23 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const newPhotos = photos.some((p) => p.upload);
   const tongues = v.languages.filter((l) => l !== "English");
   const words = useMemo(() => splitWords(v.story), [v.story]);
-  // The line under the name follows the services: "Photography", "Celebrant & MC", or every one of them
-  // when they fit on the line ("Celebrant, photography & videography"), else the first two.
+  // The text as written, untrimmed, so a limit is never enforced by quietly cutting words off.
+  const [textLength, setTextLength] = useState(() => storyLength(splitStory(base.story).map(parseBlock)));
+  const textProblem =
+    textLength < TEXT_MIN
+      ? `Write at least ${TEXT_MIN} characters about your work (${textLength} so far).`
+      : textLength > TEXT_MAX
+        ? `That’s ${(textLength - TEXT_MAX).toLocaleString("en-AU")} characters over the ${TEXT_MAX.toLocaleString("en-AU")} limit. Shorten it to save.`
+        : null;
+  // The line under the name lists every service chosen: "Photography", "Celebrant & MC",
+  // "Celebrant, MC, photography & videography".
   const chooseServices = (services: Service[]) =>
     setV((s) => {
       const labels = services.map((x, i) => (i === 0 ? serviceLabels[x] : lower(serviceLabels[x])));
-      const all = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} & ${labels.at(-1)}` : (labels[0] ?? "");
-      const line = all.length <= LIMITS.discipline ? all : (disciplineSuggestions(services).find((l) => l.includes(" & ")) ?? labels[0]);
-      return { ...s, services, discipline: line };
+      // "and" before the last when a name has its own "&", so "videography and hair & makeup" still reads.
+      const join = labels.some((l) => l.includes("&")) ? " and " : " & ";
+      const all = labels.length > 1 ? `${labels.slice(0, -1).join(", ")}${join}${labels.at(-1)}` : (labels[0] ?? "");
+      return { ...s, services, discipline: all.length <= LINE_MAX ? all : `${labels.slice(0, 3).join(", ")} and more` };
     });
   const live = listing.status === "published";
   useEffect(() => {
@@ -208,6 +221,11 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
       toast(missing);
       return;
     }
+    if (textProblem) {
+      document.querySelector<HTMLElement>("[contenteditable=true]")?.focus();
+      toast(textProblem);
+      return;
+    }
     if (firstBad) {
       document.getElementById(`le-${firstBad === "website" ? "web" : firstBad === "instagram" ? "ig" : firstBad === "facebook" ? "fb" : "email"}`)?.focus();
       toast(bad[firstBad]!);
@@ -232,7 +250,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
         onReset();
       } else toast(`Couldn’t save your listing: ${(e as Error).message}`);
     }
-  }, [saving, dirty, preparing, stale, missing, firstBad, bad, newPhotos, rights, slug, v, photos, release, live, onReset]);
+  }, [saving, dirty, preparing, stale, missing, textProblem, firstBad, bad, newPhotos, rights, slug, v, photos, release, live, onReset]);
 
   // Leaving with unsaved changes asks first; Cmd or Ctrl + S saves.
   useEffect(() => {
@@ -345,6 +363,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                   lead
                   label="About your work"
                   value={v.story}
+                  onLength={setTextLength}
                   onChange={(story) => {
                     // The editor tidies the text once as it opens; that's the starting point, not a change.
                     if (!storyReady.current) {
@@ -356,6 +375,17 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                 />
               )}
             </div>
+
+            {!readOnly && (
+              <div className="mt-4 flex items-baseline justify-between gap-4 text-[0.8125rem]">
+                <p className={clsx(textProblem && (tried || textLength > TEXT_MAX) ? "text-bad" : "text-ink-soft")}>
+                  {textProblem ?? "Start with a sentence or two, then tell couples how you work."}
+                </p>
+                <p className={clsx("shrink-0 tabular-nums", textLength > TEXT_MAX ? "text-bad" : "text-ink-soft")}>
+                  {textLength.toLocaleString("en-AU")} / {TEXT_MAX.toLocaleString("en-AU")}
+                </p>
+              </div>
+            )}
 
             {/* One rule between each section, none between rows. */}
             <dl className="mt-8 border-t hairline pt-4">
@@ -425,7 +455,11 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                 <div className="min-w-0">
                   <p className="text-[0.9375rem] text-ink">
                     {saving ?? (preparing ? "Preparing your photos" : "Unsaved changes")}
-                    {!saving && !preparing && !newPhotos && <span className="hidden text-ink-soft sm:inline">. {live ? "They go live on your page when you save." : "Save to keep them."}</span>}
+                    {!saving && !preparing && textProblem ? (
+                      <span className="text-bad">. {textProblem}</span>
+                    ) : (
+                      !saving && !preparing && !newPhotos && <span className="hidden text-ink-soft sm:inline">. {live ? "They go live on your page when you save." : "Save to keep them."}</span>
+                    )}
                   </p>
                   {newPhotos && !saving && (
                     <label className="mt-1 flex cursor-pointer items-start gap-2 text-[0.8125rem] text-ink-soft">
@@ -460,7 +494,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                     Load the latest
                   </Button>
                 ) : (
-                  <Button type="button" onClick={() => void save()} disabled={!!saving || preparing > 0 || (newPhotos && !rights)}>
+                  <Button type="button" onClick={() => void save()} disabled={!!saving || preparing > 0 || (newPhotos && !rights) || !!textProblem}>
                     {saving ? "Saving" : "Save"}
                   </Button>
                 )}
