@@ -8,8 +8,8 @@ import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
-import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import type { Language, Service, StateCode } from "@/data/types";
+import { areas, languages as languageNames, serviceLabels } from "@/data/taxonomy";
+import type { AreaCode, Language, Service } from "@/data/types";
 import { editPhotos, LINE_MAX, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
@@ -62,7 +62,8 @@ const valuesOf = (l: OwnListing): Values => ({
 });
 
 const serviceOptions = (Object.keys(serviceLabels) as Service[]).map((s) => ({ value: s, label: serviceLabels[s] }));
-const stateOptions = (Object.keys(states) as StateCode[]).map((s) => ({ value: s, label: states[s] }));
+// The states, then the overseas regions, by name.
+const areaOptions = (Object.keys(areas) as AreaCode[]).map((a) => ({ value: a, label: areas[a] }));
 const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
   value: l,
   label: languageNames[l].native,
@@ -399,7 +400,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                 <input id="le-based" value={v.based} maxLength={LIMITS.based} onChange={(e) => set("based", e.target.value)} placeholder={ask("Suburb or city, e.g. Footscray")} className={row} />
               </DetailRow>
               <DetailRow plain label="Service area" htmlFor="le-area">
-                <Dropdown id="le-area" quiet multiple options={stateOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder={ask("Choose the states you work in")} />
+                <Dropdown id="le-area" quiet multiple options={areaOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder={ask("Choose where you'll work")} />
               </DetailRow>
               <DetailRow plain label="Website" htmlFor="le-web">
                 <input id="le-web" type="url" value={v.website} onChange={(e) => set("website", e.target.value)} aria-invalid={!!bad.website} placeholder={ask("e.g. yourstudio.com.au")} className={row} />
