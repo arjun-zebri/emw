@@ -32,20 +32,13 @@ export const ownerNav: NavGroup[] = [
   },
 ];
 
+// Settings (your account, plan and billing, notifications) open from the account menu at the foot.
 export const vendorNav: NavGroup[] = [
   {
     items: [
+      { href: "/account/listing", label: "Your listing", icon: "store" },
       { href: "/account", label: "Dashboard", icon: "overview", soon: true },
       { href: "/account/enquiries", label: "Enquiries", icon: "speech", badge: "unreplied", soon: true },
-      { href: "/account/listing", label: "Your listing", icon: "store" },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
-      { href: "/account/settings", label: "Your account", icon: "cog" },
-      { href: "/account/billing", label: "Plan & billing", icon: "card", soon: true },
-      { href: "/account/notifications", label: "Notifications", icon: "bell", soon: true },
     ],
   },
 ];

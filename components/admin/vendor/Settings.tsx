@@ -10,10 +10,11 @@ import { Btn, PageHeader, Section } from "../ui";
 const providerNames: Record<string, string> = { email: "Email and password", google: "Google", azure: "Microsoft" };
 
 /**
- * The account itself, apart from the listing: the email you sign in with, the ways you can sign in,
- * and a new password. The listing's own email (where enquiries go) is set on Your listing.
+ * Settings, from the account menu: the account itself (the email you sign in with, the ways in, a
+ * new password), then plan and billing and notifications, which open here once they're built. The
+ * listing's own email, where enquiries go, is set on Your listing.
  */
-export function Account() {
+export function Settings() {
   const session = useSession();
   const id = useId();
   const [methods, setMethods] = useState<string[] | null>(null);
@@ -43,7 +44,7 @@ export function Account() {
 
   return (
     <>
-      <PageHeader title="Your account" />
+      <PageHeader title="Settings" />
 
       <Section title="Signing in" description="Your listing’s email, where enquiries go, can be a different address. You set that on Your listing.">
         <dl className="space-y-5 text-[0.9375rem]">
@@ -89,6 +90,14 @@ export function Account() {
             {busy ? "Saving" : "Change password"}
           </Btn>
         </form>
+      </Section>
+
+      <Section title="Plan & billing" description="Coming soon.">
+        <p className="max-w-[44ch] text-[0.9375rem] text-ink-soft">You&rsquo;ll see your plan, change it and manage payments here.</p>
+      </Section>
+
+      <Section title="Notifications" description="Coming soon.">
+        <p className="max-w-[44ch] text-[0.9375rem] text-ink-soft">You&rsquo;ll choose how you hear about new enquiries here, once couples can send them.</p>
       </Section>
 
       <Section title="Sign out" description="Signs you out on this device.">

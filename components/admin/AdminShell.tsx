@@ -184,7 +184,8 @@ function NavLinks({ nav: all, badges, active, onNavigate, role }: { nav: NavGrou
           {group.title && <p className="mb-1.5 px-2.5 text-[0.6875rem] text-ink-mute">{group.title}</p>}
           <ul className="space-y-px">
             {group.items.map((item) => {
-              const on = item.href === active;
+              // Something not built yet is never the page you are on (/account/settings starts with /account).
+              const on = item.href === active && !item.soon;
               const count = item.badge ? badges[item.badge] : 0;
               if (item.soon && !on)
                 return (
@@ -241,7 +242,7 @@ function UserMenu({ role, user }: { role: "owner" | "vendor"; user: { name: stri
   const items = [
     role === "owner"
       ? { label: "View the site", icon: "arrow-up-right" as const, run: () => window.open("/", "_blank") }
-      : { label: "Your account", icon: "cog" as const, run: () => router.push("/account/settings") },
+      : { label: "Settings", icon: "cog" as const, run: () => router.push("/account/settings") },
     // The team can step into the vendor portal (it shows a demo listing) and back.
     ...(role === "owner"
       ? [{ label: "See a vendor's portal", icon: "store" as const, run: () => router.push("/account/listing") }]

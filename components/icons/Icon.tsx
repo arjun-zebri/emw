@@ -85,12 +85,11 @@ const paths = {
   sparkle: <path d="M12 3c.6 4.8 2.2 6.4 7 7-4.8.6-6.4 2.2-7 7-.6-4.8-2.2-6.4-7-7 4.8-.6 6.4-2.2 7-7Z" />,
 
   // ── Admin ──
+  // A page with a wide panel and a narrow one, rather than a grid of tiles.
   overview: (
     <>
-      <rect x="3.5" y="3.5" width="7" height="9" rx="1" />
-      <rect x="13.5" y="3.5" width="7" height="5" rx="1" />
-      <rect x="13.5" y="11.5" width="7" height="9" rx="1" />
-      <rect x="3.5" y="15.5" width="7" height="5" rx="1" />
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M3.5 9.5h17M10 9.5v10" />
     </>
   ),
   trend: <path d="M3.5 17.5 9 12l3.5 3.5 8-8M15 7.5h5.5V13" />,
@@ -120,10 +119,11 @@ const paths = {
       <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
     </>
   ),
+  // A gear with eight rounded teeth, so it never reads as a sun.
   cog: (
     <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 3.5v2.2m0 12.6v2.2M3.5 12h2.2m12.6 0h2.2M6 6l1.6 1.6m8.8 8.8L18 18M6 18l1.6-1.6m8.8-8.8L18 6" />
+      <path d="M10.3 3.5h3.4l.5 2.3 1.6.9 2.2-.8 1.7 2.9-1.7 1.6v1.8l1.7 1.6-1.7 2.9-2.2-.8-1.6.9-.5 2.3h-3.4l-.5-2.3-1.6-.9-2.2.8-1.7-2.9 1.7-1.6v-1.8L4.3 8.8 6 5.9l2.2.8 1.6-.9Z" />
+      <circle cx="12" cy="12" r="2.8" />
     </>
   ),
   external: <path d="M13.5 4.5h6v6M19.5 4.5 11 13M10 6H5.5a1 1 0 0 0-1 1v11.5a1 1 0 0 0 1 1H17a1 1 0 0 0 1-1V14" />,

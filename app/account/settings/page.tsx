@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Account } from "@/components/admin/vendor/Account";
+import { Settings } from "@/components/admin/vendor/Settings";
 
-export const metadata: Metadata = { title: "Your account" };
+export const metadata: Metadata = { title: "Settings" };
 
 export default function Page() {
-  return <Account />;
+  return <Settings />;
 }

@@ -94,7 +94,20 @@ type Tool = Format | Mark;
  * place above it while you write, and the count only shows near the limit (the vendor's own
  * listing). The default is a panel of its own, for the application.
  */
-export function StoryEditor({ value, onChange, label, inline }: { value: string; onChange: (story: string) => void; label: string; inline?: boolean }) {
+export function StoryEditor({
+  value,
+  onChange,
+  label,
+  inline,
+  lead,
+}: {
+  value: string;
+  onChange: (story: string) => void;
+  label: string;
+  inline?: boolean;
+  /** Set the first paragraph large, as the page sets the introduction (the vendor's own listing). */
+  lead?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [empty, setEmpty] = useState(!value.trim());
   const [format, setFormat] = useState<Format>("p");
@@ -230,7 +243,16 @@ export function StoryEditor({ value, onChange, label, inline }: { value: string;
             aria-hidden
             className={clsx("pointer-events-none absolute", inline ? "t-body top-0 left-0 text-ink-mute/50" : "top-6 left-6 text-[1.0625rem] text-ink-mute/60 sm:top-7 sm:left-7")}
           >
-            {inline ? "Tell couples about your work: who you are, how you work and the traditions you know." : "Start with who you are and how you work."}
+            {lead ? (
+              <>
+                <span className="t-title block text-[1.5rem] leading-[1.3] text-ink-mute/45">A sentence or two that sums up your work.</span>
+                <span className="mt-5 block">Then tell couples who you are, how you work and the traditions you know.</span>
+              </>
+            ) : inline ? (
+              "Tell couples about your work: who you are, how you work and the traditions you know."
+            ) : (
+              "Start with who you are and how you work."
+            )}
           </p>
         )}
         <div
@@ -257,6 +279,7 @@ export function StoryEditor({ value, onChange, label, inline }: { value: string;
           }}
           className={clsx(
             inline ? "min-h-[3.4em] text-[1rem] leading-[1.7] text-ink outline-none" : "min-h-[30rem] p-6 text-[1.0625rem] leading-[1.7] text-ink outline-none sm:p-7",
+            lead && "min-h-[7.5em] [&>p:first-child]:font-display [&>p:first-child]:text-[1.5rem] [&>p:first-child]:leading-[1.3] [&>p:first-child]:tracking-[-0.01em] [&>p:first-child+*]:mt-5",
             "[&_p+p]:mt-4 [&_p+h3]:mt-8 [&_ul+h3]:mt-8 [&_ol+h3]:mt-8 [&_*+ul]:mt-4 [&_*+ol]:mt-4 [&_ul+p]:mt-4 [&_ol+p]:mt-4 [&_h3+p]:mt-3 [&_h3+ul]:mt-4 [&_h3+ol]:mt-4",
             "[&_h3]:font-display [&_h3]:text-[1.375rem] [&_h3]:leading-[1.2] [&_h3]:tracking-[-0.01em]",
             "[&_strong]:font-medium [&_b]:font-medium [&_u]:decoration-1 [&_u]:underline-offset-[0.2em]",
