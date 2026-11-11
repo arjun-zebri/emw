@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StoryEditor } from "@/components/apply/StoryEditor";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,7 @@ import type { Language, Service, StateCode } from "@/data/types";
 import { editPhotos, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
-import { disciplineSuggestions, LIMITS } from "@/lib/apply/application";
+import { disciplineSuggestions, isEmail, isWebsite, LIMITS, socialUrl } from "@/lib/apply/application";
 import { PhotoError, preparePhoto } from "@/lib/apply/photos";
 import { normaliseStory, splitStory } from "@/lib/story";
 import { DetailRow, bare } from "../shared/DetailRow";
@@ -26,6 +26,10 @@ import { ListingPhotos } from "./ListingPhotos";
 /** The words and details as the editor holds them; the story as the story editor writes it. */
 type Values = Omit<ListingDetails, "story"> & { story: string };
 
+// Languages in the taxonomy's order (native scripts first, English last), wherever they were picked.
+const languageOrder = Object.keys(languageNames) as Language[];
+const ordered = (list: Language[]) => languageOrder.filter((l) => list.includes(l));
+
 const valuesOf = (l: OwnListing): Values => ({
   name: l.name,
   person: l.person,
@@ -35,7 +39,7 @@ const valuesOf = (l: OwnListing): Values => ({
   services: l.services,
   based: l.based,
   serviceArea: l.serviceArea,
-  languages: l.languages,
+  languages: ordered(l.languages),
   email: l.email,
   phone: l.phone,
   website: l.website,
@@ -105,6 +109,19 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const [preparing, setPreparing] = useState(0);
   const [saving, setSaving] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [uploads, setUploads] = useState<Record<string, "uploading" | "done">>({});
+  const [stale, setStale] = useState(false);
+  const [rights, setRights] = useState(false);
+  const [tried, setTried] = useState(false);
+  // "Click any words or photo…" shows until the first change they ever make, then never again.
+  // The editor only renders in the browser (the listing loads there), so storage can be read here.
+  const [hint] = useState(() => {
+    try {
+      return !readOnly && !localStorage.getItem("emw-listing-hint");
+    } catch {
+      return false;
+    }
+  });
   const storyReady = useRef(false);
   const reduce = useReducedMotion();
 
@@ -112,6 +129,18 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const photosChanged = photos.map((p) => p.key).join() !== listing.photos.map((p) => p.id).join();
   const dirty = !readOnly && (photosChanged || JSON.stringify(v) !== JSON.stringify(base));
   const missing = !v.name.trim() ? "Add your business name before saving." : !v.discipline.trim() ? "Add what you do before saving, e.g. Wedding photography." : null;
+  // Links are checked before they go on the page, so a typo never becomes a broken link.
+  const bad = useMemo(
+    () => ({
+      website: !isWebsite(v.website) ? "Check the address, e.g. yourstudio.com.au" : undefined,
+      instagram: v.instagram.trim() && !socialUrl(v.instagram, "instagram") ? "Use your @handle or the link to your profile" : undefined,
+      facebook: v.facebook.trim() && !socialUrl(v.facebook, "facebook") ? "Use the link to your page, e.g. facebook.com/yourstudio" : undefined,
+      email: v.email.trim() && !isEmail(v.email) ? "Check the email address" : undefined,
+    }),
+    [v.website, v.instagram, v.facebook, v.email],
+  );
+  const firstBad = (Object.keys(bad) as (keyof typeof bad)[]).find((k) => bad[k]);
+  const newPhotos = photos.some((p) => p.upload);
   const tongues = v.languages.filter((l) => l !== "English");
   const [lineOpen, setLineOpen] = useState(false);
   // Only wording that isn't already there.
@@ -123,6 +152,12 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
       return { ...s, services, discipline: follows ? (disciplineSuggestions(services)[0] ?? "") : s.discipline };
     });
   const live = listing.status === "published";
+  useEffect(() => {
+    if (!dirty || !hint) return;
+    try {
+      localStorage.setItem("emw-listing-hint", "1");
+    } catch {}
+  }, [dirty, hint]);
   // An empty row asks to be filled in, except for the team, who can only read it.
   const ask = (prompt: string) => (readOnly ? "Not given" : prompt);
 
@@ -148,26 +183,38 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const release = useCallback(() => photos.forEach((p) => p.upload && URL.revokeObjectURL(p.src)), [photos]);
 
   const save = useCallback(async () => {
-    if (saving || !dirty || preparing) return;
+    if (saving || !dirty || preparing || stale) return;
+    setTried(true);
     if (missing) {
       document.getElementById(!v.name.trim() ? "le-name" : "le-discipline")?.focus();
       toast(missing);
       return;
     }
+    if (firstBad) {
+      document.getElementById(`le-${firstBad === "website" ? "web" : firstBad === "instagram" ? "ig" : firstBad === "facebook" ? "fb" : "email"}`)?.focus();
+      toast(bad[firstBad]!);
+      return;
+    }
+    if (newPhotos && !rights) {
+      toast("Confirm the new photos are yours to share, then save.");
+      return;
+    }
     setSaving("Saving");
     try {
-      await saveListing(slug, { ...v, story: normaliseStory(splitStory(v.story)) }, photos, setSaving);
+      await saveListing(slug, { ...v, story: normaliseStory(splitStory(v.story)) }, photos, setSaving, (key, state) => setUploads((u) => ({ ...u, [key]: state })));
       release();
       toast(live ? "Saved. Your page is up to date." : "Saved");
       onReset();
     } catch (e) {
       setSaving(null);
-      if (e instanceof SaveError && e.partial) {
+      setUploads({});
+      if (e instanceof SaveError && e.stale) setStale(true);
+      else if (e instanceof SaveError && e.partial) {
         toast(`Only some of your changes were saved (${e.message}). Check your listing and try again.`);
         onReset();
       } else toast(`Couldn’t save your listing: ${(e as Error).message}`);
     }
-  }, [saving, dirty, preparing, missing, slug, v, photos, release, live, onReset]);
+  }, [saving, dirty, preparing, stale, missing, firstBad, bad, newPhotos, rights, slug, v, photos, release, live, onReset]);
 
   // Leaving with unsaved changes asks first; Cmd or Ctrl + S saves.
   useEffect(() => {
@@ -224,7 +271,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
           )}
         </p>
         <div className="flex items-center gap-5">
-          {!readOnly && !dirty && <span className="hidden text-ink-soft xl:inline">Click any words or photo to change them.</span>}
+          {hint && !dirty && <span className="hidden text-ink-soft xl:inline">Click any words or photo to change them.</span>}
           {!readOnly && <span className={dirty ? "text-ink" : "text-ink-soft"}>{dirty ? "Unsaved changes" : savedLabel(listing.updatedAt)}</span>}
           <button type="button" onClick={() => setPreviewing(true)} className="t-nav inline-flex h-9 items-center border border-ink/20 px-4 text-ink transition-colors hover:border-ink">
             Preview
@@ -234,11 +281,12 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
 
       {/* The page itself: photographs on the left, the vendor on the right, each held in view while the other scrolls. */}
       <div className={clsx("grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:gap-x-[clamp(2rem,4vw,4.5rem)]", (dirty || saving) && "pb-24")}>
-        <StickyColumn className="min-w-0 lg:sticky lg:top-[5.5rem] lg:col-span-7 lg:self-start">
-          <ListingPhotos photos={photos} preparing={preparing} readOnly={readOnly} onChange={setPhotos} onAdd={(files) => void addPhotos(files)} />
+        {/* On phones the photos column dissolves, so it reads cover, then the words, then the rest, like the vendor page. */}
+        <StickyColumn className="min-w-0 max-lg:contents lg:sticky lg:top-6 lg:col-span-7 lg:self-start">
+          <ListingPhotos photos={photos} preparing={preparing} uploads={uploads} readOnly={readOnly} onChange={setPhotos} onAdd={(files) => void addPhotos(files)} />
         </StickyColumn>
 
-        <StickyColumn className="min-w-0 lg:sticky lg:top-[5.5rem] lg:col-span-5 lg:self-start lg:pt-1">
+        <StickyColumn className="min-w-0 max-lg:order-2 lg:sticky lg:top-6 lg:col-span-5 lg:self-start lg:pt-1">
           <fieldset disabled={readOnly} className="min-w-0">
             <label htmlFor="le-name" className="sr-only">
               Business name
@@ -366,13 +414,16 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                 <Dropdown id="le-area" quiet multiple options={stateOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder={ask("Choose the states you work in")} />
               </DetailRow>
               <DetailRow plain label="Website" htmlFor="le-web">
-                <input id="le-web" type="url" value={v.website} onChange={(e) => set("website", e.target.value)} placeholder={ask("e.g. yourstudio.com.au")} className={row} />
+                <input id="le-web" type="url" value={v.website} onChange={(e) => set("website", e.target.value)} aria-invalid={!!bad.website} placeholder={ask("e.g. yourstudio.com.au")} className={row} />
+                <Problem show={tried} text={bad.website} />
               </DetailRow>
               <DetailRow plain label="Instagram" htmlFor="le-ig">
-                <input id="le-ig" value={v.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder={ask("e.g. @yourstudio")} className={row} />
+                <input id="le-ig" value={v.instagram} onChange={(e) => set("instagram", e.target.value)} aria-invalid={!!bad.instagram} placeholder={ask("e.g. @yourstudio")} className={row} />
+                <Problem show={tried} text={bad.instagram} />
               </DetailRow>
               <DetailRow plain label="Facebook" htmlFor="le-fb">
-                <input id="le-fb" value={v.facebook} onChange={(e) => set("facebook", e.target.value)} placeholder={ask("e.g. facebook.com/yourstudio")} className={row} />
+                <input id="le-fb" value={v.facebook} onChange={(e) => set("facebook", e.target.value)} aria-invalid={!!bad.facebook} placeholder={ask("e.g. facebook.com/yourstudio")} className={row} />
+                <Problem show={tried} text={bad.facebook} />
               </DetailRow>
             </dl>
 
@@ -385,7 +436,8 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                 <input id="le-person" value={v.person} maxLength={LIMITS.person} onChange={(e) => set("person", e.target.value)} placeholder={ask("Who couples will hear from, e.g. Mai Nguyen")} className={row} />
               </DetailRow>
               <DetailRow plain label="Email" htmlFor="le-email">
-                <input id="le-email" type="email" value={v.email} onChange={(e) => set("email", e.target.value)} placeholder={ask("e.g. hello@yourstudio.com.au")} className={row} />
+                <input id="le-email" type="email" value={v.email} onChange={(e) => set("email", e.target.value)} aria-invalid={!!bad.email} placeholder={ask("e.g. hello@yourstudio.com.au")} className={row} />
+                <Problem show={tried} text={bad.email} />
               </DetailRow>
               <DetailRow plain label="Phone" htmlFor="le-phone">
                 <input id="le-phone" type="tel" value={v.phone} onChange={(e) => set("phone", e.target.value)} placeholder={ask("e.g. 0412 345 678")} className={row} />
@@ -406,25 +458,54 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
             className="fixed inset-x-0 bottom-0 z-40 border-t hairline bg-surface shadow-[0_-24px_48px_-28px_rgb(22_20_18/0.25)] lg:left-[15rem]"
           >
             <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-8 lg:px-[clamp(2rem,4vw,4.5rem)]">
-              <p className="min-w-0 text-[0.9375rem] text-ink">
-                {saving ?? (preparing ? "Preparing your photos" : "Unsaved changes")}
-                {!saving && !preparing && <span className="hidden text-ink-soft sm:inline">. {live ? "They go live on your page when you save." : "Save to keep them."}</span>}
-              </p>
+              {stale ? (
+                <p className="min-w-0 text-[0.9375rem] text-ink">
+                  Your listing was changed somewhere else after you opened it, so this wasn&rsquo;t saved.
+                  <span className="hidden text-ink-soft sm:inline"> Load the latest, then make your change again.</span>
+                </p>
+              ) : (
+                <div className="min-w-0">
+                  <p className="text-[0.9375rem] text-ink">
+                    {saving ?? (preparing ? "Preparing your photos" : "Unsaved changes")}
+                    {!saving && !preparing && !newPhotos && <span className="hidden text-ink-soft sm:inline">. {live ? "They go live on your page when you save." : "Save to keep them."}</span>}
+                  </p>
+                  {newPhotos && !saving && (
+                    <label className="mt-1 flex cursor-pointer items-start gap-2 text-[0.8125rem] text-ink-soft">
+                      <input type="checkbox" checked={rights} onChange={(e) => setRights(e.target.checked)} className="mt-0.5 size-4 accent-ink" />
+                      The new photos are mine to share, or I have the photographer&rsquo;s permission.
+                    </label>
+                  )}
+                </div>
+              )}
               <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    release();
-                    onReset();
-                  }}
-                  disabled={!!saving}
-                  className="t-nav h-12 px-4 text-ink-soft transition-colors hover:text-ink disabled:opacity-40"
-                >
-                  Discard
-                </button>
-                <Button type="button" onClick={() => void save()} disabled={!!saving || preparing > 0}>
-                  {saving ? "Saving" : "Save"}
-                </Button>
+                {!stale && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      release();
+                      onReset();
+                    }}
+                    disabled={!!saving}
+                    className="t-nav h-12 px-4 text-ink-soft transition-colors hover:text-ink disabled:opacity-40"
+                  >
+                    Discard
+                  </button>
+                )}
+                {stale ? (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      release();
+                      onReset();
+                    }}
+                  >
+                    Load the latest
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={() => void save()} disabled={!!saving || preparing > 0 || (newPhotos && !rights)}>
+                    {saving ? "Saving" : "Save"}
+                  </Button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -432,8 +513,13 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
       </AnimatePresence>
 
       <AnimatePresence>
-        {previewing && <VendorPreview values={{ ...emptyVendor, ...v }} photos={photos.map((p) => p.src)} story={splitStory(v.story)} onClose={closePreview} />}
+        {previewing && <VendorPreview values={{ ...emptyVendor, ...v, languages: ordered(v.languages) }} photos={photos.map((p) => p.src)} story={splitStory(v.story)} onClose={closePreview} />}
       </AnimatePresence>
     </>
   );
+}
+
+/** What's wrong with a field, under it, once they've tried to save. */
+function Problem({ show, text }: { show: boolean; text?: string }) {
+  return show && text ? <p className="mt-1 text-[0.8125rem] text-bad">{text}</p> : null;
 }

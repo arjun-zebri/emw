@@ -5,7 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
 import { EMAILS, emailAdmin, emailFrom, emailOrigin } from "./config";
 import { emailOn } from "./switches";
-import { applicationAdmin, applicationReceived, confirmEmail, listingLive, type Rendered } from "./templates";
+import { applicationAdmin, applicationReceived, confirmEmail, listingLive, passwordEmail, type Rendered } from "./templates";
 
 /*
  * Sending, through Resend's REST API (no SDK). Server only: it reads the secret Supabase key and
@@ -140,4 +140,13 @@ export async function sendConfirmEmail(to: string, url: string): Promise<boolean
     return true;
   }
   return deliver(to, confirmEmail({ origin: emailOrigin(), url }), emailAdmin());
+}
+
+/** A link to choose a password (forgotten, or a vendor's first sign-in). Always sent. Returns whether it went. */
+export async function sendPasswordEmail(to: string, url: string): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY && process.env.NODE_ENV === "development") {
+    console.info(`[email] Password link for ${to}: ${url}`);
+    return true;
+  }
+  return deliver(to, passwordEmail({ origin: emailOrigin(), url }), emailAdmin());
 }

@@ -131,7 +131,11 @@ export function normaliseBlocks(input: StoryBlock[]): StoryBlock[] {
         headings++;
       }
     } else if (b.type === "p") {
-      const content = b.content.map((r) => ({ ...r, text: r.text.replace(/\s+/g, " ") })).filter((r) => r.text);
+      const content = b.content.map((r) => ({ ...r, text: r.text.replace(/\s+/g, " ") }));
+      // A backslash left at the end of a paragraph is a slip (it sits just above Return), never meant.
+      const end = content.at(-1);
+      if (end) end.text = end.text.replace(/[\s\\]+$/, (t) => (t.includes("\\") ? "" : t));
+      for (let i = content.length - 1; i >= 0; i--) if (!content[i].text) content.splice(i, 1);
       if (!inlineText(content).trim()) continue;
       out.push({ type: "p", content });
     } else {

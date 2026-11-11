@@ -3,7 +3,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { emailAdmin, emailFrom, emailOrigin } from "./config";
 import { load } from "./send";
 import type { SwitchId } from "./switches";
-import { applicationAdmin, applicationReceived, confirmEmail, listingLive } from "./templates";
+import { applicationAdmin, applicationReceived, confirmEmail, listingLive, passwordEmail } from "./templates";
 
 /*
  * Every email the platform sends, rendered exactly as it lands in an inbox, for Admin →
@@ -12,7 +12,7 @@ import { applicationAdmin, applicationReceived, confirmEmail, listingLive } from
  */
 
 export type EmailPreview = {
-  id: SwitchId | "confirm";
+  id: SwitchId | "confirm" | "password";
   audience: "team" | "vendor";
   title: string;
   when: string;
@@ -60,12 +60,14 @@ export async function emailPreviews(): Promise<EmailPreview[]> {
   const received = applicationReceived({ origin, first: d.first, card });
   const live = listingLive({ origin, first: d.first, card, url: `${origin}/vendors/${v.slug}` });
   const confirm = confirmEmail({ origin, url: `${origin}/list-your-business/apply` });
+  const password = passwordEmail({ origin, url: `${origin}/login` });
 
   return [
     { id: "application-team", audience: "team", title: "New application", when: "As soon as a business applies", from, to: emailAdmin(), ...pick(team) },
     { id: "confirm", audience: "vendor", title: "Confirm your email", when: "When someone makes an account to apply", from, to: applicant, ...pick(confirm) },
     { id: "application-received", audience: "vendor", title: "Application received", when: "As soon as they apply", from, to: applicant, ...pick(received) },
     { id: "listing-live", audience: "vendor", title: "Your listing is live", when: "When you approve their listing", from, to: applicant, ...pick(live) },
+    { id: "password", audience: "vendor", title: "Choose your password", when: "When someone asks for a link to set or reset their password", from, to: "Their sign-in email", ...pick(password) },
   ];
 }
 

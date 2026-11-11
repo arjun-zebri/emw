@@ -15,6 +15,7 @@ import { Toggle } from "../ui";
 const icons: Record<EmailPreview["id"], IconName> = {
   "application-team": "inbox",
   confirm: "mail",
+  password: "cog",
   "application-received": "check",
   "listing-live": "store",
 };
@@ -41,7 +42,8 @@ export function Notifications({ data }: { data: NotificationsData }) {
     return <p className="border border-ink/[0.09] bg-surface px-6 py-5 text-[0.9375rem] text-ink-soft">There&apos;s no published vendor to show the emails with yet.</p>;
   }
 
-  const isOn = (e: EmailPreview) => (e.id === "confirm" ? true : (switches[e.id]?.enabled ?? false));
+  const always = (e: EmailPreview) => e.id === "confirm" || e.id === "password";
+  const isOn = (e: EmailPreview) => (always(e) ? true : (switches[e.id as SwitchId]?.enabled ?? false));
 
   const flip = async (id: SwitchId, enabled: boolean) => {
     const before = switches[id];
@@ -106,7 +108,7 @@ export function Notifications({ data }: { data: NotificationsData }) {
             <h2 className="font-display text-[1.625rem] leading-[1.1] tracking-[-0.015em]">{selected.title}</h2>
             <p className="mt-1 text-[0.875rem] text-ink-soft">{selected.when}</p>
           </div>
-          {selected.id !== "confirm" && (
+          {!always(selected) && (
             <Toggle checked={isOn(selected)} onChange={(v) => flip(selected.id as SwitchId, v)} label={selected.title} disabled={!canEdit} />
           )}
         </div>
@@ -141,6 +143,7 @@ export function Notifications({ data }: { data: NotificationsData }) {
 
 function status(e: EmailPreview, s: Switch | undefined, canEdit: boolean) {
   if (e.id === "confirm") return "Always sent. Without it nobody could make an account to apply.";
+  if (e.id === "password") return "Always sent. Without it nobody could get back in, or sign in for the first time.";
   const state = s?.enabled ? "On" : "Off";
   const changed = s?.changed ? `${state} since ${day(s.changed.at, { year: true })}, set by ${s.changed.by}.` : `${state}.`;
   return canEdit ? changed : `${changed} Only an owner can change this.`;

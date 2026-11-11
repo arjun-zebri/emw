@@ -45,25 +45,21 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      // Vendors have a page or two, so there's no search to open.
+      if (role === "owner" && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearch((s) => !s);
       }
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, []);
+  }, [role]);
 
   const sidebar = <Sidebar nav={nav} badges={badges} role={role} user={user} onNavigate={() => setMenu(false)} />;
 
   return (
     /* Fades in once, on arriving from sign-in or a full load; the shell persists across admin pages. */
-    <motion.div
-      className="min-h-svh bg-paper lg:pl-[15rem]"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.7, ease: [0.25, 1, 0.5, 1] }}
-    >
+    <motion.div className="min-h-svh bg-paper lg:pl-[15rem]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7, ease: [0.25, 1, 0.5, 1] }}>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[15rem] flex-col border-r hairline bg-paper lg:flex">{sidebar}</aside>
 
       <Portal>
@@ -85,7 +81,8 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
         </AnimatePresence>
       </Portal>
 
-      <div className="sticky top-0 z-20 border-b hairline bg-paper/85 backdrop-blur-xl">
+      {/* Vendors only need the bar on phones, for the menu. */}
+      <div className={clsx("sticky top-0 z-20 border-b hairline bg-paper/85 backdrop-blur-xl", role === "vendor" && "lg:hidden")}>
         <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-[var(--gutter)]">
           <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" className="-ml-2 p-2 lg:hidden">
             <Icon name="menu" className="size-5" />
@@ -93,25 +90,29 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
           <Link href={role === "owner" ? "/admin/approvals" : "/account/listing"} aria-label="Home" className="lg:hidden">
             <Monogram className="w-11" />
           </Link>
-          <button
-            type="button"
-            onClick={() => setSearch(true)}
-            className="ml-auto flex h-9 min-w-0 items-center gap-2.5 border border-ink/10 bg-surface px-3 text-[0.8125rem] text-ink-mute transition-colors hover:border-ink/25 sm:w-72 lg:ml-0"
-          >
-            <Icon name="search" className="size-4" strokeWidth={1.5} />
-            <span className="hidden flex-1 text-left sm:block">Search or jump to</span>
-            <span className="hidden items-center gap-0.5 sm:flex">
-              <Kbd>⌘</Kbd>
-              <Kbd>K</Kbd>
-            </span>
-          </button>
-          <div className="flex items-center gap-1 lg:ml-auto">
-            <a href="/" target="_blank" rel="noreferrer" className="hidden h-9 items-center gap-1.5 px-3 text-[0.8125rem] text-ink-soft transition-colors hover:text-ink sm:flex">
-              View site
-              <Icon name="arrow-up-right" className="size-3.5" strokeWidth={1.5} />
-            </a>
-            {role === "owner" && <NotificationBell />}
-          </div>
+          {role === "owner" && (
+            <button
+              type="button"
+              onClick={() => setSearch(true)}
+              className="ml-auto flex h-9 min-w-0 items-center gap-2.5 border border-ink/10 bg-surface px-3 text-[0.8125rem] text-ink-mute transition-colors hover:border-ink/25 sm:w-72 lg:ml-0"
+            >
+              <Icon name="search" className="size-4" strokeWidth={1.5} />
+              <span className="hidden flex-1 text-left sm:block">Search or jump to</span>
+              <span className="hidden items-center gap-0.5 sm:flex">
+                <Kbd>⌘</Kbd>
+                <Kbd>K</Kbd>
+              </span>
+            </button>
+          )}
+          {role === "owner" && (
+            <div className="flex items-center gap-1 lg:ml-auto">
+              <a href="/" target="_blank" rel="noreferrer" className="hidden h-9 items-center gap-1.5 px-3 text-[0.8125rem] text-ink-soft transition-colors hover:text-ink sm:flex">
+                View site
+                <Icon name="arrow-up-right" className="size-3.5" strokeWidth={1.5} />
+              </a>
+              <NotificationBell />
+            </div>
+          )}
         </div>
       </div>
 
@@ -125,7 +126,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
         {children}
       </motion.main>
 
-      <CommandPalette open={search} onClose={() => setSearch(false)} role={role} />
+      {role === "owner" && <CommandPalette open={search} onClose={() => setSearch(false)} role={role} />}
       <Toaster />
     </motion.div>
   );
@@ -155,19 +156,27 @@ function Sidebar({
         <span className="mt-0.5 border-l hairline pl-3 text-[0.75rem] text-ink-mute">{role === "owner" ? "Admin" : "Vendor"}</span>
       </div>
       {/* The current path is only known at request time on dynamic routes, so the links read it inside Suspense. */}
-      <Suspense fallback={<NavLinks nav={nav} badges={badges} onNavigate={onNavigate} />}>
-        <ActiveNavLinks nav={nav} badges={badges} onNavigate={onNavigate} />
+      <Suspense fallback={<NavLinks nav={nav} badges={badges} onNavigate={onNavigate} role={role} />}>
+        <ActiveNavLinks nav={nav} badges={badges} onNavigate={onNavigate} role={role} />
       </Suspense>
       <UserMenu role={role} user={user} />
     </>
   );
 }
 
-function ActiveNavLinks(props: { nav: NavGroup[]; badges: Badges; onNavigate: () => void }) {
+function ActiveNavLinks(props: { nav: NavGroup[]; badges: Badges; onNavigate: () => void; role: "owner" | "vendor" }) {
   return <NavLinks {...props} active={activeHref(props.nav, usePathname())} />;
 }
 
-function NavLinks({ nav, badges, active, onNavigate }: { nav: NavGroup[]; badges: Badges; active?: string; onNavigate: () => void }) {
+function NavLinks({ nav: all, badges, active, onNavigate, role }: { nav: NavGroup[]; badges: Badges; active?: string; onNavigate: () => void; role: "owner" | "vendor" }) {
+  // For vendors, what isn't built yet sits together at the foot, rather than greyed among the rest.
+  const nav =
+    role === "vendor"
+      ? [
+          ...all.map((g) => ({ ...g, items: g.items.filter((i) => !i.soon) })).filter((g) => g.items.length),
+          { title: "Coming soon", items: all.flatMap((g) => g.items.filter((i) => i.soon)) },
+        ]
+      : all;
   return (
     <nav aria-label="Admin" className="flex-1 overflow-y-auto px-3 pt-4 pb-6">
       {nav.map((group, gi) => (
@@ -230,7 +239,9 @@ function UserMenu({ role, user }: { role: "owner" | "vendor"; user: { name: stri
 
   const team = useSession()?.role === "team";
   const items = [
-    { label: "View the site", icon: "arrow-up-right" as const, run: () => window.open("/", "_blank") },
+    role === "owner"
+      ? { label: "View the site", icon: "arrow-up-right" as const, run: () => window.open("/", "_blank") }
+      : { label: "Your account", icon: "cog" as const, run: () => router.push("/account/settings") },
     // The team can step into the vendor portal (it shows a demo listing) and back.
     ...(role === "owner"
       ? [{ label: "See a vendor's portal", icon: "store" as const, run: () => router.push("/account/listing") }]

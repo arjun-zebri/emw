@@ -46,12 +46,11 @@ export type OwnListing = {
   facebook: string;
   photos: OwnPhoto[];
   updatedAt: string;
+  /** When the listing's own row last changed: a save checks nobody else has changed it since. */
+  rowUpdatedAt: string;
 };
 
-export type ListingDetails = Omit<
-  OwnListing,
-  "id" | "slug" | "status" | "photos" | "updatedAt"
->;
+export type ListingDetails = Omit<OwnListing, "id" | "slug" | "status" | "photos" | "updatedAt" | "rowUpdatedAt">;
 
 /** A photo in the editor: one already saved (id and path), or one added since (upload). */
 export type EditPhoto = {
@@ -71,18 +70,11 @@ type State = {
 };
 
 const loading: State = { status: "loading" };
-const stores = new Map<
-  string,
-  { state: State; listeners: Set<() => void>; started: boolean }
->();
+const stores = new Map<string, { state: State; listeners: Set<() => void>; started: boolean }>();
 
 const storeFor = (slug: string) => {
   let s = stores.get(slug);
-  if (!s)
-    stores.set(
-      slug,
-      (s = { state: loading, listeners: new Set(), started: false }),
-    );
+  if (!s) stores.set(slug, (s = { state: loading, listeners: new Set(), started: false }));
   return s;
 };
 
@@ -96,12 +88,7 @@ const current = (slug: string) => storeFor(slug).state.listing;
 const db = () => supabase();
 const str = (s: string | null) => s ?? "";
 
-const toPhoto = (p: {
-  id: string;
-  path: string;
-  width: number | null;
-  height: number | null;
-}): OwnPhoto => ({
+const toPhoto = (p: { id: string; path: string; width: number | null; height: number | null }): OwnPhoto => ({
   id: p.id,
   path: p.path,
   src: imageUrl("vendor-photos", p.path),
@@ -143,13 +130,10 @@ async function load(slug: string) {
       website: str(v.website),
       instagram: str(v.instagram),
       facebook: str(v.facebook),
-      photos: [...v.vendor_photos]
-        .sort((a, b) => a.position - b.position)
-        .map(toPhoto),
+      photos: [...v.vendor_photos].sort((a, b) => a.position - b.position).map(toPhoto),
       // A photo change doesn't touch the vendor row, so the latest of either is when it was last saved.
-      updatedAt: [v.updated_at, ...v.vendor_photos.map((p) => p.created_at)]
-        .sort()
-        .at(-1)!,
+      updatedAt: [v.updated_at, ...v.vendor_photos.map((p) => p.created_at)].sort().at(-1)!,
+      rowUpdatedAt: v.updated_at,
     },
   });
 }
@@ -185,24 +169,32 @@ export const editPhotos = (l: OwnListing): EditPhoto[] =>
     path: p.path,
   }));
 
-const clip = (s: string, max: number) =>
-  s.replace(/\s+/g, " ").trim().slice(0, max);
+const clip = (s: string, max: number) => s.replace(/\s+/g, " ").trim().slice(0, max);
 const orNull = (s: string) => s.trim() || null;
-const alt = (name: string, i: number) =>
-  i === 0 ? name : `${name}, photo ${i + 1}`;
-const filesOf = (path: string) => [
-  path,
-  ...VARIANT_WIDTHS.map((w) => variantPath(path, w)),
-];
+const alt = (name: string, i: number) => (i === 0 ? name : `${name}, photo ${i + 1}`);
+const filesOf = (path: string) => [path, ...VARIANT_WIDTHS.map((w) => variantPath(path, w))];
 
-/** A failed save. `partial`: some of it was written, so the editor should start again from what's saved. */
+/**
+ * A failed save. `partial`: some of it was written, so the editor should start again from what's
+ * saved. `stale`: nothing was written, because the listing changed somewhere else (the team, or
+ * another tab) after the editor opened it.
+ */
 export class SaveError extends Error {
   constructor(
     message: string,
     readonly partial: boolean,
+    readonly stale = false,
   ) {
     super(message);
   }
+}
+
+/** Has the listing changed since the editor loaded it? Its row, or which photos it has. */
+async function changedElsewhere(listing: OwnListing) {
+  const { data, error } = await db().from("vendors").select("updated_at, vendor_photos(id)").eq("id", listing.id).single();
+  if (error) return false;
+  const ids = (list: { id: string }[]) => list.map((p) => p.id).sort().join();
+  return data.updated_at !== listing.rowUpdatedAt || ids(data.vendor_photos) !== ids(listing.photos);
 }
 
 /**
@@ -216,14 +208,16 @@ export async function saveListing(
   d: ListingDetails,
   photos: EditPhoto[],
   progress?: (message: string) => void,
+  /** Each new photo as it goes up, so its tile can show it. */
+  onPhoto?: (key: string, state: "uploading" | "done") => void,
 ) {
   const listing = current(slug);
   if (!listing) throw new Error("Your listing hasn’t loaded yet.");
   const name = clip(d.name, LIMITS.name);
   if (!name) throw new Error("Add your business name.");
-  if (photos.length > LIMITS.photosMax)
-    throw new Error(`Listings hold up to ${LIMITS.photosMax} photos.`);
+  if (photos.length > LIMITS.photosMax) throw new Error(`Listings hold up to ${LIMITS.photosMax} photos.`);
   const bucket = db().storage.from("vendor-photos");
+  if (await changedElsewhere(listing)) throw new SaveError("Your listing was changed somewhere else after you opened it", false, true);
 
   try {
     // 1. Upload the new photos. Nothing a couple sees has changed yet.
@@ -231,11 +225,8 @@ export async function saveListing(
     const paths = new Map<string, string>();
     try {
       for (const [n, p] of fresh.entries()) {
-        progress?.(
-          fresh.length === 1
-            ? "Uploading your photo"
-            : `Uploading photo ${n + 1} of ${fresh.length}`,
-        );
+        progress?.(fresh.length === 1 ? "Uploading your photo" : `Uploading photo ${n + 1} of ${fresh.length}`);
+        onPhoto?.(p.key, "uploading");
         const path = `${listing.id}/${crypto.randomUUID()}.jpg`;
         paths.set(p.key, path);
         const blobs = [p.upload!.full, p.upload!.w1200, p.upload!.w480];
@@ -250,6 +241,7 @@ export async function saveListing(
         );
         const failed = results.find((r) => r.error)?.error;
         if (failed) throw new Error(failed.message);
+        onPhoto?.(p.key, "done");
       }
       progress?.("Saving");
       if (fresh.length) {
@@ -295,9 +287,7 @@ export async function saveListing(
       if (misordered) throw new Error(misordered.message);
 
       // 3. Photos taken out: the records first (that takes them off the listing), then the files.
-      const removed = listing.photos.filter(
-        (p) => !photos.some((x) => x.id === p.id),
-      );
+      const removed = listing.photos.filter((p) => !photos.some((x) => x.id === p.id));
       if (removed.length) {
         const { error } = await db()
           .from("vendor_photos")

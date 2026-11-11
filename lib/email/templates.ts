@@ -408,3 +408,21 @@ export function confirmEmail(d: { origin: string; url: string }): Rendered {
 
   return { subject, html: shell({ origin: d.origin, title: subject, preheader: "One click and your application is open.", body }), text };
 }
+
+/** A link to choose a password: for someone who's forgotten theirs, or a vendor signing in for the first time. */
+export function passwordEmail(d: { origin: string; url: string }): Rendered {
+  const subject = "Choose your East Meets Wed password";
+  const intro = "Here’s your link to choose a password for East Meets Wed. Open it on the device you want to sign in on, choose a password, and you’ll go straight to your listing.";
+  const after = "The link works once, for an hour. If you didn’t ask for it, ignore this email and your account stays as it is.";
+  const body = [
+    row(h1("Choose your password")),
+    row(p(intro)),
+    row(button(d.url, "Choose a password"), "8px 48px 0"),
+    row(p(after, 28)),
+    row(p(`Warmly,<br><span style="color:${INK};">The East Meets Wed team</span>`, 22)),
+  ].join("\n");
+
+  const text = ["Choose your password", "", intro, "", `Choose a password: ${d.url}`, "", after, "", "Warmly,", "The East Meets Wed team"].join("\n");
+
+  return { subject, html: shell({ origin: d.origin, title: subject, preheader: "Your link to sign in to East Meets Wed.", body }), text };
+}

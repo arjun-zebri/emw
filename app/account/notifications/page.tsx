@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
-import { PageHeader } from "@/components/admin/ui";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Notifications" };
-
-/* Not linked yet (soon in the vendor nav): a vendor's alerts are about enquiries, which aren't built. */
+/* Not built yet, so greyed in the menu: Your listing is a vendor's home until it is. Notifications open with enquiries. */
 export default function Page() {
-  return <PageHeader title="Notifications" description="You'll choose how you hear about enquiries here once enquiries open." />;
+  redirect("/account/listing");
 }

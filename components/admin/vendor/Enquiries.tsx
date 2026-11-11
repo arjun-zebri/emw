@@ -26,7 +26,7 @@ export function Enquiries() {
 
   return (
     <>
-      <PageHeader title="Enquiries" description="Couples who've asked about your services. Reply within two days and you're far more likely to be booked." />
+      <PageHeader title="Enquiries" description="Couples who've asked about your services. They're sent to your email too." />
       <Tabs
         className="mb-6"
         value={filter}

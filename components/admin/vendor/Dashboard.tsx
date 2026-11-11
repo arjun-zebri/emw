@@ -26,7 +26,7 @@ export function Dashboard() {
       icon: "speech",
       warn: late.length > 0,
       title: `${plural(waiting.length, "enquiry", "enquiries")} waiting for a reply`,
-      detail: late.length ? `${late[0].name} has waited ${Math.round(hoursSince(late[0].sentAt))} hours. Couples usually book whoever replies first.` : waiting.map((e) => e.name).join(", "),
+      detail: late.length ? `${late[0].name} has waited ${Math.round(hoursSince(late[0].sentAt))} hours.` : waiting.map((e) => e.name).join(", "),
       href: "/account/enquiries",
       action: "Reply",
     });
