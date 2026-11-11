@@ -53,8 +53,9 @@ const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
 }));
 
 const row = clsx(bare, "text-[0.9375rem] placeholder:text-ink-mute/50");
-// Words set as on the page still read as editable: a soft wash on hover, a hairline beneath while editing.
-const inPlace = "-mx-3 px-3 py-1 cursor-text border-b border-transparent transition-colors duration-300 hover:bg-ink/[0.035] focus:border-ink focus:bg-ink/[0.035]";
+// Words set as on the page still read as editable: a fine outline just outside the text, faint on
+// hover and firmer while typing. Outlines take no space, so nothing moves.
+const inPlace = "cursor-text outline outline-1 outline-offset-[0.5rem] outline-transparent transition-[outline-color] duration-300 hover:outline-ink/15 focus:outline-ink/35";
 
 /** "Saved just now", "Saved 12 minutes ago", "Saved at 3:40 pm", "Saved on 5 November". */
 function savedLabel(iso: string) {
@@ -112,7 +113,9 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const dirty = !readOnly && (photosChanged || JSON.stringify(v) !== JSON.stringify(base));
   const missing = !v.name.trim() ? "Add your business name before saving." : !v.discipline.trim() ? "Add what you do before saving, e.g. Wedding photography." : null;
   const tongues = v.languages.filter((l) => l !== "English");
-  const lines = disciplineSuggestions(v.services);
+  const [lineOpen, setLineOpen] = useState(false);
+  // Only wording that isn't already there.
+  const offered = disciplineSuggestions(v.services).filter((line) => line !== v.discipline.trim());
   // A line that was empty or one of the suggestions follows the services; one they wrote themselves stays.
   const chooseServices = (services: Service[]) =>
     setV((s) => {
@@ -254,40 +257,56 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
             <label htmlFor="le-discipline" className="sr-only">
               What you do
             </label>
-            {/* The line under the name. Suggestions come from the services chosen below; their own words work too. */}
-            <div className="group/line">
+            {/* The line under the name. While typing, wording from the services chosen below is offered in a small list. */}
+            <div className="relative mt-3">
               <input
                 id="le-discipline"
                 value={v.discipline}
                 maxLength={LIMITS.discipline}
                 onChange={(e) => set("discipline", e.target.value)}
+                onFocus={() => setLineOpen(true)}
+                onBlur={() => setLineOpen(false)}
+                onKeyDown={(e) => e.key === "Escape" && setLineOpen(false)}
                 placeholder="What you do, e.g. Wedding photography"
                 autoComplete="off"
-                className={clsx(bare, !readOnly && inPlace, "t-body mt-3 text-ink placeholder:text-ink-mute/50")}
+                role="combobox"
+                aria-expanded={lineOpen && offered.length > 0}
+                aria-controls="le-discipline-list"
+                className={clsx(bare, !readOnly && inPlace, "t-body text-ink placeholder:text-ink-mute/50")}
               />
-              {!readOnly && lines.length > 0 && (
-                <div className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-500 ease-out-expo group-focus-within/line:grid-rows-[1fr] group-focus-within/line:opacity-100">
-                  <div className="min-h-0 overflow-hidden">
-                    <div className="flex flex-wrap items-center gap-1.5 pt-2.5">
-                      <span className="t-small mr-1">From your services:</span>
-                      {lines.map((line) => (
+              <AnimatePresence>
+                {!readOnly && lineOpen && offered.length > 0 && (
+                  <motion.ul
+                    id="le-discipline-list"
+                    role="listbox"
+                    initial={{ opacity: 0, y: reduce ? 0 : -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute top-[calc(100%+0.875rem)] left-[-0.5rem] z-30 min-w-64 border border-ink/10 bg-surface py-1.5 shadow-[0_24px_48px_-20px_rgb(22_20_18/0.22)]"
+                  >
+                    <li className="t-small px-4 pt-1.5 pb-1" role="presentation">
+                      From your services
+                    </li>
+                    {offered.map((line) => (
+                      <li key={line} role="option" aria-selected={false}>
                         <button
-                          key={line}
                           type="button"
+                          tabIndex={-1}
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => set("discipline", line)}
-                          className={clsx(
-                            "h-8 border px-3 text-[0.8125rem] transition-colors duration-300",
-                            v.discipline === line ? "border-ink bg-ink text-paper" : "border-ink/15 bg-surface text-ink hover:border-ink",
-                          )}
+                          onClick={() => {
+                            set("discipline", line);
+                            setLineOpen(false);
+                          }}
+                          className="block w-full px-4 py-2 text-left text-[0.9375rem] text-ink transition-colors hover:bg-paper"
                         >
                           {line}
                         </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+                      </li>
+                    ))}
+                  </motion.ul>
+                )}
+              </AnimatePresence>
             </div>
             {tongues.length > 0 && (
               <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
@@ -309,10 +328,10 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
               maxLength={400}
               onChange={(e) => set("lede", e.target.value.replace(/\n/g, " "))}
               placeholder="One or two sentences that sum up your work, e.g. Relaxed, documentary photography for weddings in two languages."
-              className={clsx(bare, !readOnly && inPlace, "t-title mt-7 resize-none text-[1.5rem] leading-[1.3] text-pretty [field-sizing:content] placeholder:text-ink-mute/40")}
+              className={clsx(bare, !readOnly && inPlace, "t-title mt-8 resize-none text-[1.5rem] leading-[1.3] text-pretty [field-sizing:content] placeholder:text-ink-mute/40")}
             />
 
-            <div className={clsx("mt-4", !readOnly && "-mx-3 cursor-text px-3 py-2 transition-colors duration-300 hover:bg-ink/[0.035] focus-within:bg-ink/[0.035]")}>
+            <div className={clsx("mt-5", !readOnly && "cursor-text outline outline-1 outline-offset-[0.5rem] outline-transparent transition-[outline-color] duration-300 focus-within:outline-ink/35 hover:outline-ink/15")}>
               {readOnly ? (
                 <Story blocks={splitStory(v.story)} />
               ) : (
