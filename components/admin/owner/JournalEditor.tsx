@@ -128,7 +128,7 @@ export function JournalEditor() {
         : {
             label: "Publish",
             run: () =>
-              commit({ status: "published", date: draft.date || today() }, "Published. It's on the home page now.", { label: "View", run: () => window.open("/#journal", "_blank") }),
+              commit({ status: "published", date: draft.date || today() }, "Published. It's on the home page now.", { label: "View", run: () => window.open("/#blog", "_blank") }),
           };
 
   const remove = () => {
