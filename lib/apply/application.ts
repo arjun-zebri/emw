@@ -73,6 +73,17 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const HOST = /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i;
 
 export const isEmail = (s: string) => EMAIL.test(s.trim());
+
+const lower = (s: string) => (/^[A-Z]{2,}\b/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
+
+/** Plain lines for the card from what they offer, e.g. "Photography" or "Celebrant & MC". */
+export function disciplineSuggestions(services: Service[], other = ""): string[] {
+  const labels = services.map((s) => serviceLabels[s]);
+  const out = labels.slice(0, 4);
+  if (labels.length >= 2) out.push(`${labels[0]} & ${lower(labels[1])}`);
+  if (other) out.push(other.charAt(0).toUpperCase() + other.slice(1));
+  return [...new Set(out)].filter((s) => s.length <= LIMITS.discipline);
+}
 export const isWebsite = (s: string) => !s.trim() || HOST.test(s.trim());
 
 /** How long a story reads, once the house rules are applied (see lib/story.ts). */

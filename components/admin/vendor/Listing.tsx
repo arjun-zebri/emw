@@ -13,7 +13,7 @@ import type { Language, Service, StateCode } from "@/data/types";
 import { editPhotos, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
-import { LIMITS } from "@/lib/apply/application";
+import { disciplineSuggestions, LIMITS } from "@/lib/apply/application";
 import { PhotoError, preparePhoto } from "@/lib/apply/photos";
 import { normaliseStory, splitStory } from "@/lib/story";
 import { DetailRow, bare } from "../shared/DetailRow";
@@ -112,6 +112,13 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const dirty = !readOnly && (photosChanged || JSON.stringify(v) !== JSON.stringify(base));
   const missing = !v.name.trim() ? "Add your business name before saving." : !v.discipline.trim() ? "Add what you do before saving, e.g. Wedding photography." : null;
   const tongues = v.languages.filter((l) => l !== "English");
+  const lines = disciplineSuggestions(v.services);
+  // A line that was empty or one of the suggestions follows the services; one they wrote themselves stays.
+  const chooseServices = (services: Service[]) =>
+    setV((s) => {
+      const follows = !s.discipline.trim() || disciplineSuggestions(s.services).includes(s.discipline);
+      return { ...s, services, discipline: follows ? (disciplineSuggestions(services)[0] ?? "") : s.discipline };
+    });
   const live = listing.status === "published";
   // An empty row asks to be filled in, except for the team, who can only read it.
   const ask = (prompt: string) => (readOnly ? "Not given" : prompt);
@@ -247,15 +254,41 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
             <label htmlFor="le-discipline" className="sr-only">
               What you do
             </label>
-            <input
-              id="le-discipline"
-              value={v.discipline}
-              maxLength={LIMITS.discipline}
-              onChange={(e) => set("discipline", e.target.value)}
-              placeholder="What you do, e.g. Wedding photography"
-              autoComplete="off"
-              className={clsx(bare, !readOnly && inPlace, "t-body mt-3 text-ink placeholder:text-ink-mute/50")}
-            />
+            {/* The line under the name. Suggestions come from the services chosen below; their own words work too. */}
+            <div className="group/line">
+              <input
+                id="le-discipline"
+                value={v.discipline}
+                maxLength={LIMITS.discipline}
+                onChange={(e) => set("discipline", e.target.value)}
+                placeholder="What you do, e.g. Wedding photography"
+                autoComplete="off"
+                className={clsx(bare, !readOnly && inPlace, "t-body mt-3 text-ink placeholder:text-ink-mute/50")}
+              />
+              {!readOnly && lines.length > 0 && (
+                <div className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-500 ease-out-expo group-focus-within/line:grid-rows-[1fr] group-focus-within/line:opacity-100">
+                  <div className="min-h-0 overflow-hidden">
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2.5">
+                      <span className="t-small mr-1">From your services:</span>
+                      {lines.map((line) => (
+                        <button
+                          key={line}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => set("discipline", line)}
+                          className={clsx(
+                            "h-8 border px-3 text-[0.8125rem] transition-colors duration-300",
+                            v.discipline === line ? "border-ink bg-ink text-paper" : "border-ink/15 bg-surface text-ink hover:border-ink",
+                          )}
+                        >
+                          {line}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
             {tongues.length > 0 && (
               <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
                 {tongues.map((l) => (
@@ -299,42 +332,43 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
               )}
             </div>
 
-            <dl className="mt-8 border-t hairline">
-              <DetailRow label="Services" htmlFor="le-services">
-                <Dropdown id="le-services" quiet multiple options={serviceOptions} value={v.services} onChange={(x) => set("services", x)} placeholder={ask("Choose what couples can book you for")} />
+            {/* One rule between each section, none between rows. */}
+            <dl className="mt-8 border-t hairline pt-4">
+              <DetailRow plain label="Services" htmlFor="le-services">
+                <Dropdown id="le-services" quiet multiple options={serviceOptions} value={v.services} onChange={chooseServices} placeholder={ask("Choose what couples can book you for")} />
               </DetailRow>
-              <DetailRow label="Languages" htmlFor="le-languages">
+              <DetailRow plain label="Languages" htmlFor="le-languages">
                 <Dropdown id="le-languages" quiet multiple options={languageOptions} value={v.languages} onChange={(x) => set("languages", x)} placeholder={ask("Choose the languages you work in")} />
               </DetailRow>
-              <DetailRow label="Based in" htmlFor="le-based">
+              <DetailRow plain label="Based in" htmlFor="le-based">
                 <input id="le-based" value={v.based} maxLength={LIMITS.based} onChange={(e) => set("based", e.target.value)} placeholder={ask("Suburb or city, e.g. Footscray")} className={row} />
               </DetailRow>
-              <DetailRow label="Service area" htmlFor="le-area">
+              <DetailRow plain label="Service area" htmlFor="le-area">
                 <Dropdown id="le-area" quiet multiple options={stateOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder={ask("Choose the states you work in")} />
               </DetailRow>
-              <DetailRow label="Website" htmlFor="le-web">
+              <DetailRow plain label="Website" htmlFor="le-web">
                 <input id="le-web" type="url" value={v.website} onChange={(e) => set("website", e.target.value)} placeholder={ask("e.g. yourstudio.com.au")} className={row} />
               </DetailRow>
-              <DetailRow label="Instagram" htmlFor="le-ig">
+              <DetailRow plain label="Instagram" htmlFor="le-ig">
                 <input id="le-ig" value={v.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder={ask("e.g. @yourstudio")} className={row} />
               </DetailRow>
-              <DetailRow label="Facebook" htmlFor="le-fb">
+              <DetailRow plain label="Facebook" htmlFor="le-fb">
                 <input id="le-fb" value={v.facebook} onChange={(e) => set("facebook", e.target.value)} placeholder={ask("e.g. facebook.com/yourstudio")} className={row} />
               </DetailRow>
             </dl>
 
-            <div className="mt-10 mb-3">
+            <div className="mt-6 border-t hairline pt-6 pb-2">
               <p className="text-[0.9375rem] text-ink">Your contact details</p>
               <p className="t-small mt-1">Private: not shown on your page. We send couples&rsquo; enquiries to this email.</p>
             </div>
-            <dl className="border-t hairline">
-              <DetailRow label="Your name" htmlFor="le-person">
+            <dl>
+              <DetailRow plain label="Your name" htmlFor="le-person">
                 <input id="le-person" value={v.person} maxLength={LIMITS.person} onChange={(e) => set("person", e.target.value)} placeholder={ask("Who couples will hear from, e.g. Mai Nguyen")} className={row} />
               </DetailRow>
-              <DetailRow label="Email" htmlFor="le-email">
+              <DetailRow plain label="Email" htmlFor="le-email">
                 <input id="le-email" type="email" value={v.email} onChange={(e) => set("email", e.target.value)} placeholder={ask("e.g. hello@yourstudio.com.au")} className={row} />
               </DetailRow>
-              <DetailRow label="Phone" htmlFor="le-phone">
+              <DetailRow plain label="Phone" htmlFor="le-phone">
                 <input id="le-phone" type="tel" value={v.phone} onChange={(e) => set("phone", e.target.value)} placeholder={ask("e.g. 0412 345 678")} className={row} />
               </DetailRow>
             </dl>

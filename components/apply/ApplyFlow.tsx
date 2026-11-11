@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/Button";
 import { Portal } from "@/components/ui/Portal";
 import { VendorSpread } from "@/components/vendor/VendorSpread";
 import { crafts, languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import type { Language, Service, StateCode, Vendor } from "@/data/types";
+import type { Language, StateCode, Vendor } from "@/data/types";
 import { finishApplication, submitApplication } from "@/lib/apply/actions";
-import { type Application, emptyApplication, fullPhone, isEmail, isWebsite, LIMITS, socialUrl, storyChars, withScheme } from "@/lib/apply/application";
+import { type Application, disciplineSuggestions, emptyApplication, fullPhone, isEmail, isWebsite, LIMITS, socialUrl, storyChars, withScheme } from "@/lib/apply/application";
 import { type ApplyPhoto, clearPhotos, loadPhotos, savePhotos } from "@/lib/apply/photos";
 import { normaliseStory, splitStory } from "@/lib/story";
 import { supabase } from "@/lib/supabase/browser";
@@ -409,7 +409,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
                     {a.discipline.length} / {LIMITS.discipline}
                   </p>
                   <div className="mt-6 flex flex-wrap gap-2">
-                    {suggestions(a.services, other).map((s) => (
+                    {disciplineSuggestions(a.services, other).map((s) => (
                       <Chip key={s} on={a.discipline === s} onClick={() => set("discipline", s)}>
                         {s}
                       </Chip>
@@ -478,16 +478,6 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
 
 const wide = (id: StepId) => id === "craft" || id === "languages" || id === "name" || id === "line" || id === "review";
 
-const lower = (s: string) => (/^[A-Z]{2,}\b/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
-
-/** Plain lines from what they offer, e.g. "Photography" or "Celebrant & MC". */
-function suggestions(services: Service[], other: string): string[] {
-  const labels = services.map((s) => serviceLabels[s]);
-  const out = labels.slice(0, 4);
-  if (labels.length >= 2) out.push(`${labels[0]} & ${lower(labels[1])}`);
-  if (other) out.push(other.charAt(0).toUpperCase() + other.slice(1));
-  return [...new Set(out)].filter((s) => s.length <= LIMITS.discipline);
-}
 
 type Setter = <K extends keyof Application>(key: K, value: Application[K]) => void;
 type Flip = (key: "services" | "languages" | "serviceArea" | "crafts", value: string) => void;
