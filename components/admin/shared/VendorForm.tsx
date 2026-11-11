@@ -5,8 +5,8 @@ import { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Button } from "@/components/ui/Button";
-import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import type { Language, Service, StateCode } from "@/data/types";
+import { areas, languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
+import type { AreaCode, Language, Service } from "@/data/types";
 import { tierOrder, tiers, type TierId } from "@/lib/admin/billing";
 import { aud } from "@/lib/admin/format";
 import { AnimatePresence } from "motion/react";
@@ -23,7 +23,7 @@ export type VendorFormValues = {
   story: string;
   services: Service[];
   based: string;
-  serviceArea: StateCode[];
+  serviceArea: AreaCode[];
   languages: Language[];
   email: string;
   phone: string;
@@ -56,7 +56,8 @@ export const emptyVendor: VendorFormValues = {
 };
 
 const serviceOptions = (Object.keys(serviceLabels) as Service[]).map((s) => ({ value: s, label: serviceLabels[s] }));
-const stateOptions = (Object.keys(states) as StateCode[]).map((s) => ({ value: s, label: s }));
+// States by code, overseas regions by name.
+const stateOptions = (Object.keys(areas) as AreaCode[]).map((s) => ({ value: s, label: s in states ? s : areas[s] }));
 const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
   value: l,
   label: languageNames[l].native,
@@ -250,8 +251,8 @@ export function VendorForm({
         {tongues.length > 0 && (
           <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
             {tongues.map((l) => (
-              <span key={l} lang={languageNames[l].lang} title={l}>
-                {languageNames[l].native}
+              <span key={l} lang={languageNames[l]?.lang} title={l}>
+                {languageNames[l]?.native ?? l}
               </span>
             ))}
           </p>
@@ -280,7 +281,7 @@ export function VendorForm({
             <input id="vf-based" value={v.based} onChange={(e) => set("based", e.target.value)} placeholder="Suburb or city" className={rowInput} />
           </DetailRow>
           <DetailRow label="Travels to" htmlFor="vf-area">
-            <Dropdown id="vf-area" multiple options={stateOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder="States they'll work in" />
+            <Dropdown id="vf-area" multiple options={stateOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder="Where they'll work" />
           </DetailRow>
           <DetailRow label="Website" htmlFor="vf-web">
             <input id="vf-web" type="url" value={v.website} onChange={(e) => set("website", e.target.value)} placeholder="https://" className={rowInput} />

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { Language, Service, StateCode } from "@/data/types";
+import type { AreaCode, Language, Service } from "@/data/types";
 import { LIMITS, socialUrl, withScheme } from "@/lib/apply/application";
 import type { ApplyPhoto } from "@/lib/apply/photos";
 import { refreshListings } from "@/lib/listings-actions";
@@ -37,7 +37,7 @@ export type OwnListing = {
   story: string[];
   services: Service[];
   based: string;
-  serviceArea: StateCode[];
+  serviceArea: AreaCode[];
   languages: Language[];
   email: string;
   phone: string;
@@ -123,7 +123,7 @@ async function load(slug: string) {
       story: v.story,
       services: v.services as Service[],
       based: str(v.based),
-      serviceArea: v.service_area as StateCode[],
+      serviceArea: v.service_area as AreaCode[],
       languages: v.languages as Language[],
       email: str(v.email),
       phone: str(v.phone),

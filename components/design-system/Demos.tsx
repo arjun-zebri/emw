@@ -5,7 +5,7 @@ import { useCallback, useId, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { FilterDrawer, type FilterOptions } from "@/components/vendors/FilterDrawer";
-import type { Language, Service, StateCode } from "@/data/types";
+import type { AreaCode, Language, Service } from "@/data/types";
 import type { VendorFilters } from "@/lib/vendors";
 
 /*
@@ -119,12 +119,12 @@ export function NightFieldDemo() {
   );
 }
 
-type Facets = { languages: Language[]; services: Service[]; areas: StateCode[] };
+type Facets = { languages: Language[]; services: Service[]; areas: AreaCode[] };
 
 /** The directory's real filter drawer, with its own local filters. */
 export function DrawerDemo({ options, facets }: { options: FilterOptions; facets: Facets[] }) {
   const [open, setOpen] = useState(false);
-  const [filters, setFilters] = useState<VendorFilters>({ languages: [], areas: [], services: [], sort: "featured" });
+  const [filters, setFilters] = useState<VendorFilters>({ languages: [], areas: [], services: [], q: "", sort: "featured" });
   const close = useCallback(() => setOpen(false), []);
 
   const toggle = (key: "languages" | "areas" | "services", value: string) =>
@@ -136,7 +136,7 @@ export function DrawerDemo({ options, facets }: { options: FilterOptions; facets
   // The same rule as filterVendors: any match within a group, every group must match.
   const count = facets.filter(
     (v) =>
-      (!filters.languages.length || filters.languages.some((l) => v.languages.includes(l))) &&
+      (!filters.languages.length || filters.languages.some((l) => l !== "Other" && v.languages.includes(l))) &&
       (!filters.services.length || filters.services.some((s) => v.services.includes(s))) &&
       (!filters.areas.length || filters.areas.some((a) => v.areas.includes(a))),
   ).length;
@@ -153,7 +153,7 @@ export function DrawerDemo({ options, facets }: { options: FilterOptions; facets
         filters={filters}
         options={options}
         toggle={toggle}
-        clear={() => setFilters({ languages: [], areas: [], services: [], sort: "featured" })}
+        clear={() => setFilters({ languages: [], areas: [], services: [], q: "", sort: "featured" })}
         resultCount={count}
       />
     </>

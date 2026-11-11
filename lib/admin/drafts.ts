@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { Language, Service, StateCode } from "@/data/types";
+import type { AreaCode, Language, Service } from "@/data/types";
 import { notifyApproved } from "@/lib/email/actions";
 import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
@@ -68,8 +68,10 @@ export type Draft = QueueRow & {
   person?: string;
   services: Service[];
   languages: Language[];
-  serviceArea: StateCode[];
+  serviceArea: AreaCode[];
   story: string[];
+  /** A double-width tile in the directory, chosen by the team. */
+  largeTile: boolean;
   email?: string;
   phone?: string;
   website?: string;
@@ -220,7 +222,7 @@ export async function loadDraft(id: string) {
   const [vendor, row, notes] = await Promise.all([
     db()
       .from("vendors")
-      .select("id, person, services, languages, service_area, story, email, phone, website, instagram, facebook, vendor_photos(id, path, width, height, position)")
+      .select("id, person, services, languages, service_area, story, large_tile, email, phone, website, instagram, facebook, vendor_photos(id, path, width, height, position)")
       .eq("id", id)
       .single(),
     db().from("vendor_queue").select(ROW).eq("id", id).single(),
@@ -235,8 +237,9 @@ export async function loadDraft(id: string) {
     person: opt(v.person),
     services: v.services as Service[],
     languages: v.languages as Language[],
-    serviceArea: v.service_area as StateCode[],
+    serviceArea: v.service_area as AreaCode[],
     story: v.story,
+    largeTile: v.large_tile,
     email: opt(v.email),
     phone: opt(v.phone),
     website: opt(v.website),
@@ -278,6 +281,22 @@ export async function reopen(vendorId: string) {
   token++;
   set({ list: emptyList });
   await Promise.all([loadCounts(), loadPage(), loadDecisions()]);
+}
+
+// ── Directory tile ──────────────────────────────────────────────────────
+
+/** Give a draft a double-width tile in the directory, or take it away. Shows at once; goes back if the database refuses. */
+export async function setLargeTile(draft: Draft, on: boolean) {
+  const patch = (largeTile: boolean) => {
+    const d = state.details[draft.id];
+    if (d) set({ details: { ...state.details, [draft.id]: { ...d, largeTile } } });
+  };
+  patch(on);
+  const { error } = await db().from("vendors").update({ large_tile: on }).eq("id", draft.id);
+  if (error) {
+    patch(!on);
+    throw new Error(error.message);
+  }
 }
 
 // ── Photos ──────────────────────────────────────────────────────────────

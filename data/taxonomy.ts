@@ -1,4 +1,4 @@
-import type { Craft, CraftId, Language, Service, StateCode } from "./types";
+import type { AreaCode, Craft, CraftId, Language, OverseasCode, Service, StateCode } from "./types";
 
 export const crafts: Craft[] = [
   {
@@ -27,7 +27,7 @@ export const crafts: Craft[] = [
     name: "Flowers & Paper",
     short: "Flowers & Paper",
     blurb: "Florists, calligraphers and illustrators: the details guests take home.",
-    services: ["Florist", "Stationery and Signage", "Favours and Gifts", "Live Art"],
+    services: ["Florist", "Stationery and Signage", "Favours and Gifts", "Live Art", "Bouquet Preservation"],
   },
   {
     id: "music-performance",
@@ -55,7 +55,7 @@ export const crafts: Craft[] = [
     name: "Venues & Hire",
     short: "Venues & Hire",
     blurb: "Venues, cars and everything else that has to be booked and brought in.",
-    services: ["Venue", "Hire Items", "Car Hire"],
+    services: ["Venue", "Hire Items", "Car Hire", "Fireworks and Effects"],
   },
 ];
 
@@ -81,6 +81,7 @@ export const serviceLabels: Record<Service, string> = {
   Entertainment: "Entertainment",
   "Dance Instructor": "Dance lessons",
   "Live Art": "Live art",
+  "Bouquet Preservation": "Bouquet preservation",
   Jewellery: "Jewellery",
   "Wedding Planner": "Wedding planning",
   "Wedding Coordinator": "Wedding coordination",
@@ -92,6 +93,7 @@ export const serviceLabels: Record<Service, string> = {
   Venue: "Venues",
   "Hire Items": "Hire",
   "Car Hire": "Car hire",
+  "Fireworks and Effects": "Fireworks & effects",
 };
 
 /** Native names are set in the vendor's script; the directory leads with these. */
@@ -119,3 +121,26 @@ export const states: Record<StateCode, string> = {
   ACT: "Australian Capital Territory",
   NT: "Northern Territory",
 };
+
+export const overseas: Record<OverseasCode, string> = {
+  CAN: "Canada",
+  USA: "USA",
+  EUR: "Europe",
+  ASIA: "Asia",
+};
+
+/** Every place a vendor can work, states first. */
+export const areas: Record<AreaCode, string> = { ...states, ...overseas };
+
+/** A service area that covers every state reads as "Australia-wide". */
+export const australiaWide = (area: readonly string[]) => (Object.keys(states) as string[]).every((s) => area.includes(s));
+
+/** "Australia-wide" or the states by name, then any overseas regions. */
+export function areaLabel(area: readonly string[], none = "On request") {
+  const home = australiaWide(area) ? ["Australia-wide"] : area.filter((a) => a in states).map((a) => states[a as StateCode]);
+  const abroad = area.filter((a) => a in overseas).map((a) => overseas[a as OverseasCode]);
+  return [...home, ...abroad].join(", ") || none;
+}
+
+/** Languages outside our list, as the vendor wrote them. English is everyone's, so it's never "other". */
+export const otherLanguagesOf = (values: readonly string[]) => values.filter((v) => !(v in languages));

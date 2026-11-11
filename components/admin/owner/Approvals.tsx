@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
-import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
+import { areaLabel, languages as languageNames, serviceLabels } from "@/data/taxonomy";
 import {
   decide as decideVendor,
   flagLabels,
@@ -17,6 +17,7 @@ import {
   reopen,
   reorderPhotos,
   retry,
+  setLargeTile,
   setQuery,
   useQueue,
   type Decision,
@@ -36,7 +37,7 @@ import { getVendor } from "@/lib/static-vendors";
 import type { VendorFormValues } from "../shared/VendorForm";
 import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
-import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, inputCls } from "../ui";
+import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, Toggle, inputCls } from "../ui";
 
 type Tab = "ready" | "missing" | "weddings" | "reviews";
 const tabs: Tab[] = ["ready", "missing", "weddings", "reviews"];
@@ -319,7 +320,7 @@ export function Approvals() {
         <Drawer
           open={!!row}
           onClose={() => go({ item: null })}
-          footer={row && <DraftActions key={row.id} row={row} busy={busy} onApprove={() => void decideRow(row, "approved")} onDecline={(note) => void decideRow(row, "declined", note)} />}
+          footer={row && <DraftActions key={row.id} row={row} draft={draft} busy={busy} onApprove={() => void decideRow(row, "approved")} onDecline={(note) => void decideRow(row, "declined", note)} />}
           width="max-w-[min(96rem,calc(100vw-3rem))]"
           title={
             row && (
@@ -666,7 +667,7 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
               ...(draft.email ? [["Email", link(`mailto:${draft.email}`, draft.email)] as Row] : []),
               ...(draft.phone ? [["Phone", draft.phone] as Row] : []),
               ["Services", draft.services.map((s) => serviceLabels[s] ?? s).join(", ") || "None yet"],
-              ["Service area", draft.serviceArea.map((s) => states[s] ?? s).join(", ") || "On request"],
+              ["Service area", areaLabel(draft.serviceArea)],
               [
                 "Languages",
                 <span key="l" className="flex flex-wrap gap-x-3">
@@ -689,7 +690,7 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
 }
 
 /** The decision, in the panel's footer so it's always in reach. */
-function DraftActions({ row, busy, onApprove, onDecline }: { row: QueueRow; busy: boolean; onApprove: () => void; onDecline: (note?: string) => void }) {
+function DraftActions({ row, draft, busy, onApprove, onDecline }: { row: QueueRow; draft?: Draft; busy: boolean; onApprove: () => void; onDecline: (note?: string) => void }) {
   const [declining, setDeclining] = useState(false);
   const [note, setNote] = useState("");
   const blocked = row.missing.length > 0;
@@ -720,6 +721,7 @@ function DraftActions({ row, busy, onApprove, onDecline }: { row: QueueRow; busy
       <p className="t-small mr-auto text-[0.75rem]">
         {blocked ? "Approving opens up once nothing is missing." : "Publishing doesn't email the business. Either can be undone."}
       </p>
+      {draft && <LargeTile draft={draft} />}
       <Btn onClick={() => setDeclining(true)} disabled={busy}>
         Decline
       </Btn>
@@ -731,6 +733,24 @@ function DraftActions({ row, busy, onApprove, onDecline }: { row: QueueRow; busy
 }
 
 const ratioOf = (p: DraftPhoto) => (p.width && p.height ? p.width / p.height : 1);
+
+/** Whether the vendor takes a double-width tile in the directory. It suits a landscape cover; a portrait one is cropped to fit. */
+function LargeTile({ draft }: { draft: Draft }) {
+  const cover = draft.photos[0];
+  const portrait = !!cover && ratioOf(cover) < 1.2;
+  return (
+    <label className="mr-3 flex items-center gap-2.5 text-[0.875rem] text-ink" title={portrait && draft.largeTile ? "The cover is portrait, so the wide tile crops it. A landscape cover suits it best." : undefined}>
+      <Toggle
+        checked={draft.largeTile}
+        onChange={(on) => void setLargeTile(draft, on).catch((e: Error) => toast(`Couldn't change the tile: ${e.message}`))}
+        label="Large tile in the directory"
+        disabled={!cover}
+      />
+      Large tile
+      {portrait && draft.largeTile && <Icon name="alert" className="size-4 text-warn" strokeWidth={1.5} />}
+    </label>
+  );
+}
 
 /** Rows of photos whose ratios add up to about `target`, like the vendor page's gallery. */
 function photoRows<T>(items: T[], ratio: (x: T) => number, target: number) {

@@ -1,4 +1,4 @@
-import type { Language, Service, StateCode } from "@/data/types";
+import type { AreaCode, Language, Service } from "@/data/types";
 import { getVendor, vendors } from "@/lib/static-vendors";
 import { locationLabel } from "@/lib/vendors";
 import type { TierId } from "./billing";
@@ -12,7 +12,7 @@ export type AdminVendor = {
   discipline: string;
   services: Service[];
   languages: Language[];
-  serviceArea: StateCode[];
+  serviceArea: AreaCode[];
   based?: string;
   location: string;
   lede: string;

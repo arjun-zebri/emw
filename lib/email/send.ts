@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { languages, serviceLabels, states } from "@/data/taxonomy";
-import type { Language, Service, StateCode } from "@/data/types";
+import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
+import type { Language, Service } from "@/data/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
 import { EMAILS, emailAdmin, emailFrom, emailOrigin } from "./config";
@@ -65,14 +65,13 @@ export async function load(vendorId: string) {
   }
   const photos = [...data.vendor_photos].sort((a, b) => a.position - b.position).map((p) => ({ src: imageUrl("vendor-photos", variantPath(p.path, 1200)), width: p.width, height: p.height }));
   const tongue = (l: string) => (l in languages ? (l === "English" ? "English" : `${languages[l as Language].native} (${l})`) : l);
-  const area = data.service_area.filter((s): s is StateCode => s in states);
   return {
     vendor: data,
     photos,
     first: (data.person ?? "").trim().split(/\s+/)[0] ?? "",
     services: data.services.map((s) => serviceLabels[s as Service] ?? s),
     languages: data.languages.map(tongue),
-    travels: area.length >= 8 ? "Anywhere in Australia" : area.map((s) => states[s]).join(", ") || "Not given",
+    travels: areaLabel(data.service_area, "Not given").replace("Australia-wide", "Anywhere in Australia"),
     notes: (data.vendor_review_notes?.notes ?? "").split("\n").map((l) => l.trim()).filter(Boolean),
   };
 }

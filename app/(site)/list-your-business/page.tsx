@@ -58,7 +58,7 @@ const questions = [
   { q: "What do I need to apply?", a: "Your business name, what you do, the languages you work in, where you’re based and where you’ll travel, up to 12 photos, a few words about your work, and an email for enquiries." },
   { q: "How long does it take?", a: "About ten minutes. Your answers are saved in your browser as you go, so you can stop and pick up where you left off." },
   { q: "Do I need an account?", a: "Yes, so the listing stays yours to manage. Sign in with Google or Microsoft, or use your email and a password." },
-  { q: "What photos work best?", a: "Your own work, large and sharp: 1200 pixels or more on the long side. We can’t take anything under 800. You can add up to 12, and five or more fills your page well." },
+  { q: "What photos work best?", a: "Your own work, large and sharp: 2000 pixels or more on the long side is ideal. We can’t take anything under 1600. You can add up to 12, and five or more fills your page well." },
   { q: "Can I use photos a photographer took for me?", a: "Yes, with their permission. Before you send your application you confirm the photos are yours to share, or that the photographer has said yes." },
   { q: "Who writes my listing?", a: "You do, in your own words. Before you send it you can preview your page exactly as couples will see it." },
   { q: "Will my email and phone number be public?", a: "No. They stay private, and enquiries come to you directly. Your website, Instagram and Facebook are linked from your listing." },

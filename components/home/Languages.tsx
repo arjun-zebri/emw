@@ -6,8 +6,8 @@ import { LanguageIndex } from "./LanguageIndex";
 
 export async function Languages() {
   const vendors = await getListings();
-  // English last, so the other languages lead.
-  const counts = languageCounts(vendors).sort(([a], [b]) => Number(a === "English") - Number(b === "English"));
+  // The languages couples filter by, without "Other", which has no script of its own to show.
+  const counts = languageCounts(vendors).filter((c): c is [Language, number] => c[0] !== "Other");
   const rows = counts.map(([name, count]) => ({
     name,
     count,

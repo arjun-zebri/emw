@@ -9,7 +9,7 @@ import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { type Slot, vendorImages } from "@/data/images";
-import { languages, serviceLabels, states } from "@/data/taxonomy";
+import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { locationLabel, socialHandle } from "@/lib/vendors";
 
@@ -64,13 +64,14 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
   const landscape = ratioOf(images[0]) >= 1.2;
   const area = vendor.serviceArea ?? [];
   const tongues = vendor.languages ?? [];
+  const otherTongues = vendor.otherLanguages ?? [];
   const links = contactLinks(vendor);
   const gallery = rows(images);
   const intro = (d: number) => (still ? {} : { "data-intro-in": true, style: { "--d": `${d}s` } as React.CSSProperties });
 
   const details = [
     { label: "Services", value: vendor.services.map((s) => serviceLabels[s]).join(", ") || "On request" },
-    { label: "Service area", value: area.length >= 8 ? "Australia-wide" : area.map((s) => states[s]).join(", ") || "On request" },
+    { label: "Service area", value: areaLabel(area) },
     vendor.travels ? { label: "Travel", value: vendor.travels } : null,
   ].filter(Boolean) as { label: string; value: React.ReactNode }[];
 
@@ -114,12 +115,15 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
                 <p {...intro(0.06)} className="t-body mt-4 text-ink">
                   {vendor.discipline}, {locationLabel(vendor)}
                 </p>
-                {tongues.length > 0 && (
+                {tongues.length + otherTongues.length > 0 && (
                   <p {...intro(0.1)} className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
                     {tongues.map((l) => (
                       <span key={l} lang={languages[l].lang} title={l}>
                         {languages[l].native}
                       </span>
+                    ))}
+                    {otherTongues.map((l) => (
+                      <span key={l}>{l}</span>
                     ))}
                   </p>
                 )}

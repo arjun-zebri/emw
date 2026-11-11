@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
-import { languages, serviceLabels, states } from "@/data/taxonomy";
-import type { Language, Service, StateCode, Vendor } from "@/data/types";
+import { areas, languages, otherLanguagesOf, serviceLabels } from "@/data/taxonomy";
+import type { AreaCode, Language, Service, Vendor } from "@/data/types";
 import type { Database } from "./supabase/database.types";
 import { imageUrl } from "./supabase/storage";
 
@@ -48,12 +48,14 @@ async function load(): Promise<Vendor[]> {
       name: v.name,
       person: orUndefined(v.person),
       discipline: v.discipline,
-      // Anything outside data/taxonomy.ts is dropped here rather than breaking a page.
+      // Services and areas outside data/taxonomy.ts are dropped here rather than breaking a page.
       services: known<Service>(v.services, serviceLabels),
       based: orUndefined(v.based),
-      serviceArea: known<StateCode>(v.service_area, states),
+      serviceArea: known<AreaCode>(v.service_area, areas),
       travels: orUndefined(v.travels),
       languages: known<Language>(v.languages, languages),
+      // Languages we don't list are kept as the vendor wrote them, and found under "Other".
+      otherLanguages: otherLanguagesOf(v.languages),
       lede: v.lede,
       quote: orUndefined(v.quote),
       story: v.story,
@@ -61,6 +63,7 @@ async function load(): Promise<Vendor[]> {
       contact,
       socials,
       featured: v.featured,
+      largeTile: v.large_tile,
       cover: urls[0],
       gallery: urls.slice(1),
       ratios,

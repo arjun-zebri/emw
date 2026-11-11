@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { siteImages } from "@/data/images";
-import { states } from "@/data/taxonomy";
+import { areas, australiaWide, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { SITE } from "./config";
 import { photoSrcSet, variantPath } from "./supabase/storage";
@@ -90,8 +90,8 @@ export function vendorLd(vendor: Vendor) {
         ...(images.length && { image: images }),
         ...(vendor.based && { address: { "@type": "PostalAddress", addressLocality: vendor.based, addressCountry: "AU" } }),
         areaServed:
-          area.length >= 8 ? { "@type": "Country", name: "Australia" } : area.map((s) => ({ "@type": "State", name: states[s] })),
-        ...(vendor.languages?.length && { knowsLanguage: vendor.languages }),
+          australiaWide(area) ? { "@type": "Country", name: "Australia" } : area.map((s) => ({ "@type": s in states ? "State" : "Place", name: areas[s] })),
+        ...((vendor.languages?.length || vendor.otherLanguages?.length) && { knowsLanguage: [...(vendor.languages ?? []), ...(vendor.otherLanguages ?? [])] }),
         ...(sameAs.length && { sameAs }),
       },
       {

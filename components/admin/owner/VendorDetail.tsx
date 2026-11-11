@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { useParams, useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
-import { languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
+import { areaLabel, languages as languageNames, serviceLabels } from "@/data/taxonomy";
 import { tiers } from "@/lib/admin/billing";
 import { addVendor, removeVendor, useAdmin } from "@/lib/admin/store";
 import { toast } from "@/lib/admin/toast";
@@ -115,7 +115,7 @@ function ListingTab({ vendor }: { vendor: AdminVendor }) {
     ["Contact person", vendor.person ?? "–"],
     ["Services", vendor.services.map((s) => serviceLabels[s]).join(", ") || "–"],
     ["Based in", vendor.based ?? "–"],
-    ["Travels to", vendor.serviceArea.map((s) => states[s]).join(", ") || "–"],
+    ["Travels to", areaLabel(vendor.serviceArea, "–")],
     [
       "Languages",
       vendor.languages.length ? (

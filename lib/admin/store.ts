@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { seedPosts, type Post } from "@/data/journal";
-import type { Language, Service, StateCode } from "@/data/types";
+import type { AreaCode, Language, Service } from "@/data/types";
 import type { TierId } from "./billing";
 
 /*
@@ -18,7 +18,7 @@ export type AddedVendor = {
   discipline: string;
   services: Service[];
   based?: string;
-  serviceArea: StateCode[];
+  serviceArea: AreaCode[];
   languages: Language[];
   lede: string;
   email?: string;

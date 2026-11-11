@@ -10,10 +10,10 @@ import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { Portal } from "@/components/ui/Portal";
 import { VendorSpread } from "@/components/vendor/VendorSpread";
-import { crafts, languages as languageNames, serviceLabels, states } from "@/data/taxonomy";
-import type { Language, StateCode, Vendor } from "@/data/types";
+import { areaLabel, australiaWide, crafts, languages as languageNames, overseas, serviceLabels, states } from "@/data/taxonomy";
+import type { Language, OverseasCode, StateCode, Vendor } from "@/data/types";
 import { finishApplication, submitApplication } from "@/lib/apply/actions";
-import { type Application, disciplineSuggestions, emptyApplication, fullPhone, isEmail, isWebsite, LIMITS, socialUrl, storyChars, withScheme } from "@/lib/apply/application";
+import { type Application, disciplineSuggestions, emptyApplication, fullPhone, isEmail, isWebsite, LIMITS, otherLanguageList, socialUrl, storyChars, withScheme } from "@/lib/apply/application";
 import { type ApplyPhoto, clearPhotos, loadPhotos, savePhotos } from "@/lib/apply/photos";
 import { normaliseStory, splitStory } from "@/lib/story";
 import { supabase } from "@/lib/supabase/browser";
@@ -136,7 +136,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
     about: true,
     // Every craft they chose has at least one service, and "something else" says what.
     craft: (chosen.length > 0 || !!other) && chosen.every((c) => c.services.some((s) => a.services.includes(s))) && (!otherOn || !!other),
-    languages: a.languages.length > 0,
+    languages: a.languages.length > 0 || otherLanguageList(a.otherLanguages).length > 0,
     where: a.serviceArea.length > 0,
     show: true,
     photos: photos.length > 0,
@@ -246,6 +246,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
     based: a.based.trim() || undefined,
     serviceArea: a.serviceArea,
     languages: languageOrder.filter((l) => a.languages.includes(l)),
+    otherLanguages: otherLanguageList(a.otherLanguages),
     lede: "",
     story: normaliseStory(splitStory(a.story)),
     contact: { website: withScheme(a.website) || undefined },
@@ -348,7 +349,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
                     ))}
                   </div>
                   <div className="mt-10 max-w-[28rem]">
-                    <Field label="Another language?" htmlFor={`${uid}-other`} note="We add languages to the directory as vendors work in them.">
+                    <Field label="Another language?" htmlFor={`${uid}-other`} note="Shown on your listing as you write it. Separate several with commas.">
                       <input
                         id={`${uid}-other`}
                         value={a.otherLanguages}
@@ -713,7 +714,8 @@ function WithCard({ a, cover, children }: { a: Application; cover?: string; chil
 }
 
 function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; flip: Flip; headingId: string; uid: string }) {
-  const everywhere = a.serviceArea.length === allStates.length;
+  const everywhere = australiaWide(a.serviceArea);
+  const abroad = a.serviceArea.filter((s) => s in overseas);
   return (
     <>
       <StepHead id={headingId} title="Where do you work?" />
@@ -725,12 +727,22 @@ function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; 
       <fieldset className="mt-12">
         <legend className="t-small mb-3 text-ink">Where you’ll travel for a wedding</legend>
         <div className="flex flex-wrap gap-2">
-          <Chip on={everywhere} onClick={() => set("serviceArea", everywhere ? [] : allStates)}>
+          <Chip on={everywhere} onClick={() => set("serviceArea", everywhere ? abroad : [...allStates, ...abroad])}>
             Anywhere in Australia
           </Chip>
           {allStates.map((s) => (
             <Chip key={s} on={a.serviceArea.includes(s)} onClick={() => flip("serviceArea", s)}>
               {states[s]}
+            </Chip>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset className="mt-10">
+        <legend className="t-small mb-3 text-ink">Overseas</legend>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(overseas) as OverseasCode[]).map((s) => (
+            <Chip key={s} on={a.serviceArea.includes(s)} onClick={() => flip("serviceArea", s)}>
+              {overseas[s]}
             </Chip>
           ))}
         </div>
@@ -798,7 +810,7 @@ function Review({
   onPreview: () => void;
   onRights: (v: boolean) => void;
 }) {
-  const area = a.serviceArea.length === allStates.length ? "Anywhere in Australia" : a.serviceArea.map((s) => states[s]).join(", ");
+  const area = areaLabel(a.serviceArea, "").replace("Australia-wide", "anywhere in Australia");
   const blocks = normaliseStory(splitStory(a.story));
   const rows: { label: string; value: React.ReactNode; step: StepId }[] = [
     { label: "Business", value: [a.name, a.person].filter(Boolean).join(", "), step: "name" },

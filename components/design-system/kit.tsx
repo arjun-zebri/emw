@@ -5,7 +5,7 @@ import { ArrowLink } from "@/components/ui/ArrowLink";
 import { Button } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { VendorCard } from "@/components/vendors/VendorCard";
-import { languages, serviceLabels, states } from "@/data/taxonomy";
+import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
 import type { Language } from "@/data/types";
 import { getVendor, vendors } from "@/lib/static-vendors";
 import { areaCounts, languageCounts, locationLabel, serviceCounts } from "@/lib/vendors";
@@ -102,7 +102,7 @@ export function Forms() {
 export function Filters() {
   const chipLanguages = languageCounts(vendors)
     .map(([l]) => l)
-    .filter((l) => l !== "English")
+    .filter((l): l is Language => l !== "Other")
     .slice(0, 7)
     .map((l: Language) => ({ value: l, label: `${languages[l].native}  ${l}`, lang: languages[l].lang }));
   const drawerOptions = { languages: languageCounts(vendors), areas: areaCounts(vendors), services: serviceCounts(vendors) };
@@ -134,7 +134,7 @@ export function Details() {
         <dl className="border-t hairline">
           {[
             ["Services", katrina.services.map((s) => serviceLabels[s]).join(", ")],
-            ["Service area", (katrina.serviceArea ?? []).map((s) => states[s]).join(", ") || "On request"],
+            ["Service area", areaLabel(katrina.serviceArea ?? [])],
           ].map(([label, value]) => (
             <div key={label} className="grid grid-cols-[7.5rem_1fr] gap-4 border-b hairline py-3.5">
               <dt className="t-small">{label}</dt>

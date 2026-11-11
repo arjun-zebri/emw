@@ -1,5 +1,11 @@
 export type StateCode = "ACT" | "NSW" | "NT" | "QLD" | "SA" | "TAS" | "VIC" | "WA";
 
+/** Overseas regions, as big groups until there are enough vendors to split them by country. */
+export type OverseasCode = "CAN" | "USA" | "EUR" | "ASIA";
+
+/** Where a vendor works: an Australian state or an overseas region. */
+export type AreaCode = StateCode | OverseasCode;
+
 export type Service =
   | "Celebrant"
   | "MC"
@@ -16,6 +22,7 @@ export type Service =
   | "Entertainment"
   | "Dance Instructor"
   | "Live Art"
+  | "Bouquet Preservation"
   | "Jewellery"
   | "Wedding Planner"
   | "Wedding Coordinator"
@@ -26,7 +33,8 @@ export type Service =
   | "Mobile Food Trucks and Carts"
   | "Venue"
   | "Hire Items"
-  | "Car Hire";
+  | "Car Hire"
+  | "Fireworks and Effects";
 
 export type Language =
   | "Cantonese"
@@ -68,9 +76,13 @@ export type Vendor = {
   discipline: string;
   services: Service[];
   based?: string;
-  serviceArea?: StateCode[];
+  serviceArea?: AreaCode[];
   travels?: string;
   languages?: Language[];
+  /** Languages we don't list, in the vendor's words (e.g. "French"). Couples find them under "Other". */
+  otherLanguages?: string[];
+  /** The team chose this vendor for a double-width tile in the directory. */
+  largeTile?: boolean;
   lede: string;
   quote?: string;
   story: string[];

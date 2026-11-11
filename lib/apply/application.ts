@@ -1,5 +1,5 @@
-import { languages, serviceLabels, states } from "@/data/taxonomy";
-import type { CraftId, Language, Service, StateCode } from "@/data/types";
+import { areas, languages, serviceLabels } from "@/data/taxonomy";
+import type { AreaCode, CraftId, Language, Service } from "@/data/types";
 import { normaliseBlocks, parseBlock, splitStory, storyLength } from "@/lib/story";
 import { countryByCode, formatPhone } from "./countries";
 
@@ -14,10 +14,10 @@ export type Application = {
   otherCraft: string;
   services: Service[];
   languages: Language[];
-  /** Languages we don't list yet, in their words. Goes to the team, not the listing. */
+  /** Languages we don't list yet, in their words, separated by commas. Shown on the listing; couples find them under "Other". */
   otherLanguages: string;
   based: string;
-  serviceArea: StateCode[];
+  serviceArea: AreaCode[];
   name: string;
   person: string;
   discipline: string;
@@ -64,9 +64,10 @@ export const LIMITS = {
   otherLanguages: 80,
   otherCraft: 80,
   photosMax: 12,
-  /** Below this on the long edge a photo is refused; below `photoSoft` it's accepted with a warning. */
-  photoMin: 800,
-  photoSoft: 1200,
+  /** Below this on the long edge a photo is refused, so every listing looks sharp on a large screen. */
+  photoMin: 1600,
+  /** Below this it's accepted with a note that a larger copy would look sharper. */
+  photoSoft: 2000,
 } as const;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -119,8 +120,9 @@ export function problems(a: Application): string[] {
   const other = typeof a.otherCraft === "string" ? a.otherCraft.trim() : "";
   if (!known(a.services, serviceLabels) || (a.services.length === 0 && !other)) out.push("Choose what you offer.");
   if (other.length > LIMITS.otherCraft) out.push("Keep what you do short.");
-  if (!known(a.languages, languages) || a.languages.length === 0) out.push("Choose at least one language.");
-  if (!known(a.serviceArea, states) || a.serviceArea.length === 0) out.push("Choose where you'll work.");
+  const others = typeof a.otherLanguages === "string" ? otherLanguageList(a.otherLanguages) : [];
+  if (!known(a.languages, languages) || (a.languages.length === 0 && others.length === 0)) out.push("Choose at least one language.");
+  if (!known(a.serviceArea, areas) || a.serviceArea.length === 0) out.push("Choose where you'll work.");
   const text = (s: unknown, max: number) => typeof s === "string" && s.trim().length <= max;
   if (!text(a.name, LIMITS.name) || !a.name.trim()) out.push("Add your business name.");
   if (!text(a.person, LIMITS.person) || !a.person.trim()) out.push("Add your name.");
@@ -136,6 +138,20 @@ export function problems(a: Application): string[] {
   if (!text(a.facebook, 200) || (a.facebook.trim() && !socialUrl(a.facebook, "facebook"))) out.push("Check your Facebook.");
   if (a.rights !== true) out.push("Confirm the photos are yours to share.");
   return out;
+}
+
+/**
+ * "hindi, Khmer and Tagalog" → ["Hindi", "Khmer", "Tagalog"]: each language once, capitalised, and none
+ * we already list (those are chosen as tiles), so a typed "Mandarin" doesn't appear twice.
+ */
+export function otherLanguageList(s: string): string[] {
+  const listed = new Set(Object.keys(languages).map((l) => l.toLowerCase()));
+  const seen = new Set<string>();
+  return s
+    .split(/,|;|\/|\band\b|&/i)
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter((l) => l && !listed.has(l.toLowerCase()) && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()))
+    .map((l) => l[0].toLocaleUpperCase() + l.slice(1));
 }
 
 /** Lowercase, hyphenated, accents dropped: "Mỹ Linh Studio" → "my-linh-studio". */

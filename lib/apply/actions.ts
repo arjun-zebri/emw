@@ -5,7 +5,7 @@ import { sendApplicationEmails } from "@/lib/email/send";
 import { normaliseStory, splitStory } from "@/lib/story";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient as createServer } from "@/lib/supabase/server";
-import { type Application, fullPhone, LIMITS, photoPaths, problems, slugify, socialUrl, withScheme } from "./application";
+import { type Application, fullPhone, LIMITS, otherLanguageList, photoPaths, problems, slugify, socialUrl, withScheme } from "./application";
 
 /*
  * Vendor applications from /list-your-business/apply. The public can't write to the database, so
@@ -91,7 +91,8 @@ export async function submitApplication(a: Application, meta: { photos: number; 
       services: a.services,
       based: clean(a.based) || null,
       service_area: a.serviceArea,
-      languages: a.languages,
+      // Languages we don't list sit beside the ones we do; the site shows them under "Other".
+      languages: [...a.languages, ...otherLanguageList(a.otherLanguages)],
       story: normaliseStory(splitStory(a.story)),
       email,
       phone: phone || null,
@@ -109,7 +110,6 @@ export async function submitApplication(a: Application, meta: { photos: number; 
     `Applicant: ${clean(a.person)}, ${email}${phone ? `, ${phone}` : ""}.`,
     user.email && user.email.toLowerCase() !== email && `Signed in as ${user.email}.`,
     a.otherCraft.trim() && `Also does: ${clean(a.otherCraft)}.`,
-    a.otherLanguages.trim() && `Also works in: ${clean(a.otherLanguages)}.`,
     "They confirmed the photos are theirs to share, or that they have permission.",
   ].filter(Boolean);
   const note = await db.from("vendor_review_notes").insert({ vendor_id: vendor.id, applicant_id: user.id, notes: notes.join("\n"), registered_emails: email, source: `${SOURCE}, ${today()}` });

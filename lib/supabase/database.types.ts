@@ -351,6 +351,7 @@ export type Database = {
           email: string | null
           facebook: string | null
           featured: boolean
+          large_tile: boolean
           id: string
           instagram: string | null
           languages: string[]
@@ -378,6 +379,7 @@ export type Database = {
           email?: string | null
           facebook?: string | null
           featured?: boolean
+          large_tile?: boolean
           id?: string
           instagram?: string | null
           languages?: string[]
@@ -405,6 +407,7 @@ export type Database = {
           email?: string | null
           facebook?: string | null
           featured?: boolean
+          large_tile?: boolean
           id?: string
           instagram?: string | null
           languages?: string[]

@@ -7,7 +7,7 @@ import { Media } from "@/components/media/Media";
 import { Button } from "@/components/ui/Button";
 import { Story } from "@/components/vendor/Story";
 import { vendorCover } from "@/data/images";
-import { languages, serviceLabels, states } from "@/data/taxonomy";
+import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { vendors } from "@/lib/static-vendors";
 import { socialUrl } from "@/lib/apply/application";
@@ -58,7 +58,7 @@ function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValu
   const area = v.serviceArea;
   const details = [
     v.services.length > 0 && { label: "Services", value: v.services.map((s) => serviceLabels[s] ?? s).join(", ") },
-    { label: "Service area", value: area.length >= 8 ? "Australia-wide" : area.map((s) => states[s]).join(", ") || "On request" },
+    { label: "Service area", value: areaLabel(area) },
   ].filter(Boolean) as { label: string; value: string }[];
   const links = [
     v.website && { label: displayUrl(v.website), icon: "globe" },

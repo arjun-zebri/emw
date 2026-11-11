@@ -2,18 +2,18 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { Portal } from "@/components/ui/Portal";
-import { languages, serviceLabels, states } from "@/data/taxonomy";
-import type { Language, Service, StateCode } from "@/data/types";
+import { areas, languages, serviceLabels } from "@/data/taxonomy";
+import type { AreaCode, Service } from "@/data/types";
 import { lockScroll } from "@/lib/lenis";
-import type { VendorFilters } from "@/lib/vendors";
+import { isOverseas, type LanguageFilter, type VendorFilters } from "@/lib/vendors";
 
 export type FilterOptions = {
-  languages: [Language, number][];
-  areas: [StateCode, number][];
+  languages: [LanguageFilter, number][];
+  areas: [AreaCode, number][];
   services: [Service, number][];
 };
 
@@ -55,20 +55,28 @@ export function FilterDrawer({
       title: "Language",
       items: options.languages.map(([l]) => ({
         value: l,
-        label: languages[l].native === l ? l : `${languages[l].native}  ${l}`,
-        lang: languages[l].lang,
+        label: l === "Other" || languages[l].native === l ? l : `${languages[l].native}  ${l}`,
+        lang: l === "Other" ? undefined : languages[l].lang,
         selected: filters.languages.includes(l),
+        newLine: false,
       })),
     },
     {
       key: "services" as const,
       title: "Service",
-      items: options.services.map(([s]) => ({ value: s, label: serviceLabels[s], lang: undefined, selected: filters.services.includes(s) })),
+      items: options.services.map(([s]) => ({ value: s, label: serviceLabels[s], lang: undefined, selected: filters.services.includes(s), newLine: false })),
     },
     {
       key: "areas" as const,
       title: "Service area",
-      items: options.areas.map(([a]) => ({ value: a, label: states[a], lang: undefined, selected: filters.areas.includes(a) })),
+      // Overseas regions start their own line under the states.
+      items: options.areas.map(([a], i) => ({
+        value: a,
+        label: areas[a],
+        lang: undefined,
+        selected: filters.areas.includes(a),
+        newLine: i > 0 && isOverseas(a) && !isOverseas(options.areas[i - 1][0]),
+      })),
     },
   ];
 
@@ -114,19 +122,21 @@ export function FilterDrawer({
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {section.items.map((item) => (
-                        <button
-                          key={item.value}
-                          type="button"
-                          aria-pressed={item.selected}
-                          onClick={() => toggle(section.key, item.value)}
-                          lang={item.lang}
-                          className={clsx(
-                            "t-small border px-3 py-2 whitespace-pre transition-colors duration-200",
-                            item.selected ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink",
-                          )}
-                        >
-                          {item.label}
-                        </button>
+                        <Fragment key={item.value}>
+                          {item.newLine && <span aria-hidden className="basis-full" />}
+                          <button
+                            type="button"
+                            aria-pressed={item.selected}
+                            onClick={() => toggle(section.key, item.value)}
+                            lang={item.lang}
+                            className={clsx(
+                              "t-small border px-3 py-2 whitespace-pre transition-colors duration-200",
+                              item.selected ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink",
+                            )}
+                          >
+                            {item.label}
+                          </button>
+                        </Fragment>
                       ))}
                     </div>
                   </fieldset>
