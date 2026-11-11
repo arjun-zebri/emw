@@ -26,7 +26,7 @@ type Props<T extends string> = {
   placeholder: string;
   /** Show a search field at the top of the list. On by default for long lists. */
   searchable?: boolean;
-  /** Reads as plain text: the chevron only shows on hover or focus, and the placeholder is ink soft. */
+  /** Reads as plain text: the chevron only shows on hover or focus. */
   quiet?: boolean;
 } & ({ multiple: true; value: T[]; onChange: (v: T[]) => void } | { multiple?: false; value: T; onChange: (v: T) => void });
 
@@ -144,7 +144,7 @@ export function Dropdown<T extends string>(props: Props<T>) {
         }}
         className="group flex w-full items-start justify-between gap-4 text-left text-[0.9375rem] focus:outline-none"
       >
-        <span className={clsx("min-w-0", labels.length ? "text-ink" : props.quiet ? "text-ink-soft" : "text-ink-mute/45")}>
+        <span className={clsx("min-w-0", labels.length ? "text-ink" : props.quiet ? "text-ink-mute/50" : "text-ink-mute/45")}>
           {labels.length
             ? labels.map((o, i) => (
                 <span key={o.value} lang={o.lang}>

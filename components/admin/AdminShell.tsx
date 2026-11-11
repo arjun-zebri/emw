@@ -90,7 +90,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
           <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" className="-ml-2 p-2 lg:hidden">
             <Icon name="menu" className="size-5" />
           </button>
-          <Link href={role === "owner" ? "/admin/approvals" : "/account"} aria-label="Home" className="lg:hidden">
+          <Link href={role === "owner" ? "/admin/approvals" : "/account/listing"} aria-label="Home" className="lg:hidden">
             <Monogram className="w-11" />
           </Link>
           <button
@@ -149,7 +149,7 @@ function Sidebar({
   return (
     <>
       <div className="flex h-16 shrink-0 items-center gap-3 px-5">
-        <Link href={role === "owner" ? "/admin/approvals" : "/account"} aria-label="Home" className="transition-opacity hover:opacity-60">
+        <Link href={role === "owner" ? "/admin/approvals" : "/account/listing"} aria-label="Home" className="transition-opacity hover:opacity-60">
           <Monogram className="w-12" />
         </Link>
         <span className="mt-0.5 border-l hairline pl-3 text-[0.75rem] text-ink-mute">{role === "owner" ? "Admin" : "Vendor"}</span>
@@ -233,7 +233,7 @@ function UserMenu({ role, user }: { role: "owner" | "vendor"; user: { name: stri
     { label: "View the site", icon: "arrow-up-right" as const, run: () => window.open("/", "_blank") },
     // The team can step into the vendor portal (it shows a demo listing) and back.
     ...(role === "owner"
-      ? [{ label: "See a vendor's portal", icon: "store" as const, run: () => router.push("/account") }]
+      ? [{ label: "See a vendor's portal", icon: "store" as const, run: () => router.push("/account/listing") }]
       : team
         ? [{ label: "Back to the admin", icon: "overview" as const, run: () => router.push("/admin/approvals") }]
         : []),

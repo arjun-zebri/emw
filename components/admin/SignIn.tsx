@@ -61,7 +61,7 @@ function SignInView({ next }: { next?: string }) {
   // Warm both destinations so the hand-off is instant.
   useEffect(() => {
     router.prefetch("/admin/approvals");
-    router.prefetch("/account");
+    router.prefetch("/account/listing");
   }, [router]);
 
   const submit = async (e: React.FormEvent) => {

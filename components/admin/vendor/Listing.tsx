@@ -52,7 +52,9 @@ const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
   lang: languageNames[l].lang,
 }));
 
-const row = clsx(bare, "text-[0.9375rem] placeholder:text-ink-soft");
+const row = clsx(bare, "text-[0.9375rem] placeholder:text-ink-mute/50");
+// Words set as on the page still read as editable: a soft wash on hover, a hairline beneath while editing.
+const inPlace = "-mx-3 px-3 py-1 cursor-text border-b border-transparent transition-colors duration-300 hover:bg-ink/[0.035] focus:border-ink focus:bg-ink/[0.035]";
 
 /** "Saved just now", "Saved 12 minutes ago", "Saved at 3:40 pm", "Saved on 5 November". */
 function savedLabel(iso: string) {
@@ -212,6 +214,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
           )}
         </p>
         <div className="flex items-center gap-5">
+          {!readOnly && !dirty && <span className="hidden text-ink-soft xl:inline">Click any words or photo to change them.</span>}
           {!readOnly && <span className={dirty ? "text-ink" : "text-ink-soft"}>{dirty ? "Unsaved changes" : savedLabel(listing.updatedAt)}</span>}
           <button type="button" onClick={() => setPreviewing(true)} className="t-nav inline-flex h-9 items-center border border-ink/20 px-4 text-ink transition-colors hover:border-ink">
             Preview
@@ -237,9 +240,9 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
               maxLength={LIMITS.name}
               onChange={(e) => set("name", e.target.value.replace(/\n/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-              placeholder="Business name"
+              placeholder="Your business name"
               autoComplete="off"
-              className={clsx(bare, "t-display resize-none text-[clamp(2.5rem,4.4vw,4.75rem)] text-balance [field-sizing:content] placeholder:text-ink-soft/50")}
+              className={clsx(bare, !readOnly && inPlace, "t-display resize-none text-[clamp(2.5rem,4.4vw,4.75rem)] text-balance [field-sizing:content] placeholder:text-ink-mute/40")}
             />
             <label htmlFor="le-discipline" className="sr-only">
               What you do
@@ -249,9 +252,9 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
               value={v.discipline}
               maxLength={LIMITS.discipline}
               onChange={(e) => set("discipline", e.target.value)}
-              placeholder="What you do, in one line"
+              placeholder="What you do, e.g. Wedding photography"
               autoComplete="off"
-              className={clsx(bare, "t-body mt-4 text-ink placeholder:text-ink-soft")}
+              className={clsx(bare, !readOnly && inPlace, "t-body mt-3 text-ink placeholder:text-ink-mute/50")}
             />
             {tongues.length > 0 && (
               <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
@@ -272,11 +275,11 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
               value={v.lede}
               maxLength={400}
               onChange={(e) => set("lede", e.target.value.replace(/\n/g, " "))}
-              placeholder="A sentence or two that sums up your work."
-              className={clsx(bare, "t-title mt-8 resize-none text-[1.5rem] leading-[1.3] text-pretty [field-sizing:content] placeholder:text-ink-soft/60")}
+              placeholder="One or two sentences that sum up your work, e.g. Relaxed, documentary photography for weddings in two languages."
+              className={clsx(bare, !readOnly && inPlace, "t-title mt-7 resize-none text-[1.5rem] leading-[1.3] text-pretty [field-sizing:content] placeholder:text-ink-mute/40")}
             />
 
-            <div className="mt-5">
+            <div className={clsx("mt-4", !readOnly && "-mx-3 cursor-text px-3 py-2 transition-colors duration-300 hover:bg-ink/[0.035] focus-within:bg-ink/[0.035]")}>
               {readOnly ? (
                 <Story blocks={splitStory(v.story)} />
               ) : (
@@ -298,38 +301,41 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
 
             <dl className="mt-8 border-t hairline">
               <DetailRow label="Services" htmlFor="le-services">
-                <Dropdown id="le-services" quiet multiple options={serviceOptions} value={v.services} onChange={(x) => set("services", x)} placeholder={ask("Add")} />
+                <Dropdown id="le-services" quiet multiple options={serviceOptions} value={v.services} onChange={(x) => set("services", x)} placeholder={ask("Choose what couples can book you for")} />
               </DetailRow>
               <DetailRow label="Languages" htmlFor="le-languages">
-                <Dropdown id="le-languages" quiet multiple options={languageOptions} value={v.languages} onChange={(x) => set("languages", x)} placeholder={ask("Add")} />
+                <Dropdown id="le-languages" quiet multiple options={languageOptions} value={v.languages} onChange={(x) => set("languages", x)} placeholder={ask("Choose the languages you work in")} />
               </DetailRow>
               <DetailRow label="Based in" htmlFor="le-based">
-                <input id="le-based" value={v.based} maxLength={LIMITS.based} onChange={(e) => set("based", e.target.value)} placeholder={ask("Add a suburb or city")} className={row} />
+                <input id="le-based" value={v.based} maxLength={LIMITS.based} onChange={(e) => set("based", e.target.value)} placeholder={ask("Suburb or city, e.g. Footscray")} className={row} />
               </DetailRow>
               <DetailRow label="Service area" htmlFor="le-area">
-                <Dropdown id="le-area" quiet multiple options={stateOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder={ask("Add")} />
+                <Dropdown id="le-area" quiet multiple options={stateOptions} value={v.serviceArea} onChange={(x) => set("serviceArea", x)} placeholder={ask("Choose the states you work in")} />
               </DetailRow>
               <DetailRow label="Website" htmlFor="le-web">
-                <input id="le-web" type="url" value={v.website} onChange={(e) => set("website", e.target.value)} placeholder={ask("Add")} className={row} />
+                <input id="le-web" type="url" value={v.website} onChange={(e) => set("website", e.target.value)} placeholder={ask("e.g. yourstudio.com.au")} className={row} />
               </DetailRow>
               <DetailRow label="Instagram" htmlFor="le-ig">
-                <input id="le-ig" value={v.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder={ask("Add a link or @handle")} className={row} />
+                <input id="le-ig" value={v.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder={ask("e.g. @yourstudio")} className={row} />
               </DetailRow>
               <DetailRow label="Facebook" htmlFor="le-fb">
-                <input id="le-fb" value={v.facebook} onChange={(e) => set("facebook", e.target.value)} placeholder={ask("Add")} className={row} />
+                <input id="le-fb" value={v.facebook} onChange={(e) => set("facebook", e.target.value)} placeholder={ask("e.g. facebook.com/yourstudio")} className={row} />
               </DetailRow>
             </dl>
 
-            <p className="t-small mt-10 mb-3">Not shown on your page. Enquiries go to this email.</p>
+            <div className="mt-10 mb-3">
+              <p className="text-[0.9375rem] text-ink">Your contact details</p>
+              <p className="t-small mt-1">Private: not shown on your page. We send couples&rsquo; enquiries to this email.</p>
+            </div>
             <dl className="border-t hairline">
-              <DetailRow label="Contact" htmlFor="le-person">
-                <input id="le-person" value={v.person} maxLength={LIMITS.person} onChange={(e) => set("person", e.target.value)} placeholder={ask("Who couples will hear from")} className={row} />
+              <DetailRow label="Your name" htmlFor="le-person">
+                <input id="le-person" value={v.person} maxLength={LIMITS.person} onChange={(e) => set("person", e.target.value)} placeholder={ask("Who couples will hear from, e.g. Mai Nguyen")} className={row} />
               </DetailRow>
               <DetailRow label="Email" htmlFor="le-email">
-                <input id="le-email" type="email" value={v.email} onChange={(e) => set("email", e.target.value)} placeholder={ask("Add")} className={row} />
+                <input id="le-email" type="email" value={v.email} onChange={(e) => set("email", e.target.value)} placeholder={ask("e.g. hello@yourstudio.com.au")} className={row} />
               </DetailRow>
               <DetailRow label="Phone" htmlFor="le-phone">
-                <input id="le-phone" type="tel" value={v.phone} onChange={(e) => set("phone", e.target.value)} placeholder={ask("Add")} className={row} />
+                <input id="le-phone" type="tel" value={v.phone} onChange={(e) => set("phone", e.target.value)} placeholder={ask("e.g. 0412 345 678")} className={row} />
               </DetailRow>
             </dl>
           </fieldset>

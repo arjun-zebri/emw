@@ -35,8 +35,8 @@ export const ownerNav: NavGroup[] = [
 export const vendorNav: NavGroup[] = [
   {
     items: [
-      { href: "/account", label: "Dashboard", icon: "overview" },
-      { href: "/account/enquiries", label: "Enquiries", icon: "speech", badge: "unreplied" },
+      { href: "/account", label: "Dashboard", icon: "overview", soon: true },
+      { href: "/account/enquiries", label: "Enquiries", icon: "speech", badge: "unreplied", soon: true },
       { href: "/account/listing", label: "Your listing", icon: "store" },
     ],
   },
