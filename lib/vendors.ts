@@ -56,15 +56,39 @@ export function serviceCounts(vendors: Vendor[]): [Service, number][] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-/** States with vendors, most first, then every overseas region even when it has none yet. */
-export function areaCounts(vendors: Vendor[]): [AreaCode, number][] {
+/**
+ * The location filter: Australia and the overseas regions side by side, and once Australia is on, its
+ * states to narrow it. "AUS" is a filter value only; listings store states.
+ */
+export type AreaFilter = AreaCode | "AUS";
+
+export const areaFilterLabel = (a: AreaFilter, short = false) => (a === "AUS" ? "Australia" : short && !isOverseas(a) ? a : areas[a]);
+
+/** Australia, then every overseas region even when it has none yet, then the states with vendors, most first. */
+export function areaCounts(vendors: Vendor[]): [AreaFilter, number][] {
   const counts = new Map<AreaCode, number>();
   for (const v of vendors) for (const s of v.serviceArea ?? []) counts.set(s, (counts.get(s) ?? 0) + 1);
-  const home = [...counts.entries()].filter(([a]) => !isOverseas(a)).sort((a, b) => b[1] - a[1]);
-  return [...home, ...(Object.keys(areas) as AreaCode[]).filter(isOverseas).map((a): [AreaCode, number] => [a, counts.get(a) ?? 0])];
+  const home = vendors.filter((v) => v.serviceArea?.some((a) => !isOverseas(a))).length;
+  const states = [...counts.entries()].filter(([a]) => !isOverseas(a)).sort((a, b) => b[1] - a[1]);
+  return [["AUS", home], ...(Object.keys(areas) as AreaCode[]).filter(isOverseas).map((a): [AreaFilter, number] => [a, counts.get(a) ?? 0]), ...states];
 }
 
-export const isOverseas = (a: AreaCode) => a === "CAN" || a === "USA" || a === "EUR" || a === "ASIA";
+export const isOverseas = (a: AreaFilter) => a === "CAN" || a === "USA" || a === "EUR" || a === "ASIA";
+export const isState = (a: AreaFilter) => a !== "AUS" && !isOverseas(a);
+
+/** Turning Australia off clears its states; choosing a state keeps Australia on. */
+export function toggleArea(list: AreaFilter[], value: AreaFilter): AreaFilter[] {
+  if (list.includes(value)) return value === "AUS" ? list.filter((a) => !isState(a) && a !== "AUS") : list.filter((a) => a !== value);
+  return isState(value) && !list.includes("AUS") ? [...list, "AUS", value] : [...list, value];
+}
+
+/** Any chosen overseas region, or Australia (narrowed to the chosen states, if any). */
+export function matchesArea(area: readonly AreaCode[], chosen: AreaFilter[]) {
+  if (!chosen.length) return true;
+  const states = chosen.filter(isState);
+  const home = (chosen.includes("AUS") || states.length > 0) && (states.length ? states.some((s) => area.includes(s as AreaCode)) : area.some((a) => !isOverseas(a)));
+  return home || chosen.some((a) => isOverseas(a) && area.includes(a as AreaCode));
+}
 
 /** Lowercase with accents dropped, so "Nguyen" finds "Nguyễn" and "cafe" finds "café". */
 const fold = (s: string) =>
@@ -116,7 +140,7 @@ export function matchesSearch(v: Vendor, q: string) {
 export type VendorFilters = {
   craft?: CraftId;
   languages: LanguageFilter[];
-  areas: AreaCode[];
+  areas: AreaFilter[];
   services: Service[];
   /** Words typed into the search, as typed. */
   q: string;
@@ -129,7 +153,7 @@ export function parseFilters(params: URLSearchParams): VendorFilters {
   return {
     craft: craft && craft in craftById ? craft : undefined,
     languages: list<LanguageFilter>("lang").filter((l) => l === "Other" || l in languageNames),
-    areas: list<AreaCode>("area").filter((a) => a in areas),
+    areas: list<AreaFilter>("area").filter((a) => a === "AUS" || a in areas),
     services: list<Service>("service"),
     q: params.get("q") ?? "",
     sort: params.get("sort") === "az" ? "az" : "featured",
@@ -158,7 +182,7 @@ export function filterVendors(
     (v) =>
       (!f.craft || vendorCrafts(v).includes(f.craft)) &&
       (!f.languages.length || f.languages.some((l) => (l === "Other" ? !!v.otherLanguages?.length : v.languages?.includes(l)))) &&
-      (!f.areas.length || f.areas.some((a) => v.serviceArea?.includes(a))) &&
+      matchesArea(v.serviceArea ?? [], f.areas) &&
       (!f.services.length || f.services.some((s) => v.services.includes(s))) &&
       (!f.q || matchesSearch(v, f.q)),
   );

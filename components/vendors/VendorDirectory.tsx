@@ -6,9 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { ArrowLink } from "@/components/ui/ArrowLink";
-import { areas, languages, serviceLabels } from "@/data/taxonomy";
+import { languages, serviceLabels } from "@/data/taxonomy";
 import type { CraftId } from "@/data/types";
-import { filterVendors, filtersToParams, isOverseas, parseFilters, type VendorFilters } from "@/lib/vendors";
+import { type AreaFilter, areaFilterLabel, filterVendors, filtersToParams, isOverseas, parseFilters, toggleArea, type VendorFilters } from "@/lib/vendors";
 import { FilterDrawer, type FilterOptions } from "./FilterDrawer";
 import { VendorCard, type VendorCardData } from "./VendorCard";
 
@@ -43,9 +43,10 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
   const wide = results.map(isWide);
   // Chosen overseas regions with no vendors at all yet.
   const empty = new Set(options.areas.filter(([, n]) => n === 0).map(([a]) => a));
-  const abroad = filters.areas.filter((a) => isOverseas(a) && empty.has(a)).map((a) => areas[a]);
+  const abroad = filters.areas.filter((a) => isOverseas(a) && empty.has(a)).map((a) => areaFilterLabel(a));
 
   const toggle = (key: "languages" | "areas" | "services", value: string) => {
+    if (key === "areas") return apply({ ...filters, areas: toggleArea(filters.areas, value as AreaFilter) });
     const list = filters[key] as string[];
     apply({
       ...filters,
@@ -80,7 +81,7 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
     ...filters.areas.map((a) => ({
       key: "areas" as const,
       value: a,
-      label: areas[a],
+      label: areaFilterLabel(a),
     })),
   ];
 

@@ -6,14 +6,14 @@ import { useEffect, useRef } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { Portal } from "@/components/ui/Portal";
-import { areas, languages, serviceLabels } from "@/data/taxonomy";
-import type { AreaCode, Service } from "@/data/types";
+import { languages, serviceLabels } from "@/data/taxonomy";
+import type { Service } from "@/data/types";
 import { lockScroll } from "@/lib/lenis";
-import { isOverseas, type LanguageFilter, type VendorFilters } from "@/lib/vendors";
+import { type AreaFilter, areaFilterLabel, isState, type LanguageFilter, type VendorFilters } from "@/lib/vendors";
 
 export type FilterOptions = {
   languages: [LanguageFilter, number][];
-  areas: [AreaCode, number][];
+  areas: [AreaFilter, number][];
   services: [Service, number][];
 };
 
@@ -67,19 +67,24 @@ export function FilterDrawer({
       title: "Service",
       items: options.services.map(([s]) => ({ value: s, label: serviceLabels[s], lang: undefined, selected: filters.services.includes(s) })),
     },
-    // Australian states and overseas regions filter the same way, but read as two separate lists.
-    ...[
-      { id: "australia", title: "Service area", abroad: false },
-      { id: "overseas", title: "Overseas", abroad: true },
-    ].map((group) => ({
+    {
       key: "areas" as const,
-      id: group.id,
-      title: group.title,
+      id: "areas",
+      title: "Location",
       items: options.areas
-        .filter(([a]) => isOverseas(a) === group.abroad)
-        .map(([a]) => ({ value: a, label: areas[a], lang: undefined, selected: filters.areas.includes(a) })),
-    })),
+        .filter(([a]) => !isState(a))
+        .map(([a]) => ({ value: a, label: areaFilterLabel(a), lang: undefined, selected: filters.areas.includes(a) })),
+    },
   ];
+  // Once Australia is on, its states show beneath to narrow it.
+  const states = filters.areas.includes("AUS")
+    ? options.areas.filter(([a]) => isState(a)).map(([a]) => ({ value: a, label: areaFilterLabel(a, true), selected: filters.areas.includes(a) }))
+    : [];
+  const chip = (selected: boolean) =>
+    clsx(
+      "t-small border px-3 py-2 whitespace-pre transition-colors duration-200",
+      selected ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink",
+    );
 
   return (
     <Portal>
@@ -129,15 +134,21 @@ export function FilterDrawer({
                           aria-pressed={item.selected}
                           onClick={() => toggle(section.key, item.value)}
                           lang={item.lang}
-                          className={clsx(
-                            "t-small border px-3 py-2 whitespace-pre transition-colors duration-200",
-                            item.selected ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink",
-                          )}
+                          className={chip(item.selected)}
                         >
                           {item.label}
                         </button>
                       ))}
                     </div>
+                    {section.key === "areas" && states.length > 0 && (
+                      <div role="group" aria-label="States" className="mt-3 flex flex-wrap gap-2 border-l hairline pl-3">
+                        {states.map((s) => (
+                          <button key={s.value} type="button" aria-pressed={s.selected} onClick={() => toggle("areas", s.value)} className={chip(s.selected)}>
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </fieldset>
                 ))}
               </div>

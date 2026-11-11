@@ -9,7 +9,7 @@ import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { type Slot, vendorImages } from "@/data/images";
-import { areaParts, languages, serviceLabels } from "@/data/taxonomy";
+import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { locationLabel, socialHandle, youtubeChannel } from "@/lib/vendors";
 
@@ -62,7 +62,7 @@ function rows(images: Slot[], target = 2.4) {
 export function VendorSpread({ vendor, related, still }: { vendor: Vendor; related: Vendor[]; still?: boolean }) {
   const images = vendorImages(vendor);
   const landscape = ratioOf(images[0]) >= 1.2;
-  const area = areaParts(vendor.serviceArea ?? []);
+  const area = vendor.serviceArea ?? [];
   const tongues = vendor.languages ?? [];
   const otherTongues = vendor.otherLanguages ?? [];
   const links = contactLinks(vendor);
@@ -71,8 +71,7 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
 
   const details = [
     { label: "Services", value: vendor.services.map((s) => serviceLabels[s]).join(", ") || "On request" },
-    { label: "Service area", value: area.home || (area.abroad ? null : "On request") },
-    { label: "Overseas", value: area.abroad || null },
+    { label: "Service area", value: areaLabel(area) },
     vendor.travels ? { label: "Travel", value: vendor.travels } : null,
   ].filter((d) => d?.value) as { label: string; value: React.ReactNode }[];
 

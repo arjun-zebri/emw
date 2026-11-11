@@ -6,7 +6,7 @@ import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { FilterDrawer, type FilterOptions } from "@/components/vendors/FilterDrawer";
 import type { AreaCode, Language, Service } from "@/data/types";
-import type { VendorFilters } from "@/lib/vendors";
+import { type AreaFilter, matchesArea, toggleArea, type VendorFilters } from "@/lib/vendors";
 
 /*
  * Interactive examples for the design system. Each one uses the component or the exact classes the
@@ -129,6 +129,7 @@ export function DrawerDemo({ options, facets }: { options: FilterOptions; facets
 
   const toggle = (key: "languages" | "areas" | "services", value: string) =>
     setFilters((f) => {
+      if (key === "areas") return { ...f, areas: toggleArea(f.areas, value as AreaFilter) };
       const list = f[key] as string[];
       return { ...f, [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] };
     });
@@ -138,7 +139,7 @@ export function DrawerDemo({ options, facets }: { options: FilterOptions; facets
     (v) =>
       (!filters.languages.length || filters.languages.some((l) => l !== "Other" && v.languages.includes(l))) &&
       (!filters.services.length || filters.services.some((s) => v.services.includes(s))) &&
-      (!filters.areas.length || filters.areas.some((a) => v.areas.includes(a))),
+      matchesArea(v.areas, filters.areas),
   ).length;
 
   return (

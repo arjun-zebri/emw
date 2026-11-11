@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
-import { areaParts, languages as languageNames, serviceLabels } from "@/data/taxonomy";
+import { areaLabel, languages as languageNames, serviceLabels } from "@/data/taxonomy";
 import {
   decide as decideVendor,
   flagLabels,
@@ -667,8 +667,7 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
               ...(draft.email ? [["Email", link(`mailto:${draft.email}`, draft.email)] as Row] : []),
               ...(draft.phone ? [["Phone", draft.phone] as Row] : []),
               ["Services", draft.services.map((s) => serviceLabels[s] ?? s).join(", ") || "None yet"],
-              ["Service area", areaParts(draft.serviceArea).home || "None"],
-              ...(areaParts(draft.serviceArea).abroad ? [["Overseas", areaParts(draft.serviceArea).abroad] as Row] : []),
+              ["Service area", areaLabel(draft.serviceArea)],
               [
                 "Languages",
                 <span key="l" className="flex flex-wrap gap-x-3">
