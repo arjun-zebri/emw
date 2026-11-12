@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageTransition } from "@/components/motion/PageTransition";
+import { DirectorySkeleton } from "@/components/vendors/DirectorySkeleton";
 import { VendorDirectory } from "@/components/vendors/VendorDirectory";
 import { getListings } from "@/lib/listings";
 import { pageMeta } from "@/lib/seo";
@@ -34,7 +35,7 @@ export default async function VendorsPage() {
           yours by heart, or maybe you&rsquo;re still discovering it. These are vendors who&rsquo;ll honour it and help you
           find your way.
         </p>
-        <Suspense fallback={<div className="h-[80vh]" />}>
+        <Suspense fallback={<DirectorySkeleton />}>
           <VendorDirectory cards={cards} tabs={tabs} options={options} />
         </Suspense>
       </div>

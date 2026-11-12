@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Portal } from "@/components/ui/Portal";
@@ -224,7 +225,7 @@ export function ListingPhotos({
   };
 
   const render = (t: Tile, className: string, style?: React.CSSProperties, sizes = "30vw") => {
-    if (t.kind === "pending") return <div key={t.key} className={clsx(className, "animate-pulse bg-ink/[0.07]")} style={style} aria-label="Preparing a photo" />;
+    if (t.kind === "pending") return <div key={t.key} className={className} style={style} aria-label="Preparing a photo"><Skeleton className="size-full" /></div>;
     if (t.kind === "add")
       return (
         <button

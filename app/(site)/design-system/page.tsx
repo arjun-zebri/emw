@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Colour, Icons, LogoSection, Type } from "@/components/design-system/foundations";
 import { Index } from "@/components/design-system/Index";
-import { Buttons, Card, Details, Filters, Forms, Header, Heading } from "@/components/design-system/kit";
+import { Buttons, Card, Details, Filters, Forms, Header, Heading, Loading } from "@/components/design-system/kit";
 import { PageTransition } from "@/components/motion/PageTransition";
 
 export const metadata: Metadata = {
@@ -19,6 +19,7 @@ const sections = [
   { id: "header", label: "Header" },
   { id: "heading", label: "Section heading" },
   { id: "card", label: "Vendor card" },
+  { id: "loading", label: "Loading" },
   { id: "forms", label: "Forms" },
   { id: "filters", label: "Filters" },
   { id: "details", label: "Vendor details" },
@@ -51,6 +52,7 @@ export default function DesignSystemPage() {
             <Header />
             <Heading />
             <Card />
+            <Loading />
             <Forms />
             <Filters />
             <Details />

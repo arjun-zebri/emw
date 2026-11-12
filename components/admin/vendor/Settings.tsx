@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { choosePassword } from "@/lib/account/access";
 import { signOut, useSession } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
@@ -50,12 +51,12 @@ export function Settings() {
         <dl className="space-y-5 text-[0.9375rem]">
           <div>
             <dt className="t-small">Email</dt>
-            <dd className="mt-1 text-ink">{session?.email || "…"}</dd>
+            <dd className="mt-1 text-ink">{session?.email || <Skeleton className="mt-1.5 h-4 w-48" />}</dd>
             <dd className="t-small mt-1">To sign in with a different email, ask the East Meets Wed team.</dd>
           </div>
           <div>
             <dt className="t-small">Ways to sign in</dt>
-            <dd className="mt-1 text-ink">{methods === null ? "…" : methods.map((m) => providerNames[m] ?? m).join(", ") || "Email and password"}</dd>
+            <dd className="mt-1 text-ink">{methods === null ? <Skeleton className="mt-1.5 h-4 w-36" /> : methods.map((m) => providerNames[m] ?? m).join(", ") || "Email and password"}</dd>
           </div>
         </dl>
       </Section>

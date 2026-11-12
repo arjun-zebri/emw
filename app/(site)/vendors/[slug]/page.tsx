@@ -6,6 +6,7 @@ import { VendorSpread } from "@/components/vendor/VendorSpread";
 import { JsonLd } from "@/components/site/JsonLd";
 import { getListing, getListings } from "@/lib/listings";
 import { vendorLd, vendorMeta } from "@/lib/seo";
+import { VendorSkeleton } from "@/components/vendor/VendorSkeleton";
 import { relatedVendors } from "@/lib/vendors";
 
 export async function generateStaticParams() {
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/vendors/[slug]">)
 export default function VendorPage({ params }: PageProps<"/vendors/[slug]">) {
   return (
     <PageTransition>
-      <Suspense fallback={<div className="min-h-[100svh]" />}>
+      <Suspense fallback={<VendorSkeleton />}>
         <VendorFeature params={params} />
         <VendorSchema params={params} />
       </Suspense>

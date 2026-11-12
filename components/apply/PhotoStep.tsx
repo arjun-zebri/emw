@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
 import { LIMITS } from "@/lib/apply/application";
@@ -268,7 +269,9 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
             );
           })}
           {Array.from({ length: pending }, (_, i) => (
-            <li key={`pending-${i}`} className="aspect-square animate-pulse bg-paper-soft" aria-label="Preparing a photo" />
+            <li key={`pending-${i}`} aria-label="Preparing a photo">
+              <Skeleton className="aspect-square w-full" />
+            </li>
           ))}
           {room > 0 && (
             <li className="aspect-square">

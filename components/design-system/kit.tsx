@@ -4,6 +4,7 @@ import { primaryNav, vendorCta } from "@/components/site/nav";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { Button } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { VendorCardSkeleton } from "@/components/vendors/DirectorySkeleton";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
 import type { Language } from "@/data/types";
@@ -64,6 +65,19 @@ export function Heading() {
 }
 
 const cardSlugs = ["katrina-lai", "gabiera-film-photographer", "christine-civil-celebrant"];
+
+/** What a vendor card looks like while it loads. Every loading state is a skeleton in the shape of what's coming. */
+export function Loading() {
+  return (
+    <Section id="loading" title="Loading">
+      <div className="grid grid-cols-1 gap-x-[clamp(1rem,2vw,2rem)] gap-y-12 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <VendorCardSkeleton key={i} />
+        ))}
+      </div>
+    </Section>
+  );
+}
 
 export function Card() {
   return (

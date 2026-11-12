@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StoryEditor } from "@/components/apply/StoryEditor";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
+import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
 import { areaOptions as allAreas, languages as languageNames, serviceLabels } from "@/data/taxonomy";
@@ -114,10 +115,19 @@ export function Listing() {
   if (!slug || !listing)
     return (
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-12" aria-busy="true">
-        <div className="aspect-[4/5] animate-pulse bg-paper-soft lg:col-span-7 lg:max-h-[calc(100svh-12rem)]" />
-        <div className="space-y-4 lg:col-span-5">
-          <div className="h-14 w-3/4 animate-pulse bg-paper-soft" />
-          <div className="h-4 w-1/2 animate-pulse bg-paper-soft" />
+        <Skeleton className="aspect-[4/5] w-full lg:col-span-7 lg:max-h-[calc(100svh-12rem)]" />
+        <div className="lg:col-span-5">
+          <Skeleton className="h-14 w-3/4" />
+          <Skeleton className="mt-4 h-4 w-1/2" />
+          <SkeletonLines lines={3} className="mt-10 text-[1.5rem]" />
+          <div className="mt-12 space-y-4 border-t hairline pt-6">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-6">
+                <Skeleton className="h-4 w-24 shrink-0" />
+                <Skeleton className="h-4 flex-1" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
