@@ -32,6 +32,8 @@ type Props<T extends string> = {
   quiet?: boolean;
   /** Keep the chosen value to one line, cut short with an ellipsis, so the box never grows (filter bars). */
   single?: boolean;
+  /** Draws its own bordered box (filter bars), and the list opens just beneath at exactly its width. */
+  boxed?: boolean;
 } & ({ multiple: true; value: T[]; onChange: (v: T[]) => void } | { multiple?: false; value: T; onChange: (v: T) => void });
 
 /**
@@ -131,7 +133,10 @@ export function Dropdown<T extends string>(props: Props<T>) {
   const listId = `${uid}-list`;
 
   return (
-    <div ref={root} className="relative">
+    <div
+      ref={root}
+      className={clsx("relative", props.boxed && "border bg-surface transition-colors hover:border-ink/40", props.boxed && (open ? "border-ink/40" : "border-ink/15"))}
+    >
       <button
         ref={trigger}
         id={props.id}
@@ -146,7 +151,11 @@ export function Dropdown<T extends string>(props: Props<T>) {
             show();
           }
         }}
-        className={clsx("group flex w-full justify-between gap-4 text-left text-[0.9375rem] focus:outline-none", props.single ? "items-center" : "items-start")}
+        className={clsx(
+          "group flex w-full justify-between gap-4 text-left text-[0.9375rem] focus:outline-none",
+          props.single ? "items-center" : "items-start",
+          props.boxed && "px-3 py-2",
+        )}
       >
         <span className={clsx("min-w-0", props.single && "block truncate whitespace-nowrap", labels.length ? "text-ink" : props.quiet ? "text-ink-mute/50" : "text-ink-mute/45")}>
           {labels.length
@@ -178,8 +187,12 @@ export function Dropdown<T extends string>(props: Props<T>) {
             exit={{ opacity: 0, y: reduce ? 0 : place.up ? 4 : -4, transition: { duration: 0.12 } }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             className={clsx(
-              "absolute inset-x-0 z-40 border border-ink/10 bg-surface",
-              place.up ? "bottom-[calc(100%+1rem)] shadow-[0_-24px_48px_-20px_rgb(22_20_18/0.22)]" : "top-[calc(100%+1rem)] shadow-[0_24px_48px_-20px_rgb(22_20_18/0.22)]",
+              "absolute z-40 border border-ink/10 bg-surface",
+              // Boxed, the list lines up with the box's outer edges, just beneath it.
+              props.boxed ? "-inset-x-px" : "inset-x-0",
+              place.up
+                ? clsx(props.boxed ? "bottom-[calc(100%+0.375rem)]" : "bottom-[calc(100%+1rem)]", "shadow-[0_-24px_48px_-20px_rgb(22_20_18/0.22)]")
+                : clsx(props.boxed ? "top-[calc(100%+0.375rem)]" : "top-[calc(100%+1rem)]", "shadow-[0_24px_48px_-20px_rgb(22_20_18/0.22)]"),
             )}
           >
             {searchable && (

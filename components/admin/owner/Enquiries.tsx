@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { areaOptions, areas, craftById } from "@/data/taxonomy";
+import { areaOptions, areas, craftById, states } from "@/data/taxonomy";
 import type { AreaCode, CraftId } from "@/data/types";
 import { loadListedVendors, useEnquiries, type ListedVendor } from "@/lib/admin/enquiries";
 import { type Facet, facetLabel, type Filters, listingMatches, matches, type Period, PERIODS, type Range, rangeOf, within } from "@/lib/admin/enquiry-filters";
@@ -78,8 +78,10 @@ export function Enquiries() {
     }));
 
   const ready = status === "ready" && !!vendors && !!today;
-  // Only the places some listing covers, Australian states first.
-  const places = areaOptions().filter((o) => !vendors || vendors.some((v) => v.areas.includes(o.value)));
+  // Australia's states some listing covers. Overseas regions are held back for now, as in the directory.
+  const places = areaOptions()
+    .filter((o) => o.value in states && (!vendors || vendors.some((v) => v.areas.includes(o.value))))
+    .map(({ value, label }) => ({ value, label }));
 
   if (status === "error")
     return (
@@ -115,8 +117,9 @@ export function Enquiries() {
         description="What couples send vendors from their listings, against the period before."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <div className="w-52 border border-ink/15 bg-surface px-3 py-2 transition-colors hover:border-ink/40">
+            <div className="w-52">
               <Dropdown
+                boxed
                 single
                 options={[{ value: "all", label: "All locations" }, ...places]}
                 value={filters.facets.location ?? "all"}
@@ -249,8 +252,9 @@ export function Enquiries() {
 export function PeriodControl({ filters, range, update }: { filters: Filters; range: Range; update: (c: Partial<Filters>) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="w-44 border border-ink/15 bg-surface px-3 py-2 transition-colors hover:border-ink/40">
+      <div className="w-44">
         <Dropdown
+          boxed
           single
           options={PERIODS.map((p) => ({ value: p.id, label: p.label }))}
           value={filters.period}

@@ -180,19 +180,11 @@ export function Traffic() {
       label: facet === "channel" ? CHANNELS[value as Channel] : facet === "place" ? placeLabel(value) : facet === "vendor" ? (vendorName.get(value) ?? value) : value,
     }));
 
-  // Where visitors are: every state, then the countries visits came from (and a city, if one is picked on the map).
+  // Australia's states only for now (and the city or country, if one is picked on the map), as on Enquiries.
   const locationOptions = useMemo(() => {
-    const abroad = [...new Set((data?.places ?? []).map((p) => p.country).filter((c): c is string => !!c && c !== "AU"))]
-      .map((c) => ({ value: c, label: countryName(c) }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-    const city = facets.place?.startsWith("city:") ? [{ value: facets.place, label: placeLabel(facets.place) }] : [];
-    return [
-      { value: "all", label: "All locations" },
-      ...Object.keys(states).map((code) => ({ value: `AU-${code}`, label: stateName(code) })),
-      ...abroad,
-      ...city,
-    ];
-  }, [data, facets.place]);
+    const picked = facets.place && !facets.place.startsWith("AU-") ? [{ value: facets.place, label: placeLabel(facets.place) }] : [];
+    return [{ value: "all", label: "All locations" }, ...Object.keys(states).map((code) => ({ value: `AU-${code}`, label: stateName(code) })), ...picked];
+  }, [facets.place]);
 
   const header = (
     <PageHeader
@@ -213,8 +205,9 @@ export function Traffic() {
               {live ? `${plural(live, "person", "people")} on the site now` : "No one on the site right now"}
             </span>
           )}
-          <div className="w-52 border border-ink/15 bg-surface px-3 py-2 transition-colors hover:border-ink/40">
+          <div className="w-52">
             <Dropdown
+              boxed
               single
               options={locationOptions}
               value={facets.place ?? "all"}
