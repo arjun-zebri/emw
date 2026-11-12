@@ -5,6 +5,7 @@ import { emailOrigin } from "@/lib/email/config";
 import { sendConfirmEmail } from "@/lib/email/send";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { reportSoon } from "@/lib/observe/report";
 import { allow, senderIp } from "@/lib/throttle";
 import { isEmail } from "./application";
 
@@ -61,7 +62,7 @@ async function sendLink(email: string, password: string): Promise<AccountResult>
     return { status: "invalid", message: "We’ve sent a few links to this address already. Check your inbox and spam folder, or try again later." };
   const { data, error } = await admin().auth.admin.generateLink({ type: "signup", email, password });
   if (error || !data.properties?.hashed_token) {
-    console.error(`[account] Couldn't make a confirmation link: ${error?.message ?? "no token"}`);
+    reportSoon(error ?? new Error("No confirmation token came back"), { area: "account", severity: "urgent", route: "/list-your-business/apply", context: { step: "making a confirmation link" } });
     return { status: "error" };
   }
   const ok = await sendConfirmEmail(email, `${emailOrigin()}/list-your-business/confirm?token=${encodeURIComponent(data.properties.hashed_token)}`);
@@ -93,7 +94,7 @@ export async function createAccount(input: { email: string; password: string }):
   const made = await admin().auth.admin.createUser({ email, password, email_confirm: false, app_metadata: { emw_via: "apply" } });
   if (made.error) {
     if (made.error.code !== "email_exists") {
-      console.error(`[account] Couldn't create an account: ${made.error.message}`);
+      reportSoon(made.error, { area: "account", severity: "urgent", route: "/list-your-business/apply", context: { step: "creating an account" } });
       return { status: "error" };
     }
     // They've been here before: let the same password in, or tell them to sign in.

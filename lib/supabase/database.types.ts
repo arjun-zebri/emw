@@ -109,6 +109,77 @@ export type Database = {
           },
         ]
       }
+      error_alert_state: {
+        Row: { id: boolean; pruned_on: string | null; storm_at: string | null }
+        Insert: { id?: boolean; pruned_on?: string | null; storm_at?: string | null }
+        Update: { id?: boolean; pruned_on?: string | null; storm_at?: string | null }
+        Relationships: []
+      }
+      error_events: {
+        Row: { at: string; browser: string | null; context: Json; digest: string | null; fingerprint: string; id: number; method: string | null; release: string | null; route: string | null }
+        Insert: { at?: string; browser?: string | null; context?: Json; digest?: string | null; fingerprint: string; id?: never; method?: string | null; release?: string | null; route?: string | null }
+        Update: { at?: string; browser?: string | null; context?: Json; digest?: string | null; fingerprint?: string; id?: never; method?: string | null; release?: string | null; route?: string | null }
+        Relationships: [
+          { foreignKeyName: "error_events_fingerprint_fkey"; columns: ["fingerprint"]; isOneToOne: false; referencedRelation: "error_issues"; referencedColumns: ["fingerprint"] },
+        ]
+      }
+      error_issues: {
+        Row: {
+          alerts_sent: number
+          area: string
+          count: number
+          env: string
+          fingerprint: string
+          first_release: string | null
+          first_seen: string
+          last_alerted_at: string | null
+          last_release: string | null
+          last_seen: string
+          resolved_at: string | null
+          route: string | null
+          sample_stack: string | null
+          severity: string
+          source: string
+          title: string
+        }
+        Insert: {
+          alerts_sent?: number
+          area: string
+          count?: number
+          env: string
+          fingerprint: string
+          first_release?: string | null
+          first_seen?: string
+          last_alerted_at?: string | null
+          last_release?: string | null
+          last_seen?: string
+          resolved_at?: string | null
+          route?: string | null
+          sample_stack?: string | null
+          severity: string
+          source: string
+          title: string
+        }
+        Update: {
+          alerts_sent?: number
+          area?: string
+          count?: number
+          env?: string
+          fingerprint?: string
+          first_release?: string | null
+          first_seen?: string
+          last_alerted_at?: string | null
+          last_release?: string | null
+          last_seen?: string
+          resolved_at?: string | null
+          route?: string | null
+          sample_stack?: string | null
+          severity?: string
+          source?: string
+          title?: string
+        }
+        Relationships: []
+      }
       form_attempts: {
         Row: {
           created_at: string
@@ -581,6 +652,24 @@ export type Database = {
         Returns: undefined
       }
       record_site_filter: { Args: { p_ident: string; p_kind: string; p_values: string[] }; Returns: undefined }
+      record_error: {
+        Args: {
+          p_area: string
+          p_browser: string
+          p_context: Json
+          p_digest: string
+          p_env: string
+          p_fingerprint: string
+          p_method: string
+          p_release: string
+          p_route: string
+          p_severity: string
+          p_source: string
+          p_stack: string
+          p_title: string
+        }
+        Returns: Json
+      }
       record_site_search: { Args: { p_ident: string; p_matches: number; p_query: string }; Returns: undefined }
       traffic_live: { Args: never; Returns: number }
       traffic_summary: {

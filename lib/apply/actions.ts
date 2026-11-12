@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendApplicationEmails } from "@/lib/email/send";
+import { reportSoon } from "@/lib/observe/report";
 import { normaliseStory, splitStory } from "@/lib/story";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient as createServer } from "@/lib/supabase/server";
@@ -104,7 +105,10 @@ export async function submitApplication(a: Application, meta: { photos: number; 
     })
     .select("id")
     .single();
-  if (error || !vendor) return { status: "error" };
+  if (error || !vendor) {
+    reportSoon(error ?? new Error("The draft vendor wasn't returned"), { area: "apply", severity: "urgent", route: "/list-your-business/apply", context: { step: "saving the draft" } });
+    return { status: "error" };
+  }
 
   const notes = [
     `Applied through the website on ${today()}.`,
@@ -115,6 +119,7 @@ export async function submitApplication(a: Application, meta: { photos: number; 
   ].filter(Boolean);
   const note = await db.from("vendor_review_notes").insert({ vendor_id: vendor.id, applicant_id: user.id, notes: notes.join("\n"), registered_emails: email, source: `${SOURCE}, ${today()}` });
   if (note.error) {
+    reportSoon(note.error, { area: "apply", severity: "urgent", route: "/list-your-business/apply", context: { step: "saving the review notes" } });
     await db.from("vendors").delete().eq("id", vendor.id);
     return { status: "error" };
   }
@@ -134,8 +139,9 @@ export async function submitApplication(a: Application, meta: { photos: number; 
       }),
     );
     return { status: "ok", id: vendor.id, uploads };
-  } catch {
+  } catch (e) {
     // The application is saved; the team will see it in Approvals without photos.
+    reportSoon(e, { area: "apply", severity: "urgent", route: "/list-your-business/apply", context: { step: "signing photo uploads", vendor: vendor.id } });
     return { status: "error" };
   }
 }
@@ -168,7 +174,10 @@ export async function finishApplication(id: string, photos: { width: number; hei
   }
 
   const { data: files, error } = await db.storage.from("vendor-photos").list(id, { limit: 100 });
-  if (error) return { ok: false };
+  if (error) {
+    reportSoon(error, { area: "apply", severity: "urgent", route: "/list-your-business/apply", context: { step: "listing uploaded photos", vendor: id } });
+    return { ok: false };
+  }
   const there = new Set(files.map((f) => `${id}/${f.name}`));
 
   const size = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? Math.min(10000, Math.max(1, Math.round(n))) : null);
@@ -178,6 +187,7 @@ export async function finishApplication(id: string, photos: { width: number; hei
     return [{ vendor_id: id, path: paths.full, width: size(p.width), height: size(p.height), alt: i === 0 ? vendor.name : `${vendor.name}, photo ${i + 1}`, position: i }];
   });
   const insert = rows.length ? await db.from("vendor_photos").insert(rows) : { error: null };
+  if (insert.error) reportSoon(insert.error, { area: "apply", severity: "urgent", route: "/list-your-business/apply", context: { step: "recording photos", vendor: id } });
 
   // Once per application, whether or not every photo made it: the team still needs to know.
   const { data: claimed } = await db

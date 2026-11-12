@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { reportSoon } from "@/lib/observe/report";
 import type { Database } from "@/lib/supabase/database.types";
 import { EMAILS } from "./config";
 
@@ -26,6 +27,6 @@ export async function emailOn(id: SwitchId): Promise<boolean> {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await db.from("email_switches").select("enabled").eq("id", id).maybeSingle();
-  if (error) console.error(`[email] Couldn't read the switch for ${id}, using the default: ${error.message}`);
+  if (error) reportSoon(error, { area: "email", context: { step: "reading a switch, so the default was used", email: id } });
   return data?.enabled ?? fallback[id];
 }

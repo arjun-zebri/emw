@@ -4,6 +4,7 @@ import { areas, craftById, languages, serviceLabels } from "@/data/taxonomy";
 import { BOT_UA } from "@/lib/bots";
 import type { Database } from "@/lib/supabase/database.types";
 import { visitorIdent, visitorPlace } from "@/lib/analytics";
+import { report } from "@/lib/observe/report";
 
 /*
  * The site's own visitor counter (components/site/Analytics.tsx sends here). One message per page
@@ -137,9 +138,10 @@ export async function POST(request: NextRequest) {
     after(async () => {
       try {
         const { error } = await run();
-        if (error) console.error(`[analytics] ${error.message}`);
-      } catch {
-        // Timed out or unreachable: the view is lost, the visitor never knows.
+        if (error) await report(error, { area: "analytics", route: "/api/v" });
+      } catch (e) {
+        // Timed out or unreachable: the view is lost, the visitor never knows; the developer does.
+        await report(e, { area: "analytics", route: "/api/v" });
       }
     });
   }

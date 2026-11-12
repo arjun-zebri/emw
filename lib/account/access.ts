@@ -6,6 +6,7 @@ import { emailOrigin } from "@/lib/email/config";
 import { sendPasswordEmail } from "@/lib/email/send";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { reportSoon } from "@/lib/observe/report";
 import { allow, senderIp } from "@/lib/throttle";
 import { homeOf, readSession } from "@/lib/supabase/session";
 
@@ -42,7 +43,7 @@ export async function requestPasswordLink(input: { email: string }): Promise<{ s
   // Few enough accounts to look through in one page; revisit past a thousand.
   const { data, error } = await db.auth.admin.listUsers({ perPage: 1000 });
   if (error) {
-    console.error(`[access] Couldn't look up accounts: ${error.message}`);
+    reportSoon(error, { area: "account", severity: "urgent", route: "/login", context: { step: "looking up accounts" } });
     return { status: "sent" };
   }
   const user = data.users.find((u) => u.email?.toLowerCase() === email);
@@ -50,11 +51,13 @@ export async function requestPasswordLink(input: { email: string }): Promise<{ s
 
   const last = Number(user.app_metadata?.emw_password_link_at ?? 0);
   if (Date.now() - last < WAIT_SECONDS * 1000) return { status: "sent" };
-  await db.auth.admin.updateUserById(user.id, { app_metadata: { ...user.app_metadata, emw_password_link_at: Date.now() } });
+  const marked = await db.auth.admin.updateUserById(user.id, { app_metadata: { ...user.app_metadata, emw_password_link_at: Date.now() } });
+  // Only the two-minute wait between links is lost; still send this one.
+  if (marked.error) reportSoon(marked.error, { area: "account", route: "/login", context: { step: "noting when the last link went" } });
 
   const link = await db.auth.admin.generateLink({ type: "recovery", email });
   if (link.error || !link.data.properties?.hashed_token) {
-    console.error(`[access] Couldn't make a password link: ${link.error?.message ?? "no token"}`);
+    reportSoon(link.error ?? new Error("No recovery token came back"), { area: "account", severity: "urgent", route: "/login", context: { step: "making a password link" } });
     return { status: "sent" };
   }
   await sendPasswordEmail(email, `${emailOrigin()}/login/password?token=${encodeURIComponent(link.data.properties.hashed_token)}`);
@@ -84,7 +87,7 @@ export async function choosePassword(input: { password: string }): Promise<{ sta
   if (error) {
     if (error.code === "same_password") return { status: "invalid", message: "That’s your current password. Choose a new one." };
     if (error.code === "weak_password") return { status: "invalid", message: "Choose a stronger password: longer, or less common." };
-    console.error(`[access] Couldn't set a password: ${error.message}`);
+    reportSoon(error, { area: "account", severity: "urgent", route: "/login/password", context: { step: "setting a password" } });
     return { status: "error" };
   }
   const session = readSession(claims.claims);

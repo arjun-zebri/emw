@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { reportSoon } from "@/lib/observe/report";
 import { canOpen, homeOf, readSession, safeNext } from "@/lib/supabase/session";
 
 /*
@@ -23,7 +24,14 @@ export async function proxy(request: NextRequest) {
   });
 
   // Verifies the token (and refreshes it if it has expired) before anything is trusted.
-  const { data } = await supabase.auth.getClaims();
+  const { data, error } = await supabase.auth.getClaims();
+  // No session is not an error. A stale or bad token reads as signed out (normal); Supabase Auth
+  // unreachable or failing means no one can open /admin or /account (urgent).
+  if (error && error.name !== "AuthSessionMissingError") {
+    const down = !error.status || error.status >= 500;
+    const portal = request.nextUrl.pathname.split("/")[1];
+    reportSoon(error, { area: "proxy", severity: down ? "urgent" : "normal", route: `/${portal}`, context: { status: error.status } });
+  }
   const session = readSession(data?.claims);
   const { pathname, searchParams } = request.nextUrl;
 

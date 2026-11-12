@@ -23,6 +23,7 @@ import { PhoneField } from "./PhoneField";
 import { PhotoStep } from "./PhotoStep";
 import { StoryEditor } from "./StoryEditor";
 import { LanguageName } from "@/components/ui/LanguageName";
+import { reportClient } from "@/lib/observe/client";
 
 /*
  * The application, one question a screen: a fixed bar on top (the way out), the question in the
@@ -228,7 +229,9 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
       setPhase({ kind: "sending", done: ++done, total: photos.length });
     }
     // Photos that didn't make it are skipped by the server; the team sees what arrived.
-    await finishApplication(res.id, sent).catch(() => undefined);
+    // A server failure is reported by the server; only a lost connection is reported from here.
+    // Kept apart from ordinary network noise: if this never arrives, no one is emailed about the application.
+    await finishApplication(res.id, sent).catch((e) => reportClient(new Error(`Couldn't finish an application: ${e instanceof Error ? e.message : String(e)}`), "apply"));
     finished(false);
   }
 

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { after } from "next/server";
+import { reportSoon } from "./observe/report";
 import type { Database } from "./supabase/database.types";
 
 /*
@@ -11,7 +12,7 @@ import type { Database } from "./supabase/database.types";
  * Server only: it uses the secret key. Not a "use server" file, so the browser can't call it.
  */
 
-export type Kind = "enquiry" | "account" | "confirm-email" | "password-link";
+export type Kind = "enquiry" | "account" | "confirm-email" | "password-link" | "client-error";
 export type Cap = { key: string; perHour: number; perDay?: number };
 
 const db = () =>
@@ -43,7 +44,8 @@ export async function allow(kind: Kind, caps: Cap[]): Promise<boolean> {
     await supabase.from("form_attempts").delete().lt("created_at", ago(86_400_000));
   });
   if (error) {
-    console.error(`[throttle] Couldn't count a ${kind} attempt: ${error.message}`);
+    // Not for the error reports' own cap, which would report itself in a loop.
+    if (kind !== "client-error") reportSoon(error, { area: "throttle", context: { kind } });
     return true;
   }
   const count = (h: string, ms: number) =>

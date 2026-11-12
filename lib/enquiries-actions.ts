@@ -7,6 +7,7 @@ import { cultureNames } from "@/data/taxonomy";
 import { sendEnquiryEmail } from "./email/send";
 import { classifySource, GUESTS, isGuestCount, isoDay, isRegion } from "./enquiry-fields";
 import type { Database } from "./supabase/database.types";
+import { report, reportSoon } from "./observe/report";
 import { allow, senderIp } from "./throttle";
 
 /*
@@ -61,6 +62,8 @@ const MIN_MS = 3000;
 
 /** NT's wording for a failed send. */
 const UNSENT = "That didn't send. Please check your email address and try again.";
+/** When the fault is ours, not theirs: nothing they change would help. */
+const DOWN = "That didn't send. Please try again in a few minutes.";
 
 const tidy = (s: unknown, max: number) => (typeof s === "string" ? s.trim().replace(/\s+/g, " ").slice(0, max) : "");
 
@@ -86,19 +89,25 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   if (!message) return { status: "error", message: "Tell them a little about your wedding." };
 
   const supabase = db();
-  const { data: vendor } = await supabase
+  const { data: vendor, error: lookup } = await supabase
     .from("vendors")
     .select("id, name, slug, email")
     .eq("slug", tidy(input.slug, 200))
     .eq("status", "published")
     .maybeSingle();
+  if (lookup) {
+    reportSoon(lookup, { area: "enquiry", severity: "urgent", route: "/vendors/[slug]", context: { step: "finding the listing" } });
+    return { status: "error", message: DOWN };
+  }
   if (!vendor) return { status: "error", message: "This listing isn't taking enquiries." };
 
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? "eastmeetswed.com"}`;
   const found = classifySource(input.trail, origin, vendor.slug);
   const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
-  const { count: fromEmail } = await supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("email", email).gte("created_at", hourAgo);
+  const { count: fromEmail, error: counting } = await supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("email", email).gte("created_at", hourAgo);
+  // Couldn't count: let it through, like the throttle, but say so.
+  if (counting) reportSoon(counting, { area: "enquiry", route: "/vendors/[slug]", context: { step: "counting recent enquiries" } });
   if ((fromEmail ?? 0) >= PER_HOUR || !(await allow("enquiry", [{ key: await senderIp(), perHour: PER_HOUR }])))
     return { status: "error", message: "You've sent a lot of enquiries in the last hour. Try again a little later." };
   if (!(await allow("enquiry", [{ key: `vendor:${vendor.id}`, perHour: VENDOR_PER_HOUR, perDay: VENDOR_PER_DAY }])))
@@ -121,13 +130,21 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   };
   const { data: saved, error } = await supabase.from("enquiries").insert(row).select("id").single();
   if (error) {
-    console.error(`[enquiry] Couldn't save an enquiry for ${vendor.slug}: ${error.message}`);
-    return { status: "error", message: UNSENT };
+    reportSoon(error, { area: "enquiry", severity: "urgent", route: "/vendors/[slug]", context: { step: "saving", vendor: vendor.slug } });
+    return { status: "error", message: DOWN };
   }
 
+  // A failed send is reported by the sender (lib/email/send.ts); it stays in the vendor's inbox in
+  // their account either way, with emailed_to empty.
   after(async () => {
-    const to = await sendEnquiryEmail(vendor, row);
-    if (to) await supabase.from("enquiries").update({ emailed_to: to }).eq("id", saved.id);
+    try {
+      const to = await sendEnquiryEmail(vendor, row);
+      if (!to) return;
+      const { error: marking } = await supabase.from("enquiries").update({ emailed_to: to }).eq("id", saved.id);
+      if (marking) await report(marking, { area: "enquiry", route: "/vendors/[slug]", context: { step: "marking it emailed", vendor: vendor.slug } });
+    } catch (e) {
+      await report(e, { area: "enquiry", severity: "urgent", route: "/vendors/[slug]", context: { step: "emailing the vendor", vendor: vendor.slug } });
+    }
   });
 
   return { status: "ok" };

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { reportSoon } from "@/lib/observe/report";
 import { createClient } from "@/lib/supabase/server";
 import { canOpen, homeOf, readSession, safeNext } from "@/lib/supabase/session";
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       const wanted = safeNext(next);
       return to(wanted && canOpen(session, wanted) ? wanted : homeOf(session));
     }
-    console.error(`[account] Couldn't finish signing in: ${error.message}`);
+    reportSoon(error, { area: "auth", route: "/auth/callback", context: { for: portal ? "portal" : "apply", status: error.status } });
   }
   return to(portal ? "/login?access=failed" : "/list-your-business/apply?signin=failed");
 }

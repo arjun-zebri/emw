@@ -498,3 +498,85 @@ export function enquiry(d: EnquiryData): Rendered {
   const preheader = [d.weddingDate && d.weddingDate !== "Not applicable" ? d.weddingDate : "", d.venue && d.venue !== "Not applicable" ? d.venue : ""].filter(Boolean).join(", ") || "A couple would like to hear from you.";
   return { subject, html: shell({ origin: d.origin, title: subject, preheader, body }), text };
 }
+
+// ── Error alerts (to the developer, never to the client) ────────────────
+
+export type ErrorAlertData = {
+  origin: string;
+  reason: "new" | "regressed" | "ongoing" | "storm" | "unrecorded" | "test";
+  severity: "urgent" | "normal";
+  env: string;
+  title: string;
+  area: string;
+  route?: string;
+  count?: number;
+  firstSeen?: string;
+  firstRelease?: string;
+  release: string;
+  digest?: string;
+  browser?: string;
+  fingerprint: string;
+  stack?: string | null;
+  context?: Record<string, unknown>;
+  /** The first thing to check. */
+  hint: string;
+};
+
+const REASONS: Record<ErrorAlertData["reason"], string> = {
+  new: "New",
+  regressed: "Back again",
+  ongoing: "Still happening",
+  storm: "Many errors at once",
+  unrecorded: "Not recorded",
+  test: "Test",
+};
+
+/** Plain and dense: what broke, where, how often, since which release, and what to check first. */
+export function errorAlert(d: ErrorAlertData): Rendered {
+  const tag = [d.severity === "urgent" ? "EMW urgent" : "EMW", d.env !== "production" && d.env].filter(Boolean).join(", ");
+  const subject =
+    d.reason === "storm" ? `[${tag}] More than ten different errors in ten minutes` : `[${tag}] ${REASONS[d.reason]}: ${d.title.slice(0, 90)}`;
+  const when = d.firstSeen ? new Date(d.firstSeen).toLocaleString("en-AU", { timeZone: "Australia/Melbourne", dateStyle: "medium", timeStyle: "short" }) : undefined;
+  const times = d.count ? `${d.count.toLocaleString("en-AU")} ${d.count === 1 ? "time" : "times"}${when ? ` since ${when}` : ""}` : undefined;
+  const context = Object.entries(d.context ?? {})
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${k}: ${String(v)}`)
+    .join(", ");
+  const command = `node --env-file=.env.local --experimental-strip-types scripts/errors.mjs --show ${d.fingerprint}`;
+  const facts: [string, string | undefined][] = [
+    ["Where", d.route],
+    ["Area", d.area],
+    ["Happened", times],
+    ["Release", d.firstRelease && d.firstRelease !== d.release ? `${d.release} (first seen in ${d.firstRelease})` : d.release],
+    ["Browser", d.browser],
+    ["Details", context],
+    ["Digest", d.digest],
+  ];
+  const given = facts.filter((f): f is [string, string] => !!f[1]);
+  const stack = d.stack
+    ? row(
+        `<div style="background:#f2efea;padding:16px 18px;font-family:Menlo,Consolas,monospace;font-size:12px;line-height:18px;color:${INK};white-space:pre-wrap;word-break:break-all;">${esc(d.stack)}</div>`,
+        "24px 48px 0",
+      )
+    : "";
+  const body = [
+    row(h1(d.reason === "storm" ? "Many errors at once" : d.title)),
+    row(p(esc(d.reason === "storm" ? "More than ten different errors were alerted in the last ten minutes, so single alerts are held back. Each one that keeps happening will alert once things calm down." : d.hint))),
+    row(details(given.map(([k, v]): [string, string] => [k, esc(v)])), "28px 48px 0"),
+    stack,
+    row(p(`To see more, or mark it fixed: <span style="font-family:Menlo,Consolas,monospace;font-size:12px;color:${INK};">${esc(command)}</span>`, 24)),
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const text = [
+    subject,
+    "",
+    d.reason === "storm" ? "More than ten different errors were alerted in the last ten minutes, so single alerts are held back." : d.hint,
+    "",
+    ...given.map(([k, v]) => `${k}: ${v}`),
+    ...(d.stack ? ["", d.stack] : []),
+    "",
+    command,
+  ].join("\n");
+  return { subject, html: shell({ origin: d.origin, title: subject, preheader: d.hint, body }), text };
+}

@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
 import { EMAILS, emailAdmin, emailFrom, emailOrigin } from "./config";
 import { guestsLabel, regionLabel, weddingLabel } from "@/lib/enquiry-fields";
+import { report } from "@/lib/observe/report";
 import { emailOn } from "./switches";
 import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLive, passwordEmail, type Rendered } from "./templates";
 
@@ -30,10 +31,16 @@ function testInbox() {
   return inbox && process.env.VERCEL_ENV !== "production" ? inbox : null;
 }
 
-async function deliver(to: string, email: Rendered, replyTo?: string): Promise<boolean> {
+/**
+ * Every failed send is reported as urgent (lib/observe): an email that doesn't go is an enquiry a
+ * vendor never sees, or an applicant left waiting. The report names the kind of email, never who
+ * it was to or its subject, which can hold a couple's name.
+ */
+async function deliver(kind: string, to: string, email: Rendered, replyTo?: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
-    console.info(`[email] RESEND_API_KEY isn't set, so "${email.subject}" to ${to} wasn't sent`);
+    if (process.env.VERCEL_ENV) await report(new Error("RESEND_API_KEY isn't set, so no email can be sent"), { area: "email", severity: "urgent", context: { email: kind } });
+    else console.info(`[email] RESEND_API_KEY isn't set, so "${email.subject}" to ${to} wasn't sent`);
     return false;
   }
   const inbox = testInbox();
@@ -45,10 +52,14 @@ async function deliver(to: string, email: Rendered, replyTo?: string): Promise<b
       body: JSON.stringify({ from: emailFrom(), to: [inbox ?? to], subject, html: email.html, text: email.text, ...(replyTo ? { reply_to: replyTo } : {}) }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) console.error(`[email] Resend refused "${email.subject}" to ${to}: ${res.status} ${await res.text()}`);
+    if (!res.ok) {
+      // Resend's answer says why (a bad key, an unverified domain, a rate limit), scrubbed of addresses.
+      const why = (await res.text().catch(() => "")).slice(0, 300);
+      await report(new Error(`Resend refused an email (${res.status}): ${why}`), { area: "email", severity: "urgent", context: { email: kind, status: res.status } });
+    }
     return res.ok;
   } catch (e) {
-    console.error(`[email] Couldn't send "${email.subject}" to ${to}:`, e);
+    await report(e, { area: "email", severity: "urgent", context: { email: kind } });
     return false;
   }
 }
@@ -61,7 +72,7 @@ export async function load(vendorId: string) {
     .eq("id", vendorId)
     .maybeSingle();
   if (error || !data) {
-    console.error(`[email] Couldn't load vendor ${vendorId}: ${error?.message ?? "not found"}`);
+    await report(error ?? new Error("The vendor for an email wasn't found"), { area: "email", context: { vendor: vendorId } });
     return null;
   }
   const photos = [...data.vendor_photos].sort((a, b) => a.position - b.position).map((p) => ({ src: imageUrl("vendor-photos", variantPath(p.path, 1200)), width: p.width, height: p.height }));
@@ -92,6 +103,7 @@ export async function sendApplicationEmails(vendorId: string): Promise<void> {
 
   if (toTeam) {
     await deliver(
+      "application-team",
       emailAdmin(),
       applicationAdmin({
         origin,
@@ -117,7 +129,7 @@ export async function sendApplicationEmails(vendorId: string): Promise<void> {
   }
 
   if (toApplicant && applicant) {
-    await deliver(applicant, applicationReceived({ origin, first: d.first, card: { name: v.name, line: v.discipline, photo: d.photos[0] } }), emailAdmin());
+    await deliver("application-received", applicant, applicationReceived({ origin, first: d.first, card: { name: v.name, line: v.discipline, photo: d.photos[0] } }), emailAdmin());
   }
 }
 
@@ -128,7 +140,7 @@ export async function sendApprovedEmail(vendorId: string): Promise<void> {
   if (!d?.vendor.email) return;
   const origin = emailOrigin();
   const url = `${origin}/vendors/${d.vendor.slug}`;
-  await deliver(d.vendor.email, listingLive({ origin, first: d.first, url, card: { name: d.vendor.name, line: d.vendor.discipline, photo: d.photos[0] } }), emailAdmin());
+  await deliver("listing-live", d.vendor.email, listingLive({ origin, first: d.first, url, card: { name: d.vendor.name, line: d.vendor.discipline, photo: d.photos[0] } }), emailAdmin());
 }
 
 /** The confirmation link for a new applicant account. Returns whether it went. */
@@ -139,7 +151,7 @@ export async function sendConfirmEmail(to: string, url: string): Promise<boolean
     console.info(`[email] Confirmation link for ${to}: ${url}`);
     return true;
   }
-  return deliver(to, confirmEmail({ origin: emailOrigin(), url }), emailAdmin());
+  return deliver("confirm", to, confirmEmail({ origin: emailOrigin(), url }), emailAdmin());
 }
 
 /** A link to choose a password (forgotten, or a vendor's first sign-in). Always sent. Returns whether it went. */
@@ -148,7 +160,7 @@ export async function sendPasswordEmail(to: string, url: string): Promise<boolea
     console.info(`[email] Password link for ${to}: ${url}`);
     return true;
   }
-  return deliver(to, passwordEmail({ origin: emailOrigin(), url }), emailAdmin());
+  return deliver("password", to, passwordEmail({ origin: emailOrigin(), url }), emailAdmin());
 }
 
 /**
@@ -163,6 +175,7 @@ export async function sendEnquiryEmail(
   const to = vendor.email?.trim() || emailAdmin();
   const { count } = await admin().from("vendor_members").select("user_id", { count: "exact", head: true }).eq("vendor_id", vendor.id);
   const sent = await deliver(
+    "enquiry",
     to,
     enquiry({
       origin: emailOrigin(),
