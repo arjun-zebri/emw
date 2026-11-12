@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase/browser";
 /*
  * A vendor's profile stats for their dashboard: whether the team has them switched on
  * (vendors.stats_enabled), and their page views per day for the last 30 days (vendor_views, counted
- * by the vendor page). Row level security returns views only while stats are on.
+ * by the site's visitor counter, the same views Admin → Traffic shows). Row level security returns views only while stats are on.
  */
 
 export const STATS_DAYS = 30;

@@ -529,10 +529,23 @@ export type Database = {
         Args: { p_city: string; p_campaign: string; p_country: string; p_device: string; p_ident: string; p_path: string; p_referrer: string; p_region: string }
         Returns: undefined
       }
+      record_site_enquiry: { Args: { p_city: string; p_country: string; p_ident: string; p_region: string; p_vendor: string }; Returns: undefined }
+      record_site_filter: { Args: { p_ident: string; p_kind: string; p_values: string[] }; Returns: undefined }
       record_site_search: { Args: { p_ident: string; p_matches: number; p_query: string }; Returns: undefined }
-      record_vendor_view: { Args: { vendor_slug: string }; Returns: undefined }
+      traffic_live: { Args: never; Returns: number }
       traffic_summary: {
-        Args: { first_day: string; last_day: string; prev_first?: string; prev_last?: string }
+        Args: {
+          first_day: string
+          last_day: string
+          prev_first?: string
+          prev_last?: string
+          p_channel?: string
+          p_sites?: string[]
+          p_campaign?: string
+          p_country?: string
+          p_region?: string
+          p_vendor?: string
+        }
         Returns: Json
       }
     }

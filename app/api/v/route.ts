@@ -1,13 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { after, type NextRequest } from "next/server";
+import { areas, craftById, languages, serviceLabels } from "@/data/taxonomy";
 import { BOT_UA } from "@/lib/bots";
 import type { Database } from "@/lib/supabase/database.types";
-import { senderIp } from "@/lib/throttle";
+import { visitorIdent, visitorPlace } from "@/lib/analytics";
 
 /*
  * The site's own visitor counter (components/site/Analytics.tsx sends here). One message per page
- * view or directory search, checked and recorded in Supabase (record_page_view,
- * record_site_search in supabase/migrations/20261112500000_site_analytics.sql).
+ * view, directory search or change of directory filters, checked and recorded in Supabase
+ * (record_page_view, record_site_search, record_site_filter; see supabase/migrations).
  *
  * It always answers at once with an empty 204, before anything is recorded, and anything it
  * doesn't like is dropped without a word: counting must never slow a page or trouble a visitor.
@@ -35,7 +36,8 @@ function referrerHost(raw: unknown, ownHost: string) {
   try {
     const url = new URL(raw);
     if (url.protocol !== "https:" && url.protocol !== "http:") return "";
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    // instagram.com, www.instagram.com and l.instagram.com are the same site.
+    const host = url.hostname.toLowerCase().replace(/^(www|m|l|lm|mobile)\./, "");
     return host === ownHost.replace(/^www\./, "") || host.length > 100 ? "" : host;
   } catch {
     return "";
@@ -59,18 +61,14 @@ function searchWords(raw: unknown) {
   return q;
 }
 
-/** Vercel's location headers. Absent locally. */
-function place(h: Headers) {
-  const get = (name: string, max: number) => {
-    try {
-      const v = decodeURIComponent(h.get(name) ?? "").trim();
-      return v.length <= max ? v : "";
-    } catch {
-      return "";
-    }
-  };
-  return { country: get("x-vercel-ip-country", 2), region: get("x-vercel-ip-country-region", 10), city: get("x-vercel-ip-city", 100) };
-}
+/** The directory filters a couple chose, kept only when they're values the directory offers. */
+const FILTER_KINDS = {
+  category: (v: string) => Object.hasOwn(craftById, v),
+  language: (v: string) => v === "Other" || Object.hasOwn(languages, v),
+  location: (v: string) => v === "AUS" || Object.hasOwn(areas, v),
+  service: (v: string) => Object.hasOwn(serviceLabels, v),
+} as const;
+type FilterKind = keyof typeof FILTER_KINDS;
 
 export async function POST(request: NextRequest) {
   const h = request.headers;
@@ -102,15 +100,14 @@ export async function POST(request: NextRequest) {
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) return nothing();
 
-  const ip = await senderIp();
-  const ident = `${ip}|${ua}`;
+  const ident = await visitorIdent();
 
   let record: (() => PromiseLike<{ error: { message: string } | null }>) | undefined;
   const db = () => createClient<Database>(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 
   if (body.t === "view" && typeof body.p === "string" && body.p.length <= 200 && PAGES.test(body.p)) {
     const path = body.p;
-    const where = place(h);
+    const where = visitorPlace(h);
     record = () =>
       db()
         .rpc("record_page_view", {
@@ -128,6 +125,10 @@ export async function POST(request: NextRequest) {
     const q = searchWords(body.q);
     const n = Number(body.n);
     if (q && Number.isInteger(n) && n >= 0 && n <= 10_000) record = () => db().rpc("record_site_search", { p_ident: ident, p_query: q, p_matches: n }).abortSignal(AbortSignal.timeout(2000));
+  } else if (body.t === "filter" && typeof body.k === "string" && Object.hasOwn(FILTER_KINDS, body.k) && Array.isArray(body.v)) {
+    const kind = body.k as FilterKind;
+    const values = [...new Set(body.v.filter((v): v is string => typeof v === "string" && v.length <= 60 && FILTER_KINDS[kind](v)))].slice(0, 20);
+    if (values.length) record = () => db().rpc("record_site_filter", { p_ident: ident, p_kind: kind, p_values: values }).abortSignal(AbortSignal.timeout(2000));
   }
 
   if (record) {

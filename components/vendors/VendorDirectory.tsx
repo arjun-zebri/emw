@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { countSearch } from "@/components/site/Analytics";
+import { countFilters, countSearch } from "@/components/site/Analytics";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { languages, serviceLabels } from "@/data/taxonomy";
 import type { CraftId } from "@/data/types";
@@ -50,6 +50,11 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
     const t = setTimeout(() => countSearch(query, filterVendors(cards.map((c) => c.vendor), { ...parseFilters(new URLSearchParams()), q: query }).length), 1500);
     return () => clearTimeout(t);
   }, [query, cards]);
+  // And the filters, once they've stayed put for a moment.
+  useEffect(() => {
+    const t = setTimeout(() => countFilters({ category: filters.craft, language: filters.languages, location: filters.areas, service: filters.services }), 1500);
+    return () => clearTimeout(t);
+  }, [filters.craft, filters.languages, filters.areas, filters.services]);
   // Chosen overseas regions with no vendors at all yet.
   const empty = new Set(options.areas.filter(([, n]) => n === 0).map(([a]) => a));
   const abroad = filters.areas.filter((a) => isOverseas(a) && empty.has(a)).map((a) => areaFilterLabel(a));

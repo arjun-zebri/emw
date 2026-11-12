@@ -42,6 +42,23 @@ export function countSearch(query: string, matches: number) {
   idle(() => send({ t: "search", q, n: matches }));
 }
 
+const filtered = new Set<string>();
+
+/**
+ * The directory filters a couple settles on (a category, languages, locations, services), each
+ * value once per page load, so Admin → Traffic can show what couples look for.
+ */
+export function countFilters(chosen: { category?: string; language: string[]; location: string[]; service: string[] }) {
+  if (automated()) return;
+  const kinds = { category: chosen.category ? [chosen.category] : [], language: chosen.language, location: chosen.location, service: chosen.service };
+  for (const [k, values] of Object.entries(kinds)) {
+    const fresh = values.filter((v) => !filtered.has(`${k}:${v}`));
+    if (!fresh.length) continue;
+    fresh.forEach((v) => filtered.add(`${k}:${v}`));
+    idle(() => send({ t: "filter", k, v: fresh }));
+  }
+}
+
 export function Analytics() {
   const pathname = usePathname();
   const last = useRef<string | null>(null);

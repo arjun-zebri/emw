@@ -58,6 +58,7 @@ export function Columns({
   label,
   xLabel,
   unit = ["enquiry", "enquiries"],
+  format,
   onPick,
 }: {
   data: { key: string; value: number; prev?: number }[];
@@ -65,6 +66,8 @@ export function Columns({
   label: string;
   xLabel: (key: string, long?: boolean) => string;
   unit?: [string, string];
+  /** Writes a value in place of "12 enquiries", for figures that aren't counts (a rate). */
+  format?: (n: number) => string;
   onPick?: (index: number) => void;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
@@ -78,7 +81,8 @@ export function Columns({
   const gap = compare ? Math.min(3, barW * 0.25) : 0;
   const y = (v: number) => PAD.top + h - (v / top) * h;
   const every = Math.max(1, Math.ceil(data.length / (width < 520 ? 4 : 7)));
-  const count = (n: number) => `${num(n)} ${n === 1 ? unit[0] : unit[1]}`;
+  const count = (n: number) => (format ? format(n) : `${num(n)} ${n === 1 ? unit[0] : unit[1]}`);
+  const tick = (n: number) => (format ? format(n) : num(n));
   const a = active !== null ? data[active] : null;
 
   return (
@@ -99,7 +103,7 @@ export function Columns({
               <g key={t}>
                 <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="#161412" strokeOpacity={t === 0 ? 0.16 : 0.06} />
                 <text x={PAD.left - 10} y={y(t)} dy="0.32em" textAnchor="end" className="fill-ink-mute text-[0.6875rem] tabular-nums">
-                  {num(t)}
+                  {tick(t)}
                 </text>
               </g>
             ))}
@@ -151,7 +155,7 @@ export function Columns({
             {a.prev !== undefined && (
               <p className="mt-0.5 flex items-center gap-2 text-ink-soft tabular-nums">
                 <span className="size-2" style={{ background: PREV }} aria-hidden />
-                {num(a.prev)} the period before
+                {format ? format(a.prev) : num(a.prev)} the period before
               </p>
             )}
             {onPick && <p className="mt-1.5 text-[0.75rem] text-ink-soft">Click to look closer</p>}
