@@ -21,9 +21,23 @@ export function MotionRuntime() {
     const lenis = reduce ? null : new Lenis({ autoRaf: true, lerp: 0.085, wheelMultiplier: 0.9 });
     setLenis(lenis);
 
+    // A click made while the page is still gliding would let Lenis carry on scrolling the next page,
+    // so it opened part way down. Stop the glide on any link to another page; back and forward are untouched.
+    const onClick = (e: MouseEvent) => {
+      if (!lenis || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== "_self")) return;
+      const url = new URL(a.href, location.href);
+      if (url.origin !== location.origin || url.pathname === location.pathname) return;
+      lenis.stop();
+      lenis.start();
+    };
+    document.addEventListener("click", onClick, true);
+
     const t = setTimeout(() => (document.documentElement.dataset.intro = "seen"), 6200);
     return () => {
       clearTimeout(t);
+      document.removeEventListener("click", onClick, true);
       lenis?.destroy();
       setLenis(null);
     };
