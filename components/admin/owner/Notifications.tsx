@@ -18,6 +18,7 @@ const icons: Record<EmailPreview["id"], IconName> = {
   password: "cog",
   "application-received": "check",
   "listing-live": "store",
+  "enquiry-vendor": "speech",
 };
 
 const groups: { audience: EmailPreview["audience"]; title: string }[] = [

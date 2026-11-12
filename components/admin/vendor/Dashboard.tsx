@@ -7,7 +7,7 @@ import { useOwnListing } from "@/lib/account/listing";
 import { useEnquiries } from "@/lib/admin/enquiries";
 import { longDay, plural } from "@/lib/admin/format";
 import { useVendorSlug } from "@/lib/admin/session";
-import { hoursSince, useToday } from "@/lib/admin/time";
+import { useToday } from "@/lib/admin/time";
 import { Btn, NotYet, PageHeader, Panel } from "../ui";
 
 export function Dashboard() {
@@ -16,19 +16,17 @@ export function Dashboard() {
   const enquiries = useEnquiries(slug);
   const now = useToday();
   const name = vendor ? (vendor.person || vendor.name).split(" ")[0] : "";
-  const waiting = enquiries.list.filter((e) => !e.repliedAt);
-  const late = waiting.filter((e) => hoursSince(e.sentAt) >= 48);
+  const unread = enquiries.list.filter((e) => !e.readAt);
   const photos = vendor?.photos.length ?? 0;
 
   const tasks: { icon: IconName; title: string; detail: string; href: string; action: string; warn?: boolean }[] = [];
-  if (waiting.length)
+  if (unread.length)
     tasks.push({
       icon: "speech",
-      warn: late.length > 0,
-      title: `${plural(waiting.length, "enquiry", "enquiries")} waiting for a reply`,
-      detail: late.length ? `${late[0].name} has waited ${Math.round(hoursSince(late[0].sentAt))} hours.` : waiting.map((e) => e.name).join(", "),
+      title: `${plural(unread.length, "new enquiry", "new enquiries")}`,
+      detail: unread.map((e) => e.name).join(", "),
       href: "/account/enquiries",
-      action: "Reply",
+      action: "Read",
     });
   if (vendor && photos < 3)
     tasks.push({

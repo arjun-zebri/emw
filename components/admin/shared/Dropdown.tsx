@@ -30,6 +30,8 @@ type Props<T extends string> = {
   searchable?: boolean;
   /** Reads as plain text: the chevron only shows on hover or focus. */
   quiet?: boolean;
+  /** Keep the chosen value to one line, cut short with an ellipsis, so the box never grows (filter bars). */
+  single?: boolean;
 } & ({ multiple: true; value: T[]; onChange: (v: T[]) => void } | { multiple?: false; value: T; onChange: (v: T) => void });
 
 /**
@@ -144,9 +146,9 @@ export function Dropdown<T extends string>(props: Props<T>) {
             show();
           }
         }}
-        className="group flex w-full items-start justify-between gap-4 text-left text-[0.9375rem] focus:outline-none"
+        className={clsx("group flex w-full justify-between gap-4 text-left text-[0.9375rem] focus:outline-none", props.single ? "items-center" : "items-start")}
       >
-        <span className={clsx("min-w-0", labels.length ? "text-ink" : props.quiet ? "text-ink-mute/50" : "text-ink-mute/45")}>
+        <span className={clsx("min-w-0", props.single && "block truncate whitespace-nowrap", labels.length ? "text-ink" : props.quiet ? "text-ink-mute/50" : "text-ink-mute/45")}>
           {labels.length
             ? labels.map((o, i) => (
                 <span key={o.value} lang={o.lang}>

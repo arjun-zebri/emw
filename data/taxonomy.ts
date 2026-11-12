@@ -156,3 +156,25 @@ export const areaOptions = (short = false) => [
 
 /** Languages outside our list, as the vendor wrote them. English is everyone's, so it's never "other". */
 export const otherLanguagesOf = (values: readonly string[]) => values.filter((v) => !(v in languages));
+
+/**
+ * Cultures a couple can choose when they enquire, in alphabetical order. Anything else they write
+ * in their own words. To check with the client before launch.
+ */
+export const cultureNames = [
+  "Australian",
+  "Cambodian",
+  "Chinese",
+  "European",
+  "Filipino",
+  "Indian",
+  "Indonesian",
+  "Japanese",
+  "Korean",
+  "Malaysian",
+  "Middle Eastern",
+  "Pacific Islander",
+  "Sri Lankan",
+  "Thai",
+  "Vietnamese",
+];

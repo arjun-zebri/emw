@@ -35,7 +35,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
 
   const badges = {
     approvals: pendingCount(counts),
-    unreplied: vendorSlug ? enquiriesFor.list.filter((e) => !e.repliedAt).length : 0,
+    unread: vendorSlug ? enquiriesFor.list.filter((e) => !e.readAt).length : 0,
   };
 
   const user =
@@ -132,7 +132,7 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
   );
 }
 
-type Badges = Record<"approvals" | "unreplied", number>;
+type Badges = Record<"approvals" | "unread", number>;
 
 function Sidebar({
   nav,

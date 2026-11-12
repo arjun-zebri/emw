@@ -426,3 +426,73 @@ export function passwordEmail(d: { origin: string; url: string }): Rendered {
 
   return { subject, html: shell({ origin: d.origin, title: subject, preheader: "Your link to sign in to East Meets Wed.", body }), text };
 }
+
+// ── To the vendor: an enquiry ───────────────────────────────────────────
+
+export type EnquiryData = {
+  origin: string;
+  /** The listing it was sent from. */
+  business: string;
+  slug: string;
+  /** The couple, as they wrote it. */
+  name: string;
+  email: string;
+  weddingDate?: string;
+  venue?: string;
+  traditions?: string;
+  guests?: string;
+  message: string;
+  /** The vendor can sign in, so the enquiry is in their account too. */
+  hasAccount: boolean;
+  /** The listing has no email, so this goes to the team to pass on. */
+  toTeam?: boolean;
+};
+
+/** What a couple sent from a vendor page. Reply-to is the couple, so replying writes straight to them. */
+export function enquiry(d: EnquiryData): Rendered {
+  const subject = d.toTeam ? `Enquiry for ${d.business}, which has no email` : `Enquiry from ${d.name}`;
+  const url = `${d.origin}/vendors/${d.slug}`;
+  const intro = d.toTeam
+    ? `${esc(d.name)} sent this from ${link(url, d.business)}, but the listing has no email for enquiries. Forward it to them, or reply to ${esc(d.name)} yourself, and add an email to the listing.`
+    : `${esc(d.name)} found you on East Meets Wed and would like to hear from you. Reply to this email and your answer goes straight to them.`;
+  const after = !d.toTeam && d.hasAccount ? `Every enquiry is also kept in ${link(`${d.origin}/account/enquiries`, "your account")}.` : "";
+  const facts: [string, string | undefined][] = [
+    ["Wedding date", d.weddingDate],
+    ["Where", d.venue],
+    ["Cultures", d.traditions],
+    ["Guests", d.guests],
+  ];
+  const given = facts.filter((f): f is [string, string] => !!f[1]);
+  const message = d.message.trim()
+    ? row(
+        `<div style="background:#f2efea;padding:20px 22px;font-family:${SANS};font-size:15px;line-height:25px;color:${INK};">${esc(d.message.trim()).replace(/\r?\n/g, "<br>")}</div>`,
+        "28px 48px 0",
+      )
+    : "";
+  const body = [
+    row(h1(d.name)),
+    row(p(intro)),
+    message,
+    row(details([...given.map(([k, v]): [string, string] => [k, esc(v)]), ["Email", link(`mailto:${d.email}`, d.email)]]), "28px 48px 0"),
+    d.toTeam ? "" : row(button(`mailto:${d.email}?subject=${encodeURIComponent(`Re: your enquiry for ${d.business}`)}`, "Reply by email"), "8px 48px 0"),
+    after ? row(p(after, 28)) : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const text = [
+    d.name,
+    "",
+    d.toTeam
+      ? `${d.name} sent this from ${url}, but the listing has no email for enquiries. Forward it to them, or reply to ${d.name} yourself, and add an email to the listing.`
+      : `${d.name} found you on East Meets Wed and would like to hear from you. Reply to this email and your answer goes straight to them.`,
+    "",
+    ...(d.message.trim() ? [d.message.trim(), ""] : []),
+    ...given.map(([k, v]) => `${k}: ${v}`),
+    `Email: ${d.email}`,
+    ...(after ? ["", `Every enquiry is also kept in your account: ${d.origin}/account/enquiries`] : []),
+  ].join("\n");
+
+  const preheader = [d.weddingDate && d.weddingDate !== "Not applicable" ? d.weddingDate : "", d.venue && d.venue !== "Not applicable" ? d.venue : ""].filter(Boolean).join(", ") || "A couple would like to hear from you.";
+  return { subject, html: shell({ origin: d.origin, title: subject, preheader, body }), text };
+}

@@ -12,6 +12,8 @@ export const EMAILS = {
   confirm: true,
   /** "Your listing is live", when the team approves. Off until the client signs off its copy. */
   approved: false,
+  /** A couple's enquiry, to the vendor (or the team, when the listing has no email). */
+  enquiry: true,
 };
 
 export const emailFrom = () => process.env.EMAIL_FROM || "East Meets Wed <hello@eastmeetswed.com>";

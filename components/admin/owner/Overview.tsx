@@ -28,7 +28,6 @@ export function Overview() {
   const waiting = pending(counts);
   const listed = adminVendors(state).length;
   const posts = publishedPosts(state.posts).length;
-  const unreplied = enquiries.list.filter((e) => !e.repliedAt).length;
 
   const tasks: { icon: IconName; title: string; detail: string; href: string; action: string }[] = [
     waiting.vendors > 0 && {
@@ -84,7 +83,7 @@ export function Overview() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Vendors on the site" value={listed} note="Listed in the directory" href="/admin/vendors" />
         <Stat label="Waiting for approval" value={counts ? waiting.vendors : "–"} note={counts ? `${counts.ready} ready to approve` : undefined} href="/admin/approvals" />
-        <Stat label="Enquiries" value={enquiries.status === "ready" ? enquiries.list.length : "–"} note={enquiries.status === "ready" ? (unreplied ? `${unreplied} not replied to yet` : "From vendor pages") : undefined} href="/admin/enquiries" />
+        <Stat label="Enquiries" value={enquiries.status === "ready" ? enquiries.list.length : "–"} note={enquiries.status === "ready" ? "From vendor pages" : undefined} href="/admin/enquiries" />
         <Stat label="Journal posts" value={posts} note="Published" href="/admin/journal" />
       </div>
 

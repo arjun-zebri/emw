@@ -3,59 +3,59 @@
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { markEnquiry, useEnquiries, type Enquiry } from "@/lib/admin/enquiries";
+import { markEnquiryRead, useEnquiries, type Enquiry } from "@/lib/admin/enquiries";
 import { ago, day, time } from "@/lib/admin/format";
+import { regionLabel, sourceLine, weddingLabel } from "@/lib/enquiry-fields";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
-import { hoursSince } from "@/lib/admin/time";
-import { toast } from "@/lib/admin/toast";
-import { Avatar, Badge, Btn, Empty, PageHeader, Tabs } from "../ui";
+import { Bone } from "../charts";
+import { Avatar, Badge, Btn, Empty, PageHeader } from "../ui";
 
-type Filter = "waiting" | "replied" | "all";
-
+/** A vendor's enquiries, newest first. They reply from their own email; opening one here marks it read. */
 export function Enquiries() {
   const slug = useVendorSlug();
-  const { status, error, list: mine } = useEnquiries(slug);
-  const waiting = mine.filter((e) => !e.repliedAt);
-  const [filter, setFilter] = useState<Filter>("waiting");
+  const { status, error, list } = useEnquiries(slug);
   const [selected, setSelected] = useState<string | null>(null);
-  // An enquiry just marked as replied stays in the Waiting list until another is opened, so it stays on screen.
-  const list = filter === "waiting" ? mine.filter((e) => !e.repliedAt || e.id === selected) : filter === "replied" ? mine.filter((e) => e.repliedAt) : mine;
   // On wide screens the first enquiry is open; on phones the list comes first.
   const current = list.find((e) => e.id === selected) ?? null;
   const shown = current ?? list[0];
 
   return (
     <>
-      <PageHeader title="Enquiries" description="Couples who've asked about your services. They're sent to your email too." />
-      <Tabs
-        className="mb-6"
-        value={filter}
-        onChange={(f) => {
-          setFilter(f);
-          setSelected(null);
-        }}
-        tabs={[
-          { id: "waiting", label: "Waiting", count: waiting.length },
-          { id: "replied", label: "Replied", count: mine.length - waiting.length },
-          { id: "all", label: "All", count: mine.length },
-        ]}
-      />
+      <PageHeader title="Enquiries" description="Couples who've written to you from your listing. Each one is emailed to you as well." />
 
-      {status !== "ready" || list.length === 0 ? (
+      {status === "loading" ? (
+        // The inbox's own shape while it loads: the list on the left, an enquiry on the right.
+        <div className="grid grid-cols-1 border border-ink/[0.09] bg-surface lg:grid-cols-[22rem_1fr]">
+          <ul className="border-ink/[0.09] lg:border-r">
+            {Array.from({ length: 6 }, (_, i) => (
+              <li key={i} className="flex gap-3 border-b border-ink/[0.06] px-5 py-4">
+                <Bone className="size-[34px] shrink-0 rounded-full" />
+                <span className="flex-1 space-y-2">
+                  <Bone className="h-3.5 w-1/2" />
+                  <Bone className="h-3 w-4/5" />
+                  <Bone className="h-3 w-3/5" />
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden space-y-4 px-8 py-6 lg:block">
+            <Bone className="h-7 w-1/3" />
+            <Bone className="h-4 w-1/2" />
+            <Bone className="mt-8 h-28 w-2/3" />
+          </div>
+        </div>
+      ) : status !== "ready" || list.length === 0 ? (
         <div className="border border-ink/[0.09] bg-surface">
-          {status === "loading" ? (
-            <Empty title="Loading">Fetching your enquiries.</Empty>
-          ) : status === "error" ? (
+          {status === "error" ? (
             <Empty title="Couldn't load your enquiries">{error}</Empty>
           ) : (
-            <Empty title={filter === "waiting" && mine.length ? "You're all caught up" : "No enquiries yet"}>New enquiries arrive here and by email.</Empty>
+            <Empty title="No enquiries yet">New enquiries arrive here and by email.</Empty>
           )}
         </div>
       ) : (
         <div className="grid grid-cols-1 border border-ink/[0.09] bg-surface lg:grid-cols-[22rem_1fr]">
           <ul className={clsx("border-ink/[0.09] lg:max-h-[calc(100svh-15rem)] lg:overflow-y-auto lg:border-r", current && "hidden lg:block")}>
             {list.map((e) => {
-              const hours = hoursSince(e.sentAt);
               const active = shown?.id === e.id;
               return (
                 <li key={e.id}>
@@ -71,8 +71,12 @@ export function Enquiries() {
                         <span className={clsx("truncate text-[0.875rem]", !e.readAt && "font-medium")}>{e.name}</span>
                         <span className="shrink-0 text-[0.6875rem] text-ink-mute">{ago(e.sentAt)}</span>
                       </span>
-                      <span className="mt-0.5 line-clamp-2 block text-[0.75rem] leading-snug text-ink-mute">{e.message}</span>
-                      {!e.repliedAt && <span className="mt-2 block">{hours >= 48 ? <Badge tone="warn">Waiting {Math.round(hours)}h</Badge> : !e.readAt && <Badge>New</Badge>}</span>}
+                      <span className="mt-0.5 line-clamp-2 block text-[0.75rem] leading-snug text-ink-mute">{e.message || [weddingLabel(e.weddingDate), regionLabel(e.region)].filter(Boolean).join(" · ")}</span>
+                      {!e.readAt && (
+                        <span className="mt-2 block">
+                          <Badge>New</Badge>
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>
@@ -86,27 +90,14 @@ export function Enquiries() {
   );
 }
 
-function Thread({ enquiry: e, onBack, hiddenOnMobile }: { enquiry: Enquiry; onBack: () => void; hiddenOnMobile: boolean }) {
+/** One enquiry in full. `team`: the team reading every vendor's, so it names the vendor and has no reply actions. */
+export function Thread({ enquiry: e, onBack, hiddenOnMobile, team }: { enquiry: Enquiry; onBack: () => void; hiddenOnMobile: boolean; team?: boolean }) {
   const session = useSession();
-  const hours = hoursSince(e.sentAt);
-  const [saving, setSaving] = useState(false);
 
   // Opening it counts as reading it, but only for the vendor themselves, not the team looking in.
   useEffect(() => {
-    if (!e.readAt && session?.role === "vendor") markEnquiry(e.id, "read").catch(() => {});
+    if (!e.readAt && session?.role === "vendor") markEnquiryRead(e.id).catch(() => {});
   }, [e.id, e.readAt, session?.role]);
-
-  const replied = async () => {
-    setSaving(true);
-    try {
-      await markEnquiry(e.id, "replied");
-      toast(`Marked as replied to ${e.name}`);
-    } catch (err) {
-      toast(`Couldn't save that: ${(err as Error).message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <article className={clsx("flex min-w-0 flex-col", hiddenOnMobile && "hidden lg:flex")}>
@@ -118,48 +109,49 @@ function Thread({ enquiry: e, onBack, hiddenOnMobile }: { enquiry: Enquiry; onBa
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-[1.75rem] leading-none tracking-[-0.02em]">{e.name}</h2>
-            <p className="mt-2 text-[0.75rem] text-ink-mute">
+            <p className="mt-2 text-[0.8125rem] text-ink-soft">
+              {team && <>To {e.vendorName} · </>}
               Sent {day(e.sentAt)} at {time(e.sentAt)}
+              {e.emailedTo && <> · emailed to {e.emailedTo}</>}
             </p>
           </div>
-          {e.repliedAt ? <Badge tone="good">Replied {ago(e.repliedAt)}</Badge> : hours >= 48 && <Badge tone="warn">Waiting {Math.round(hours)} hours</Badge>}
         </div>
-        <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-[0.8125rem] sm:grid-cols-3">
+        <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-3 text-[0.875rem] sm:grid-cols-2 xl:grid-cols-3">
           {(
             [
-              ["Wedding date", e.weddingDate ? day(e.weddingDate, { year: true }) : "Not given"],
+              ["Wedding", weddingLabel(e.weddingDate)],
+              ["Where", [regionLabel(e.region), e.venue].filter(Boolean).join(", ")],
+              ["Guests", e.guests],
+              ["Cultures", [e.cultures.join(", "), e.traditions].filter(Boolean).join(". ")],
+              ["Found you", sourceLine(e.source, e.sourceDetail)],
               ["Email", e.email],
-              ["Phone", e.phone ?? "Not given"],
+              ["Phone", e.phone],
             ] as const
-          ).map(([k, v]) => (
-            <div key={k} className="min-w-0">
-              <dt className="text-[0.75rem] text-ink-mute">{k}</dt>
-              <dd className="mt-0.5 break-words">{v}</dd>
-            </div>
-          ))}
+          )
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <div key={k} className="min-w-0">
+                <dt className="text-[0.8125rem] text-ink-soft">{k}</dt>
+                <dd className="mt-0.5 break-words text-ink">{v}</dd>
+              </div>
+            ))}
         </dl>
       </div>
 
       <div className="flex-1 px-5 py-6 sm:px-8">
-        <div className="max-w-[36rem] bg-paper px-4 py-3.5">
-          <p className="mb-1.5 text-[0.75rem] text-ink-mute">
-            {e.name} · {ago(e.sentAt)}
-          </p>
-          <p className="text-[0.875rem] leading-relaxed whitespace-pre-line">{e.message}</p>
-        </div>
+        {e.message ? (
+          <p className="max-w-[38rem] bg-paper px-5 py-4 text-[0.9375rem] leading-relaxed whitespace-pre-line">{e.message}</p>
+        ) : (
+          <p className="text-[0.875rem] text-ink-soft">No message, just the details above.</p>
+        )}
       </div>
 
-      {!e.repliedAt && (
+      {!team && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/[0.06] px-5 py-4 sm:px-8">
-          <p className="text-[0.75rem] text-ink-mute">Reply from your own email, then mark it here.</p>
-          <div className="flex gap-2">
-            <Btn onClick={() => void replied()} disabled={saving}>
-              Mark as replied
-            </Btn>
-            <Btn variant="primary" icon="mail" href={`mailto:${e.email}?subject=${encodeURIComponent("Your enquiry on East Meets Wed")}`} external>
-              Reply by email
-            </Btn>
-          </div>
+          <p className="text-[0.8125rem] text-ink-soft">Your reply goes from your own email, straight to {e.name}.</p>
+          <Btn variant="primary" icon="mail" href={`mailto:${e.email}?subject=${encodeURIComponent(`Re: your enquiry for ${e.vendorName}`)}`} external>
+            Reply by email
+          </Btn>
         </div>
       )}
     </article>

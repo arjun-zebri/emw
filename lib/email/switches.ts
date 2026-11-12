@@ -8,7 +8,7 @@ import { EMAILS } from "./config";
  * person whose action sends the email (an applicant, say) can't read the table.
  */
 
-export const SWITCHES = ["application-team", "application-received", "listing-live"] as const;
+export const SWITCHES = ["application-team", "application-received", "listing-live", "enquiry-vendor"] as const;
 export type SwitchId = (typeof SWITCHES)[number];
 
 export const isSwitch = (id: string): id is SwitchId => (SWITCHES as readonly string[]).includes(id);
@@ -18,6 +18,7 @@ const fallback: Record<SwitchId, boolean> = {
   "application-team": EMAILS.application,
   "application-received": EMAILS.application,
   "listing-live": EMAILS.approved,
+  "enquiry-vendor": EMAILS.enquiry,
 };
 
 export async function emailOn(id: SwitchId): Promise<boolean> {

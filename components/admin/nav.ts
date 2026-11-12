@@ -1,7 +1,7 @@
 import type { IconName } from "@/components/icons/Icon";
 
 /** `soon`: not built yet (still sample data). Greyed out in the sidebar and left out of search. */
-export type NavItem = { href: string; label: string; icon: IconName; badge?: "approvals" | "unreplied"; soon?: true };
+export type NavItem = { href: string; label: string; icon: IconName; badge?: "approvals" | "unread"; soon?: true };
 export type NavGroup = { title?: string; items: NavItem[] };
 
 export const ownerNav: NavGroup[] = [
@@ -10,7 +10,7 @@ export const ownerNav: NavGroup[] = [
     title: "Insights",
     items: [
       { href: "/admin/traffic", label: "Traffic", icon: "trend", soon: true },
-      { href: "/admin/enquiries", label: "Enquiries", icon: "speech", soon: true },
+      { href: "/admin/enquiries", label: "Enquiries", icon: "speech" },
       { href: "/admin/revenue", label: "Revenue", icon: "coin", soon: true },
     ],
   },
@@ -38,7 +38,7 @@ export const vendorNav: NavGroup[] = [
     items: [
       { href: "/account/listing", label: "Your listing", icon: "store" },
       { href: "/account", label: "Dashboard", icon: "overview", soon: true },
-      { href: "/account/enquiries", label: "Enquiries", icon: "speech", badge: "unreplied", soon: true },
+      { href: "/account/enquiries", label: "Enquiries", icon: "speech", badge: "unread" },
     ],
   },
 ];

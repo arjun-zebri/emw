@@ -4,8 +4,9 @@ import type { Language, Service } from "@/data/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
 import { EMAILS, emailAdmin, emailFrom, emailOrigin } from "./config";
+import { regionLabel, weddingLabel } from "@/lib/enquiry-fields";
 import { emailOn } from "./switches";
-import { applicationAdmin, applicationReceived, confirmEmail, listingLive, passwordEmail, type Rendered } from "./templates";
+import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLive, passwordEmail, type Rendered } from "./templates";
 
 /*
  * Sending, through Resend's REST API (no SDK). Server only: it reads the secret Supabase key and
@@ -148,4 +149,43 @@ export async function sendPasswordEmail(to: string, url: string): Promise<boolea
     return true;
   }
   return deliver(to, passwordEmail({ origin: emailOrigin(), url }), emailAdmin());
+}
+
+/**
+ * A couple's enquiry, to the listing's email with the couple as reply-to. A listing with no email
+ * sends it to the team instead, to pass on. Returns where it went, or null if it didn't.
+ */
+export async function sendEnquiryEmail(
+  vendor: { id: string; name: string; slug: string; email: string | null },
+  e: { name: string; email: string; wedding_date: string | null; region: string | null; venue: string | null; cultures: string[]; traditions: string | null; guests: string | null; message: string },
+): Promise<string | null> {
+  if (!(await emailOn("enquiry-vendor"))) return null;
+  const to = vendor.email?.trim() || emailAdmin();
+  const { count } = await admin().from("vendor_members").select("user_id", { count: "exact", head: true }).eq("vendor_id", vendor.id);
+  const sent = await deliver(
+    to,
+    enquiry({
+      origin: emailOrigin(),
+      business: vendor.name,
+      slug: vendor.slug,
+      name: e.name,
+      email: e.email,
+      ...enquiryLines(e),
+      message: e.message,
+      hasAccount: !!count,
+      toTeam: !vendor.email?.trim(),
+    }),
+    e.email,
+  );
+  return sent ? to : null;
+}
+
+/** The structured answers as the email shows them. */
+export function enquiryLines(e: { wedding_date: string | null; region: string | null; venue: string | null; cultures: string[]; traditions: string | null; guests: string | null }) {
+  return {
+    weddingDate: weddingLabel(e.wedding_date),
+    venue: [regionLabel(e.region), e.venue].filter(Boolean).join(", ") || undefined,
+    traditions: [e.cultures.join(", "), e.traditions].filter(Boolean).join(". ") || undefined,
+    guests: e.guests ?? undefined,
+  };
 }

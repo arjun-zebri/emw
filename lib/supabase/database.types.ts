@@ -38,38 +38,62 @@ export type Database = {
       enquiries: {
         Row: {
           created_at: string
+          cultures: string[]
           email: string
+          emailed_to: string | null
+          guests: string | null
           id: string
           message: string
           name: string
           phone: string | null
           read_at: string | null
+          region: string | null
           replied_at: string | null
+          source: string | null
+          source_detail: string | null
+          traditions: string | null
           vendor_id: string
+          venue: string | null
           wedding_date: string | null
         }
         Insert: {
           created_at?: string
+          cultures?: string[]
           email: string
+          emailed_to?: string | null
+          guests?: string | null
           id?: string
-          message: string
+          message?: string
           name: string
           phone?: string | null
           read_at?: string | null
+          region?: string | null
           replied_at?: string | null
+          source?: string | null
+          source_detail?: string | null
+          traditions?: string | null
           vendor_id: string
+          venue?: string | null
           wedding_date?: string | null
         }
         Update: {
           created_at?: string
+          cultures?: string[]
           email?: string
+          emailed_to?: string | null
+          guests?: string | null
           id?: string
           message?: string
           name?: string
           phone?: string | null
           read_at?: string | null
+          region?: string | null
           replied_at?: string | null
+          source?: string | null
+          source_detail?: string | null
+          traditions?: string | null
           vendor_id?: string
+          venue?: string | null
           wedding_date?: string | null
         }
         Relationships: [
@@ -81,6 +105,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      enquiry_attempts: {
+        Row: {
+          created_at: string
+          ip_hash: string
+        }
+        Insert: {
+          created_at?: string
+          ip_hash: string
+        }
+        Update: {
+          created_at?: string
+          ip_hash?: string
+        }
+        Relationships: []
       }
       post_vendors: {
         Row: {

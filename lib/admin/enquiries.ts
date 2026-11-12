@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/lib/supabase/browser";
+import type { Source } from "@/lib/enquiry-fields";
+import { imageUrl, variantPath } from "@/lib/supabase/storage";
 
 /*
  * Enquiries couples send from vendor pages, read from Supabase as the signed-in person: the team
- * sees every one, a vendor only their own (row level security). There's no email sending yet, so
- * a reply is written in the vendor's own email and then marked as replied here.
+ * sees every one, a vendor only their own (row level security). Each one is emailed to the vendor
+ * as it arrives (lib/enquiries-actions.ts); they reply from their own email.
  */
 
 export type Enquiry = {
@@ -14,10 +16,23 @@ export type Enquiry = {
   name: string;
   email: string;
   phone?: string;
+  /** "YYYY-MM", "Not decided" or "Not applicable" (lib/enquiry-fields.ts reads it). */
   weddingDate?: string;
+  /** An area code, or "Not decided". */
+  region?: string;
+  venue?: string;
+  /** From the list in data/taxonomy.ts. */
+  cultures: string[];
+  /** Anything else about their cultures, in their words. */
+  traditions?: string;
+  /** How they found the vendor (SOURCES in lib/enquiry-fields.ts), and the search words or page. */
+  source?: Source;
+  sourceDetail?: string;
+  guests?: string;
   message: string;
+  /** Where the email went: the vendor, or the team when the listing had no email. Unset if it wasn't sent. */
+  emailedTo?: string;
   readAt?: string;
-  repliedAt?: string;
   sentAt: string;
 };
 
@@ -39,14 +54,22 @@ function set(key: string, state: State) {
 }
 
 async function load(key: string, slug?: string) {
-  let q = supabase()
-    .from("enquiries")
-    .select("id, name, email, phone, wedding_date, message, read_at, replied_at, created_at, vendors!inner(name, slug)")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (slug) q = q.eq("vendors.slug", slug);
-  const { data, error } = await q;
-  if (error) return set(key, { status: "error", error: error.message, list: [] });
+  // Supabase returns at most 1000 rows a request, so read in pages until the last one comes up short.
+  const PAGE = 1000;
+  const rows = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase()
+      .from("enquiries")
+      .select("id, name, email, phone, wedding_date, region, venue, cultures, traditions, guests, message, source, source_detail, emailed_to, read_at, created_at, vendors!inner(name, slug)")
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (slug) q = q.eq("vendors.slug", slug);
+    const { data: page, error } = await q;
+    if (error) return set(key, { status: "error", error: error.message, list: [] });
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
+  const data = rows;
   set(key, {
     status: "ready",
     list: data.map((e) => ({
@@ -57,9 +80,16 @@ async function load(key: string, slug?: string) {
       email: e.email,
       phone: e.phone ?? undefined,
       weddingDate: e.wedding_date ?? undefined,
+      region: e.region ?? undefined,
+      venue: e.venue ?? undefined,
+      cultures: e.cultures,
+      traditions: e.traditions ?? undefined,
+      source: (e.source as Source | null) ?? undefined,
+      sourceDetail: e.source_detail ?? undefined,
+      guests: e.guests ?? undefined,
       message: e.message,
+      emailedTo: e.emailed_to ?? undefined,
       readAt: e.read_at ?? undefined,
-      repliedAt: e.replied_at ?? undefined,
       sentAt: e.created_at,
     })),
   });
@@ -88,13 +118,35 @@ function patch(id: string, change: Partial<Enquiry>) {
   for (const [key, s] of stores) set(key, { ...s.state, list: s.state.list.map((e) => (e.id === id ? { ...e, ...change } : e)) });
 }
 
-/** Mark an enquiry read (the first time it's opened) or replied. */
-export async function markEnquiry(id: string, field: "read" | "replied") {
+/** Mark an enquiry read, the first time its vendor opens it. */
+export async function markEnquiryRead(id: string) {
   const at = new Date().toISOString();
-  const { error } = await supabase()
-    .from("enquiries")
-    .update(field === "read" ? { read_at: at } : { replied_at: at })
-    .eq("id", id);
+  const { error } = await supabase().from("enquiries").update({ read_at: at }).eq("id", id);
   if (error) throw new Error(error.message);
-  patch(id, field === "read" ? { readAt: at } : { repliedAt: at });
+  patch(id, { readAt: at });
+}
+
+export type ListedVendor = { slug: string; name: string; services: string[]; languages: string[]; areas: string[]; cover?: string; photos: number };
+
+let listed: Promise<ListedVendor[]> | null = null;
+
+/** Every published listing, for the team's enquiry insights: who's had none, and each vendor's category. Loaded once. */
+export function loadListedVendors(): Promise<ListedVendor[]> {
+  listed ??= Promise.resolve(
+    supabase()
+      .from("vendors")
+      .select("slug, name, services, languages, service_area, vendor_photos(path, position)")
+      .eq("status", "published")
+      .order("name"),
+  ).then(({ data, error }) => {
+    if (error) {
+      listed = null;
+      throw new Error(error.message);
+    }
+    return data.map((v) => {
+      const cover = [...v.vendor_photos].sort((a, b) => a.position - b.position)[0];
+      return { slug: v.slug, name: v.name, services: v.services, languages: v.languages, areas: v.service_area, cover: cover && imageUrl("vendor-photos", variantPath(cover.path, 480)), photos: v.vendor_photos.length };
+    });
+  });
+  return listed;
 }
