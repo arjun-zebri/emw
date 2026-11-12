@@ -85,7 +85,7 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
     ...filters.languages.map((l) => ({
       key: "languages" as const,
       value: l,
-      label: l === "Other" ? "Other languages" : languages[l].native,
+      label: l === "Other" ? "Other languages" : languages[l].native === l ? l : `${languages[l].native} ${l}`,
     })),
     ...filters.services.map((s) => ({
       key: "services" as const,

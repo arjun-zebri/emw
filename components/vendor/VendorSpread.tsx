@@ -9,9 +9,10 @@ import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { type Slot, vendorImages } from "@/data/images";
-import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
+import { areaLabel, serviceLabels } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { locationLabel, relatedHeading, socialHandle, youtubeChannel } from "@/lib/vendors";
+import { LanguageName } from "@/components/ui/LanguageName";
 
 function displayUrl(url: string) {
   return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
@@ -117,11 +118,9 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
                   {vendor.discipline}, {locationLabel(vendor)}
                 </p>
                 {tongues.length + otherTongues.length > 0 && (
-                  <p {...intro(0.1)} className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
+                  <p {...intro(0.1)} className="t-title mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-ink-soft">
                     {tongues.map((l) => (
-                      <span key={l} lang={languages[l].lang} title={l}>
-                        {languages[l].native}
-                      </span>
+                      <LanguageName key={l} name={l} english="font-sans t-small tracking-normal" />
                     ))}
                     {otherTongues.map((l) => (
                       <span key={l}>{l}</span>

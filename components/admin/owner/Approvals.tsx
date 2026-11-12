@@ -8,7 +8,7 @@ import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
-import { areaLabel, languages as languageNames, serviceLabels } from "@/data/taxonomy";
+import { areaLabel, serviceLabels } from "@/data/taxonomy";
 import {
   decide as decideVendor,
   flagLabels,
@@ -41,6 +41,7 @@ import type { VendorFormValues } from "../shared/VendorForm";
 import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, Toggle, inputCls } from "../ui";
+import { LanguageName } from "@/components/ui/LanguageName";
 
 type Tab = "ready" | "missing" | "weddings" | "reviews";
 const tabs: Tab[] = ["ready", "missing", "weddings", "reviews"];
@@ -679,9 +680,7 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
                 "Languages",
                 <span key="l" className="flex flex-wrap gap-x-3">
                   {draft.languages.map((l) => (
-                    <span key={l} lang={languageNames[l]?.lang}>
-                      {languageNames[l]?.native ?? l}
-                    </span>
+                    <LanguageName key={l} name={l} english="text-ink-mute" />
                   ))}
                 </span>,
               ],

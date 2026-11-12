@@ -69,6 +69,12 @@ export function LanguageIndex({
                 >
                   {r.native}
                 </span>
+                {/* The English name, small and always readable (not faded with the word), so anyone can read every language before choosing one. */}
+                {r.native !== r.name && (
+                  <span lang="en" className="ml-[0.4em] font-sans text-[0.8125rem] tracking-normal text-ink-mute">
+                    {r.name}
+                  </span>
+                )}
               </button>
               {i < rows.length - 1 && " "}
             </span>

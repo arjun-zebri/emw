@@ -22,6 +22,7 @@ import { CardPreview, Check, Chip, Field, inputClass, StepHead, Tile } from "./p
 import { PhoneField } from "./PhoneField";
 import { PhotoStep } from "./PhotoStep";
 import { StoryEditor } from "./StoryEditor";
+import { LanguageName } from "@/components/ui/LanguageName";
 
 /*
  * The application, one question a screen: a fixed bar on top (the way out), the question in the
@@ -826,9 +827,7 @@ function Review({
           {languageOrder
             .filter((l) => a.languages.includes(l))
             .map((l) => (
-              <span key={l} lang={languageNames[l].lang}>
-                {languageNames[l].native}
-              </span>
+              <LanguageName key={l} name={l} english="text-ink-mute" />
             ))}
           {a.otherLanguages.trim() && <span>{a.otherLanguages.trim()}</span>}
         </span>

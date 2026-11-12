@@ -7,13 +7,14 @@ import { Media } from "@/components/media/Media";
 import { Button } from "@/components/ui/Button";
 import { Story } from "@/components/vendor/Story";
 import { vendorCover } from "@/data/images";
-import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
+import { areaLabel, serviceLabels } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { vendors } from "@/lib/static-vendors";
 import { socialUrl } from "@/lib/apply/application";
 import { locationLabel, socialHandle } from "@/lib/vendors";
 import { PreviewFrame } from "./PreviewFrame";
 import type { VendorFormValues } from "./VendorForm";
+import { LanguageName } from "@/components/ui/LanguageName";
 
 export type PreviewView = "page" | "directory";
 
@@ -88,11 +89,9 @@ function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValu
             <h1 className={clsx("t-display text-[clamp(2.5rem,4.4vw,4.75rem)] text-balance", !v.name && "text-ink-mute/35")}>{v.name || "Business name"}</h1>
             <p className="t-body mt-4 text-ink">{[v.discipline || "What they do", location].join(", ")}</p>
             {tongues.length > 0 && (
-              <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
+              <p className="t-title mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-ink-soft">
                 {tongues.map((l) => (
-                  <span key={l} lang={languages[l]?.lang}>
-                    {languages[l]?.native ?? l}
-                  </span>
+                  <LanguageName key={l} name={l} english="font-sans t-small tracking-normal" />
                 ))}
               </p>
             )}
@@ -192,12 +191,10 @@ function Card({
     <div className={clsx("flex flex-col transition-opacity", quiet && "opacity-55")}>
       <div className="relative aspect-[4/5] overflow-hidden">{children}</div>
       <h3 className={clsx("t-title mt-4", faint && "text-ink-mute/40")}>{name}</h3>
-      <p className="t-small mt-1.5 flex flex-wrap gap-x-2.5">
+      <p className="t-small mt-1.5 flex flex-wrap gap-x-3.5">
         <span>{line}</span>
         {tongues.map((l) => (
-          <span key={l} lang={languages[l]?.lang} className="text-ink-mute/75">
-            {languages[l]?.native ?? l}
-          </span>
+          <LanguageName key={l} name={l} className="text-ink-mute/75" />
         ))}
       </p>
     </div>

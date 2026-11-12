@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/Button";
 import { sectionTitle } from "@/components/ui/SectionHeading";
 import { vendorCover } from "@/data/images";
 import { showcase } from "@/data/events";
-import { languages } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
 import { getListings } from "@/lib/listings";
 import { locationLabel } from "@/lib/vendors";
+import { LanguageName } from "@/components/ui/LanguageName";
 
 export const metadata: Metadata = {
   title: "List your business",
@@ -240,11 +240,9 @@ function Example({ vendor }: { vendor: Vendor }) {
             {vendor.discipline}, {locationLabel(vendor)}
           </p>
           {tongues.length > 0 && (
-            <p className="mt-1.5 flex flex-wrap gap-x-3 font-display text-[1.0625rem] text-ink-soft">
+            <p className="mt-1.5 flex flex-wrap items-baseline gap-x-4 font-display text-[1.0625rem] text-ink-soft">
               {tongues.map((l) => (
-                <span key={l} lang={languages[l].lang}>
-                  {languages[l].native}
-                </span>
+                <LanguageName key={l} name={l} english="font-sans t-small tracking-normal" />
               ))}
             </p>
           )}

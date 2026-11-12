@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ViewTransition } from "react";
 import { Media } from "@/components/media/Media";
 import { vendorCover } from "@/data/images";
-import { languages } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
+import { LanguageName } from "@/components/ui/LanguageName";
 
 export type VendorCardData = { vendor: Vendor; location: string };
 
@@ -49,12 +49,10 @@ export function VendorCard({
         </ViewTransition>
       </div>
       <h3 className="t-title mt-4">{vendor.name}</h3>
-      <p className="t-small mt-1.5 flex flex-wrap gap-x-2.5" title={location}>
+      <p className="t-small mt-1.5 flex flex-wrap gap-x-3.5" title={location}>
         <span>{vendor.discipline}</span>
         {tongues.map((l) => (
-          <span key={l} lang={languages[l].lang} className="text-ink-mute/75">
-            {languages[l].native}
-          </span>
+          <LanguageName key={l} name={l} className="text-ink-mute/75" />
         ))}
       </p>
     </Link>

@@ -1,8 +1,8 @@
 "use client";
 
 import clsx from "clsx";
-import { languages as languageNames } from "@/data/taxonomy";
 import type { Language } from "@/data/types";
+import { LanguageName } from "@/components/ui/LanguageName";
 
 /** The question at the top of a step, and one plain line under it. */
 export function StepHead({ title, children, id }: { title: string; children?: React.ReactNode; id?: string }) {
@@ -95,12 +95,10 @@ export function CardPreview({ cover, name, line, languages, className }: { cover
         )}
       </div>
       <p className={clsx("t-title mt-4", !name && "text-ink-mute/40")}>{name || "Your business name"}</p>
-      <p className="t-small mt-1.5 flex flex-wrap gap-x-2.5">
+      <p className="t-small mt-1.5 flex flex-wrap gap-x-3.5">
         <span className={clsx(!line && "text-ink-mute/50")}>{line || "What you do"}</span>
         {tongues.map((l) => (
-          <span key={l} lang={languageNames[l].lang} className="text-ink-mute/75">
-            {languageNames[l].native}
-          </span>
+          <LanguageName key={l} name={l} className="text-ink-mute/75" />
         ))}
       </p>
     </div>
