@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { siteImages } from "@/data/images";
 import { areas, australiaWide, states } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
+import type { LivePost } from "./journal/posts";
 import { SITE } from "./config";
 import { photoSrcSet, variantPath } from "./supabase/storage";
 import { locationLabel } from "./vendors";
@@ -20,7 +21,20 @@ export const privatePaths = ["/admin", "/account", "/login", "/list-your-busines
 export const absolute = (path: string) => new URL(path, SITE.url).toString();
 
 /** Canonical link, Open Graph and X card for one public page. Open Graph replaces the layout's rather than merging, so it's built whole here. */
-export function pageMeta({ title, description, path, image }: { title?: string; description: string; path: string; image?: string }): Metadata {
+export function pageMeta({
+  title,
+  description,
+  path,
+  image,
+  article,
+}: {
+  title?: string;
+  description: string;
+  path: string;
+  image?: string;
+  /** A journal post: shared as an article, with its dates. */
+  article?: { publishedTime: string; modifiedTime: string };
+}): Metadata {
   // Vendor photos have a 1200px copy beside the original, the size share cards are drawn at.
   const src = image ?? siteImages.cover.src!;
   const images = [absolute(photoSrcSet(src) ? variantPath(src, 1200) : src)];
@@ -29,7 +43,15 @@ export function pageMeta({ title, description, path, image }: { title?: string; 
     ...(title && { title }),
     description,
     alternates: { canonical: path },
-    openGraph: { type: "website", locale: "en_AU", siteName: SITE.name, url: path, title: shareTitle, description, images },
+    openGraph: {
+      ...(article ? { type: "article", ...article } : { type: "website" }),
+      locale: "en_AU",
+      siteName: SITE.name,
+      url: path,
+      title: shareTitle,
+      description,
+      images,
+    },
     twitter: { card: "summary_large_image", title: shareTitle, description, images },
   };
 }
@@ -100,6 +122,53 @@ export function vendorLd(vendor: Vendor) {
           { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
           { "@type": "ListItem", position: 2, name: "Vendors", item: absolute("/vendors") },
           { "@type": "ListItem", position: 3, name: vendor.name, item: url },
+        ],
+      },
+    ],
+  };
+}
+
+export function postMeta(post: LivePost): Metadata {
+  return pageMeta({
+    title: post.title,
+    description: post.description,
+    path: `/blog/${post.slug}`,
+    image: post.cover?.src,
+    article: { publishedTime: post.publishedAt, modifiedTime: post.updatedAt },
+  });
+}
+
+/** A journal post as an article, with the vendors it credits as the businesses it mentions. */
+export function postLd(post: LivePost) {
+  const url = absolute(`/blog/${post.slug}`);
+  const by = post.author.trim();
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "@id": `${url}#article`,
+        headline: post.title,
+        description: post.description,
+        url,
+        mainEntityOfPage: url,
+        inLanguage: "en-AU",
+        datePublished: post.publishedAt,
+        dateModified: post.updatedAt,
+        articleSection: post.category,
+        ...(post.cover && { image: [absolute(post.cover.src)] }),
+        author: by && by !== SITE.name ? { "@type": "Person", name: by } : { "@id": `${SITE.url}/#organization` },
+        publisher: { "@id": `${SITE.url}/#organization` },
+        ...(post.vendors.length && {
+          mentions: post.vendors.map((v) => ({ "@type": "LocalBusiness", "@id": `${absolute(`/vendors/${v.slug}`)}#business`, name: v.name })),
+        }),
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
+          { "@type": "ListItem", position: 2, name: "Blog", item: absolute("/blog") },
+          { "@type": "ListItem", position: 3, name: post.title, item: url },
         ],
       },
     ],

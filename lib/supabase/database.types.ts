@@ -160,16 +160,45 @@ export type Database = {
           },
         ]
       }
+      post_edits: {
+        Row: {
+          data: Json
+          post_id: string
+          updated_at: string
+        }
+        Insert: {
+          data: Json
+          post_id: string
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          post_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_edits_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author: string
           body: Json
           category: string
           cover_alt: string
+          cover_height: number | null
           cover_path: string | null
+          cover_width: number | null
           created_at: string
           description: string
           id: string
+          old_slugs: string[]
           published_at: string | null
           slug: string
           standfirst: string
@@ -182,10 +211,13 @@ export type Database = {
           body?: Json
           category: string
           cover_alt?: string
+          cover_height?: number | null
           cover_path?: string | null
+          cover_width?: number | null
           created_at?: string
           description?: string
           id?: string
+          old_slugs?: string[]
           published_at?: string | null
           slug: string
           standfirst?: string
@@ -198,10 +230,13 @@ export type Database = {
           body?: Json
           category?: string
           cover_alt?: string
+          cover_height?: number | null
           cover_path?: string | null
+          cover_width?: number | null
           created_at?: string
           description?: string
           id?: string
+          old_slugs?: string[]
           published_at?: string | null
           slug?: string
           standfirst?: string
@@ -518,6 +553,11 @@ export type Database = {
         Returns: boolean
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      next_post_at: { Args: never; Returns: string }
+      post_reads: {
+        Args: never
+        Returns: { last_30: number; slug: string; views: number }[]
+      }
       decide_vendor: {
         Args: { note?: string; vendor: string; verdict: Database["public"]["Enums"]["vendor_verdict"] }
         Returns: undefined

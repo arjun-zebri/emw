@@ -1,7 +1,7 @@
-/** Blog, About and the vendor pitch are sections of the landing page in the demo. */
+/** About and the vendor pitch are sections of the landing page. */
 export const primaryNav = [
   { href: "/vendors", label: "Vendors" },
-  { href: "/#blog", label: "Blog" },
+  { href: "/blog", label: "Blog" },
   { href: "/#about", label: "About" },
 ];
 

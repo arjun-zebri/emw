@@ -31,7 +31,9 @@ import {
 } from "@/lib/admin/drafts";
 import { ago, day } from "@/lib/admin/format";
 import type { Review, Submission } from "@/lib/admin/people";
-import { decide, deletePost, nowIso, savePost, slugify, undecide, useAdmin } from "@/lib/admin/store";
+import { blankContent, createPost, deletePost, peekPost, reloadPost } from "@/lib/admin/journal";
+import { decide, undecide, useAdmin } from "@/lib/admin/store";
+import { blockId } from "@/lib/journal/blocks";
 import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { getVendor } from "@/lib/static-vendors";
@@ -72,7 +74,8 @@ const useDesktop = () =>
 
 const vendorName = (slug: string) => getVendor(slug)?.name ?? slug;
 const itemTitle = (item: Item) => (item.kind === "wedding" ? item.data.couple : `${item.data.couple} on ${vendorName(item.data.vendor)}`);
-const draftId = (s: Submission) => `p-${s.id}`;
+// The journal draft made from each approved Real Wedding, so undo can take it back.
+const draftFor = new Map<string, string>();
 
 export function Approvals() {
   const router = useRouter();
@@ -158,33 +161,24 @@ export function Approvals() {
     decide(id, "approved");
     if (it.kind === "wedding") {
       const s = it.data;
-      savePost({
-        id: draftId(s),
-        slug: slugify(s.title),
+      void createPost({
+        ...blankContent(),
         title: s.title,
         standfirst: `${s.couple}, ${s.place}`,
         category: "Real weddings",
-        cover: { src: s.photos[0], alt: `${s.couple} on their wedding day` },
+        cover: s.photos[0] ? { src: s.photos[0], alt: `${s.couple} on their wedding day` } : null,
         body: [
-          { id: "b1", type: "p", text: s.story },
-          ...s.photos.slice(1).map((src, i) => ({
-            id: `img${i}`,
-            type: "img" as const,
-            src,
-            alt: `${s.couple}, photo ${i + 2}`,
-          })),
+          { id: blockId(), type: "p", content: [{ text: s.story }] },
+          ...s.photos.slice(1).map((src, i) => ({ id: blockId(), type: "img" as const, images: [{ src, alt: `${s.couple}, photo ${i + 2}` }], caption: "" })),
         ],
-        vendors: s.vendors,
-        status: "draft",
-        date: s.date,
-        updated: nowIso(),
-        author: "East Meets Wed",
         description: s.title,
-      });
-      toast(`${s.couple}'s wedding saved as a draft`, {
-        label: "Open draft",
-        run: () => router.push(`/admin/journal/${draftId(s)}`),
-      });
+      }).then(
+        (postId) => {
+          draftFor.set(s.id, postId);
+          toast(`${s.couple}'s wedding saved as a draft`, { label: "Open draft", run: () => router.push(`/admin/journal/${postId}`) });
+        },
+        (e: Error) => toast(`Approved, but the draft couldn't be made: ${e.message}`),
+      );
     } else {
       toast(`Review published on ${vendorName(it.data.vendor)}`, {
         label: "Undo",
@@ -206,7 +200,14 @@ export function Approvals() {
     const id = it.data.id;
     const verdict = state.decisions[id]?.verdict;
     undecide(id);
-    if (verdict === "approved" && it.kind === "wedding") deletePost(draftId(it.data));
+    const postId = draftFor.get(it.data.id);
+    if (verdict === "approved" && it.kind === "wedding" && postId) {
+      draftFor.delete(it.data.id);
+      void reloadPost(postId).then(() => {
+        const post = peekPost(postId);
+        if (post) return deletePost(post);
+      });
+    }
     go({ item: id });
   };
 

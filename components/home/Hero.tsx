@@ -33,7 +33,7 @@ export function Hero() {
           <ArrowLink href="/vendors" transitionTypes={["nav-forward"]}>
             Find your vendors
           </ArrowLink>
-          <Link href="/#blog" className="t-small link-line">
+          <Link href="/blog" className="t-small link-line">
             New to all this? Start with the journal
           </Link>
         </div>

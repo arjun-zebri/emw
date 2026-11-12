@@ -56,11 +56,12 @@ function encode(bitmap: ImageBitmap, long: number, quality: number): Promise<{ b
   );
 }
 
-export async function preparePhoto(file: File): Promise<ApplyPhoto> {
+/** `min`: the shortest long side accepted (the journal takes smaller photos than a listing). */
+export async function preparePhoto(file: Blob, min: number = LIMITS.photoMin): Promise<ApplyPhoto> {
   const bitmap = await decode(file);
   try {
-    if (Math.max(bitmap.width, bitmap.height) < LIMITS.photoMin) {
-      throw new PhotoError(`This one is too small (${bitmap.width} × ${bitmap.height}). Photos need to be at least ${LIMITS.photoMin}px on the long side.`);
+    if (Math.max(bitmap.width, bitmap.height) < min) {
+      throw new PhotoError(`This one is too small (${bitmap.width} × ${bitmap.height}). Photos need to be at least ${min}px on the long side.`);
     }
     const full = await encode(bitmap, 2000, 0.86);
     const w1200 = await encode(bitmap, 1200, 0.8);

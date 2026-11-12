@@ -323,7 +323,7 @@ function Demo() {
     <section className="max-w-2xl border border-ink/[0.09] bg-surface p-6 sm:p-8">
       <h2 className="text-[1.0625rem] font-medium">Saved in this browser</h2>
       <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-soft">
-        Some changes are still kept in this browser until they move to the database: journal posts, vendors added here, listing edits and alert
+        Some changes are still kept in this browser until they move to the database: vendors added here, listing edits and alert
         settings. Approvals, enquiries and the team are already in the database and aren&apos;t affected. Reset clears what this browser holds.
       </p>
       <div className="mt-7 flex flex-wrap items-center gap-3">

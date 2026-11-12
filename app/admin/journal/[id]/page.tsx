@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { JournalEditor } from "@/components/admin/owner/JournalEditor";
-import { seedPosts } from "@/data/journal";
+import { JournalEditor } from "@/components/admin/journal/Editor";
 
 export const metadata: Metadata = { title: "Journal" };
 
-// The seed posts and "new" are prerendered; posts written in the demo live in the browser, so the
-// editor reads its id on the client and any other id renders on request.
+// Posts live in the database and the editor reads its id in the browser, so only "new" is
+// prerendered; any other id renders on request.
 export function generateStaticParams() {
-  return [{ id: "new" }, ...seedPosts.map((p) => ({ id: p.id }))];
+  return [{ id: "new" }];
 }
 
 export default function JournalPostPage() {

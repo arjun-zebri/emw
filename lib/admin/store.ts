@@ -1,14 +1,12 @@
 import { useSyncExternalStore } from "react";
-import { seedPosts, type Post } from "@/data/journal";
 import type { AreaCode, Language, Service } from "@/data/types";
 import type { TierId } from "./billing";
 
 /*
- * What the portal keeps in this browser until it moves to the database: posts, vendors added
- * here, Real Wedding and review decisions and read notifications.
- * It lives in localStorage, so it survives reloads and syncs across tabs (publish a post in one tab
- * and the landing page in another updates). The server renders the seed, and the browser's copy
- * takes over on hydration. In the full build this is the database.
+ * What the portal keeps in this browser until it moves to the database: vendors added here, Real
+ * Wedding and review decisions and read notifications.
+ * It lives in localStorage, so it survives reloads and syncs across tabs. The server renders the
+ * seed, and the browser's copy takes over on hydration. In the full build this is the database.
  */
 
 export type AddedVendor = {
@@ -35,7 +33,6 @@ export type AddedVendor = {
 };
 
 export type AdminState = {
-  posts: Post[];
   addedVendors: AddedVendor[];
   /** Real Wedding submissions and reviews, by id. */
   decisions: Record<string, { verdict: "approved" | "declined"; at: string; note?: string }>;
@@ -46,7 +43,6 @@ export type AdminState = {
 const KEY = "emw-admin-v1";
 
 export const seed: AdminState = {
-  posts: seedPosts,
   addedVendors: [],
   decisions: {},
   read: [],
@@ -106,16 +102,6 @@ export const useAdmin = () => useSyncExternalStore(subscribe, load, () => seed);
 
 export const nowIso = () => new Date().toISOString();
 
-export function savePost(post: Post) {
-  update((s) => ({
-    posts: s.posts.some((p) => p.id === post.id) ? s.posts.map((p) => (p.id === post.id ? post : p)) : [post, ...s.posts],
-  }));
-}
-
-export function deletePost(id: string) {
-  update((s) => ({ posts: s.posts.filter((p) => p.id !== id) }));
-}
-
 export function decide(id: string, verdict: "approved" | "declined", note?: string) {
   update((s) => ({ decisions: { ...s.decisions, [id]: { verdict, at: nowIso(), note } } }));
 }
@@ -131,8 +117,6 @@ export function addVendor(v: AddedVendor) {
 export function removeVendor(slug: string) {
   update((s) => ({ addedVendors: s.addedVendors.filter((x) => x.slug !== slug) }));
 }
-
-export const publishedPosts = (posts: Post[]) => posts.filter((p) => p.status === "published").sort((a, b) => b.date.localeCompare(a.date));
 
 export const slugify = (s: string) =>
   s

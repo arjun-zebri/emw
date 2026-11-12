@@ -7,7 +7,8 @@ import { useQueue } from "@/lib/admin/drafts";
 import { useEnquiries } from "@/lib/admin/enquiries";
 import { pending } from "@/lib/admin/feed";
 import { longDay, plural } from "@/lib/admin/format";
-import { publishedPosts, useAdmin } from "@/lib/admin/store";
+import { statusOf, useJournal } from "@/lib/admin/journal";
+import { useAdmin } from "@/lib/admin/store";
 import { useToday } from "@/lib/admin/time";
 import { adminVendors } from "@/lib/admin/vendors";
 import { Btn, NotYet, PageHeader, Panel, Stat } from "../ui";
@@ -27,7 +28,7 @@ export function Overview() {
   const enquiries = useEnquiries();
   const waiting = pending(counts);
   const listed = adminVendors(state).length;
-  const posts = publishedPosts(state.posts).length;
+  const posts = (useJournal().data?.posts ?? []).filter((p) => statusOf(p) === "published").length;
 
   const tasks: { icon: IconName; title: string; detail: string; href: string; action: string }[] = [
     waiting.vendors > 0 && {

@@ -178,6 +178,8 @@ const paths = {
   pulse: <path d="M3 12h4l2-5 4 10 2-5h6" />,
   text: <path d="M5 6.5V5h14v1.5M12 5v14m-3 0h6" />,
   heading: <path d="M6 5v14M18 5v14M6 12h12" />,
+  link: <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />,
+  list: <path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01" />,
   grip: (
     <>
       <circle cx="9" cy="7" r=".9" fill="currentColor" />
