@@ -17,7 +17,7 @@ import { visitorIdent, visitorPlace } from "@/lib/analytics";
  * they are never stored.
  */
 
-const PAGES = /^\/$|^\/vendors$|^\/vendors\/[a-z0-9]+(-[a-z0-9]+)*$|^\/list-your-business$|^\/privacy-policy$|^\/terms-and-conditions$/;
+const PAGES = /^\/$|^\/vendors$|^\/blog$|^\/blog\/[a-z0-9]+(-[a-z0-9]+)*$|^\/vendors\/[a-z0-9]+(-[a-z0-9]+)*$|^\/list-your-business$|^\/privacy-policy$|^\/terms-and-conditions$/;
 const MAX_BODY = 1024;
 
 const hostOf = (url: string) => {
@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
           p_region: where.region,
           p_city: where.city,
           p_device: device(ua),
+          ...(where.lat !== undefined && where.lon !== undefined && { p_lat: where.lat, p_lon: where.lon }),
         })
         .abortSignal(AbortSignal.timeout(2000));
   } else if (body.t === "search") {

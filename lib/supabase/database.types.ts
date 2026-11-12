@@ -526,10 +526,20 @@ export type Database = {
       is_team_owner: { Args: never; Returns: boolean }
       is_vendor_member: { Args: { vendor: string }; Returns: boolean }
       record_page_view: {
-        Args: { p_city: string; p_campaign: string; p_country: string; p_device: string; p_ident: string; p_path: string; p_referrer: string; p_region: string }
+        Args: {
+          p_city: string
+          p_campaign: string
+          p_country: string
+          p_device: string
+          p_ident: string
+          p_lat?: number
+          p_lon?: number
+          p_path: string
+          p_referrer: string
+          p_region: string
+        }
         Returns: undefined
       }
-      record_site_enquiry: { Args: { p_city: string; p_country: string; p_ident: string; p_region: string; p_vendor: string }; Returns: undefined }
       record_site_filter: { Args: { p_ident: string; p_kind: string; p_values: string[] }; Returns: undefined }
       record_site_search: { Args: { p_ident: string; p_matches: number; p_query: string }; Returns: undefined }
       traffic_live: { Args: never; Returns: number }
@@ -544,6 +554,7 @@ export type Database = {
           p_campaign?: string
           p_country?: string
           p_region?: string
+          p_city?: string
           p_vendor?: string
         }
         Returns: Json

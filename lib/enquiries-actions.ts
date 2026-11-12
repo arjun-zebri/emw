@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { cultureNames } from "@/data/taxonomy";
-import { visitorIdent, visitorPlace } from "./analytics";
 import { sendEnquiryEmail } from "./email/send";
 import { classifySource, GUESTS, isGuestCount, isoDay, isRegion } from "./enquiry-fields";
 import type { Database } from "./supabase/database.types";
@@ -125,14 +124,6 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
     console.error(`[enquiry] Couldn't save an enquiry for ${vendor.slug}: ${error.message}`);
     return { status: "error", message: UNSENT };
   }
-
-  // For Admin → Traffic: the enquiry, on the visit it came from.
-  const ident = await visitorIdent();
-  const where = visitorPlace(h);
-  after(async () => {
-    const { error } = await supabase.rpc("record_site_enquiry", { p_ident: ident, p_vendor: vendor.id, p_country: where.country, p_region: where.region, p_city: where.city });
-    if (error) console.error(`[analytics] ${error.message}`);
-  });
 
   after(async () => {
     const to = await sendEnquiryEmail(vendor, row);

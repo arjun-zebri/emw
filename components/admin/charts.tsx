@@ -186,7 +186,8 @@ export type BarRow = { id: string; label: string; value: number; detail?: string
  * is a button that filters the page to it (`picked` is drawn darker).
  */
 export function BarList({ rows, empty = "Nothing yet", onPick, picked }: { rows: BarRow[]; empty?: string; onPick?: (id: string) => void; picked?: string }) {
-  if (!rows.length) return <p className="py-2 text-[0.875rem] text-ink-soft">{empty}</p>;
+  // Indented like a row's label, so the message lines up with what would be there.
+  if (!rows.length) return <p className="px-3 py-2 text-[0.875rem] text-ink-soft">{empty}</p>;
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <ol className="space-y-1">

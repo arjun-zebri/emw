@@ -4,7 +4,6 @@ import clsx from "clsx";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { AU_STATES, AU_VIEWBOX } from "@/data/au-map";
 import { areas, craftById, languages, serviceLabels, states } from "@/data/taxonomy";
 import type { AreaCode, CraftId, Language, Service } from "@/data/types";
 import { loadListedVendors, type ListedVendor } from "@/lib/admin/enquiries";
@@ -17,14 +16,15 @@ import { BarList, type BarRow, Bone, Columns } from "../charts";
 import { Drawer } from "../Drawer";
 import { Delta, Empty, NotYet, PageHeader, Panel, Tabs } from "../ui";
 import { PeriodControl } from "./Enquiries";
+import { type MapCity, TrafficMap } from "./TrafficMap";
 
 /*
  * Visitor numbers for the team, from the site's own counter (app/api/v; no third party, no
  * cookies). Each part answers something they act on:
- *   Visits, listing views, enquiries, enquiry rate   is the site working, and is it working for vendors?
+ *   Visits, listing views, pages viewed              is the site reaching couples, and sending them to vendors?
  *   Where couples come from                          which channels to put effort into
  *   Where they are                                   events and outreach
- *   Listings                                         who gets value (renewals), who needs help
+ *   Listings                                         who gets seen (renewals), who needs help
  *   Where they land                                  what Google and social links send people to
  *   What they look for                               demand: filters, searches, searches that found no one
  * Clicking a source, a place, a listing or a landing page narrows the whole page to it, as on
@@ -33,7 +33,7 @@ import { PeriodControl } from "./Enquiries";
 
 // ── Data ────────────────────────────────────────────────────────────────
 
-type Counts = { visits: number; views: number; listing_views: number; enquiries: number };
+type Counts = { visits: number; views: number; listing_views: number };
 type DayRow = Counts & { day: string };
 type Summary = {
   totals: Counts;
@@ -44,8 +44,8 @@ type Summary = {
   sites: { host: string; visits: number }[];
   campaigns: { campaign: string; visits: number }[];
   landings: { path: string; visits: number }[];
-  vendors: { slug: string; name: string; views: number; visitors: number; enquiries: number; channel: Channel | null; before: number }[];
-  places: { country: string | null; region: string | null; city: string | null; visits: number }[];
+  vendors: { slug: string; name: string; views: number; visitors: number; channel: Channel | null; before: number }[];
+  places: { country: string | null; region: string | null; city: string | null; visits: number; lat: number | null; lon: number | null }[];
   searches: { query: string; times: number; matches: number }[];
   filters: { kind: "category" | "language" | "location" | "service"; value: string; times: number }[];
 };
@@ -72,6 +72,7 @@ const CHART_H = 240;
 const PAGE_NAMES: Record<string, string> = {
   "/": "Home",
   "/vendors": "Directory",
+  "/blog": "Blog",
   "/list-your-business": "List your business",
   "/privacy-policy": "Privacy policy",
   "/terms-and-conditions": "Terms and conditions",
@@ -86,11 +87,18 @@ const countryName = (code: string) => {
   }
 };
 const stateName = (code: string) => states[code as keyof typeof states] ?? code;
-/** A place facet: "AU-VIC" for a state, "NZ" for a country. */
-const placeLabel = (p: string) => (p.startsWith("AU-") ? stateName(p.slice(3)) : countryName(p));
+/** A place facet: "AU-VIC" for a state, "NZ" for a country, "city:AU|VIC|Melbourne" for a city. */
+const cityId = (country: string, region: string, city: string) => `city:${country}|${region}|${city}`;
+const placeLabel = (p: string) => (p.startsWith("city:") ? p.split("|")[2] : p.startsWith("AU-") ? stateName(p.slice(3)) : countryName(p));
+/** The place facet as the database's filters. */
+function placeArgs(p: string) {
+  if (p.startsWith("city:")) {
+    const [country, region, city] = p.slice(5).split("|");
+    return { p_country: country, ...(region && { p_region: region }), p_city: city };
+  }
+  return p.startsWith("AU-") ? { p_country: "AU", p_region: p.slice(3) } : { p_country: p };
+}
 
-const pct = (part: number, whole: number) => (whole ? (part / whole) * 100 : 0);
-const pctText = (n: number) => `${n >= 10 || Number.isInteger(n) ? Math.round(n) : n.toFixed(1)}%`;
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 // ── Page ────────────────────────────────────────────────────────────────
@@ -131,7 +139,7 @@ export function Traffic() {
         ...(facets.channel && { p_channel: facets.channel }),
         ...(facets.site && { p_sites: siteHosts }),
         ...(facets.campaign && { p_campaign: facets.campaign }),
-        ...(place && (place.startsWith("AU-") ? { p_country: "AU", p_region: place.slice(3) } : { p_country: place })),
+        ...(place && placeArgs(place)),
         ...(facets.vendor && { p_vendor: facets.vendor }),
       })
       .then(({ data, error }) => {
@@ -207,9 +215,6 @@ export function Traffic() {
         <p>
           <span className="text-ink">Listing views</span> are views of vendor pages: the same number each vendor sees on their own dashboard.
         </p>
-        <p>
-          <span className="text-ink">Enquiries</span> are every enquiry sent, matched to the visit it came from. The enquiry rate is enquiries for every hundred listing views.
-        </p>
         <p>Search engines and other automated visitors are left out, and so are the team and vendors while they&rsquo;re signed in, so your own checking doesn&rsquo;t count.</p>
         <p>Locations come from the visitor&rsquo;s internet connection and are close, not exact. Figures are kept for 25 months.</p>
       </div>
@@ -226,16 +231,16 @@ export function Traffic() {
       </>
     );
 
-  if (ready && fresh && filters.period === "all" && !chips.length && data.totals.views === 0 && data.totals.enquiries === 0)
+  if (ready && fresh && filters.period === "all" && !chips.length && data.totals.views === 0)
     return (
       <>
         {header}
         <NotYet
           title="No visits counted yet"
           items={[
-            { icon: "trend", title: "Is it working", detail: "Visits, listing views, enquiries and the enquiry rate, against the period before." },
+            { icon: "trend", title: "Is it working", detail: "Visits, listing views and pages viewed, against the period before." },
             { icon: "globe", title: "Where couples come from", detail: "Search engines, social media and the sites that link to you." },
-            { icon: "store", title: "Who gets value", detail: "Views, enquiries and the rate for every listing, and who no one looked at." },
+            { icon: "store", title: "Who gets seen", detail: "Views and visitors for every listing, and who no one looked at." },
             { icon: "search", title: "What couples look for", detail: "The languages and categories they choose, what they search for, and what found no one." },
           ]}
         >
@@ -365,58 +370,47 @@ function ShortList({ rows, empty, title, onPick, picked }: { rows: BarRow[]; emp
 
 type Part = { ready: boolean; data?: Summary; facets: Facets; pick: (facet: Facet, value: string, hosts?: string[]) => void };
 
-// ── Headline: four figures over one chart ──────────────────────────────
+// ── Headline: three figures over one chart ─────────────────────────────
 
-type Metric = "visits" | "listing_views" | "enquiries" | "rate";
+type Metric = keyof Counts;
+const METRICS: { id: Metric; label: string; unit: [string, string] }[] = [
+  { id: "visits", label: "Visits", unit: ["visit", "visits"] },
+  { id: "listing_views", label: "Listing views", unit: ["view", "views"] },
+  { id: "views", label: "Pages viewed", unit: ["page", "pages"] },
+];
 
 function Headline({ ready, data, range, prev, zoom }: { ready: boolean; data?: Summary; range: Range; prev?: Range; zoom: (r: Range) => void }) {
   const [metric, setMetric] = useState<Metric>("visits");
 
-  const series = useMemo(() => {
-    if (!ready || !data) return { unit: "day" as const, cols: [] as { key: string; value: number; prev: number; range: Range }[] };
-    const of = (field: keyof Counts) =>
-      bucketDays(
-        data.days.map((d) => ({ day: d.day, value: d[field] })),
-        data.days_before.map((d) => ({ day: d.day, value: d[field] })),
-        range,
-        prev,
-      );
-    if (metric !== "rate") return of(metric);
-    const views = of("listing_views");
-    const enq = of("enquiries");
-    return { unit: views.unit, cols: views.cols.map((c, i) => ({ ...c, value: pct(enq.cols[i].value, c.value), prev: pct(enq.cols[i].prev, c.prev) })) };
-  }, [ready, data, range, prev, metric]);
-  const { unit, cols } = series;
+  const { unit, cols } = useMemo(
+    () =>
+      ready && data
+        ? bucketDays(
+            data.days.map((d) => ({ day: d.day, value: d[metric] })),
+            data.days_before.map((d) => ({ day: d.day, value: d[metric] })),
+            range,
+            prev,
+          )
+        : { unit: "day" as const, cols: [] as { key: string; value: number; prev: number; range: Range }[] },
+    [ready, data, range, prev, metric],
+  );
   const xLabel = (k: string, long?: boolean) =>
     unit === "month" ? month(k, long) : unit === "week" ? (long ? `Week of ${day(k, { year: true })}` : day(k)) : long ? day(k, { weekday: true, year: true }) : day(k);
 
   const t = data?.totals;
   const b = data?.before ?? undefined;
-  const rate = t ? pct(t.enquiries, t.listing_views) : 0;
-  const rateBefore = b ? pct(b.enquiries, b.listing_views) : undefined;
-
-  const figures: { id: Metric; label: string; value: string; change?: React.ReactNode; note: string }[] = t
-    ? [
-        { id: "visits", label: "Visits", value: num(t.visits), change: change(t.visits, b?.visits), note: before(b?.visits) ?? `${(t.visits ? t.views / t.visits : 0).toFixed(1)} pages a visit` },
-        { id: "listing_views", label: "Listing views", value: num(t.listing_views), change: change(t.listing_views, b?.listing_views), note: before(b?.listing_views) ?? "Views of vendor pages" },
-        { id: "enquiries", label: "Enquiries", value: num(t.enquiries), change: change(t.enquiries, b?.enquiries), note: before(b?.enquiries) ?? "Sent from vendor pages" },
-        {
-          id: "rate",
-          label: "Enquiry rate",
-          value: t.listing_views ? pctText(rate) : "–",
-          change: rateBefore !== undefined && b && b.listing_views >= MIN_BASE && t.listing_views >= MIN_BASE ? <Points value={rate - rateBefore} /> : undefined,
-          note: rateBefore !== undefined && b?.listing_views ? `${pctText(rateBefore)} the period before` : "Enquiries per 100 listing views",
-        },
-      ]
-    : [];
-  const label = { visits: "Visits", listing_views: "Listing views", enquiries: "Enquiries", rate: "Enquiry rate" }[metric];
+  const notes: Record<Metric, string> = {
+    visits: "Arrivals, or returns after 30 minutes away",
+    listing_views: "Views of vendor pages",
+    views: t?.visits ? `${(t.views / t.visits).toFixed(1)} a visit` : "Every page seen",
+  };
+  const m = METRICS.find((x) => x.id === metric)!;
 
   return (
     <section className="min-w-0 border border-ink/[0.09] bg-surface">
-      <div role="tablist" className="grid grid-cols-2 border-b hairline lg:grid-cols-4">
-        {(["visits", "listing_views", "enquiries", "rate"] as Metric[]).map((id, i) => ({ id, i, full: ready ? figures.find((f) => f.id === id) : undefined })).map(({ id, i, full }) => {
-          const f = { id };
-          const on = metric === id;
+      <div role="tablist" className="grid grid-cols-1 border-b hairline sm:grid-cols-3">
+        {METRICS.map((f, i) => {
+          const on = metric === f.id;
           return (
             <button
               key={f.id}
@@ -427,19 +421,17 @@ function Headline({ ready, data, range, prev, zoom }: { ready: boolean; data?: S
               onClick={() => setMetric(f.id)}
               className={clsx(
                 "relative min-w-0 px-5 py-5 text-left transition-colors sm:px-6",
-                i % 2 === 1 && "border-l hairline",
-                i > 1 && "border-t hairline lg:border-t-0",
-                i === 2 && "lg:border-l",
+                i > 0 && "border-t hairline sm:border-t-0 sm:border-l",
                 on ? "bg-surface" : "bg-paper/50 hover:bg-paper/20",
               )}
             >
-              {full ? (
+              {ready && t ? (
                 <>
-                  <span className={clsx("block text-[0.8125rem]", on ? "text-ink" : "text-ink-soft")}>{full.label}</span>
-                  <span className="mt-2 block text-[1.875rem] leading-none font-medium tracking-[-0.025em] text-ink tabular-nums">{full.value}</span>
+                  <span className={clsx("block text-[0.8125rem]", on ? "text-ink" : "text-ink-soft")}>{f.label}</span>
+                  <span className="mt-2 block text-[1.875rem] leading-none font-medium tracking-[-0.025em] text-ink tabular-nums">{num(t[f.id])}</span>
                   <span className="mt-2.5 flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1">
-                    {full.change}
-                    <span className="t-small text-[0.75rem]">{full.note}</span>
+                    {change(t[f.id], b?.[f.id])}
+                    <span className="t-small text-[0.75rem]">{before(b?.[f.id]) ?? notes[f.id]}</span>
                   </span>
                 </>
               ) : (
@@ -458,13 +450,12 @@ function Headline({ ready, data, range, prev, zoom }: { ready: boolean; data?: S
         {ready ? (
           <>
             <p className="mb-3 text-[0.8125rem] text-ink-soft">
-              {label} each {unit}, {day(range.start, { year: true })} to {day(range.end, { year: true })}
+              {m.label} each {unit}, {day(range.start, { year: true })} to {day(range.end, { year: true })}
             </p>
             <Columns
               data={cols.map((c) => ({ key: c.key, value: c.value, prev: prev ? c.prev : undefined }))}
-              label={`${label} each ${unit}`}
-              unit={metric === "visits" ? ["visit", "visits"] : metric === "listing_views" ? ["view", "views"] : ["enquiry", "enquiries"]}
-              format={metric === "rate" ? pctText : undefined}
+              label={`${m.label} each ${unit}`}
+              unit={m.unit}
               xLabel={xLabel}
               height={CHART_H}
               onPick={unit === "day" ? undefined : (i) => zoom(cols[i].range)}
@@ -486,17 +477,6 @@ function change(now: number, then?: number) {
   return then !== undefined && then >= MIN_BASE ? <Delta value={now / then - 1} /> : undefined;
 }
 const before = (then?: number) => (then !== undefined ? `${num(then)} the period before` : undefined);
-
-/** A change in a rate, in percentage points. */
-function Points({ value }: { value: number }) {
-  const flat = Math.abs(value) < 0.05;
-  return (
-    <span className={clsx("inline-flex items-center gap-0.5 text-[0.75rem] font-medium tabular-nums", flat ? "text-ink-mute" : value > 0 ? "text-good" : "text-bad")}>
-      {!flat && <Icon name={value > 0 ? "arrow-up" : "arrow-down"} className="size-3" strokeWidth={2} />}
-      {flat ? "No change" : `${Math.abs(value).toFixed(1)} pts`}
-    </span>
-  );
-}
 
 // ── Sources ─────────────────────────────────────────────────────────────
 
@@ -558,7 +538,6 @@ type PlaceView = "states" | "cities" | "countries";
 
 function Places({ ready, data, facets, pick }: Part) {
   const [view, setView] = useState<PlaceView>("states");
-  const [hover, setHover] = useState<string | null>(null);
   const places = useMemo(() => data?.places ?? [], [data]);
 
   const byState = useMemo(() => {
@@ -566,7 +545,13 @@ function Places({ ready, data, facets, pick }: Part) {
     for (const p of places) if (p.country === "AU" && p.region) m.set(p.region, (m.get(p.region) ?? 0) + p.visits);
     return m;
   }, [places]);
-  const top = Math.max(1, ...byState.values());
+  const cities = useMemo(
+    () =>
+      places
+        .filter((p) => p.country === "AU" && p.city && p.lat !== null && p.lon !== null)
+        .map((p): MapCity => ({ id: cityId("AU", p.region ?? "", p.city!), name: p.city!, region: p.region ?? "", visits: p.visits, lat: p.lat!, lon: p.lon! })),
+    [places],
+  );
 
   const rows = useMemo(() => {
     const m = new Map<string, BarRow>();
@@ -577,67 +562,36 @@ function Places({ ready, data, facets, pick }: Part) {
     };
     for (const p of places) {
       if (view === "countries") {
-        if (p.country) add(p.country === "AU" ? "AU" : p.country, countryName(p.country), p.visits);
-      } else if (p.country === "AU" && p.region) {
-        if (view === "states") add(`AU-${p.region}`, stateName(p.region), p.visits);
-        else if (p.city) add(`${p.city}|${p.region}`, p.city, p.visits, p.region);
+        if (p.country) add(p.country, countryName(p.country), p.visits);
+      } else if (view === "states") {
+        if (p.country === "AU" && p.region) add(`AU-${p.region}`, stateName(p.region), p.visits);
+      } else if (p.city && p.country) {
+        add(cityId(p.country, p.region ?? "", p.city), p.city, p.visits, p.country === "AU" ? (p.region ?? undefined) : countryName(p.country));
       }
     }
     return [...m.values()].sort((a, b) => b.value - a.value);
   }, [places, view]);
 
   const abroad = places.filter((p) => p.country && p.country !== "AU").reduce((a, p) => a + p.visits, 0);
-  const shown = hover ?? facets.place?.replace(/^AU-/, "");
 
   return (
     <Panel
       title="Where they are"
-      meta={ready ? (abroad ? `${plural(abroad, "visit")} from overseas. Click a state to see only its visits.` : "Click a state to see only its visits.") : "From the visitor's connection, close not exact"}
+      meta={ready ? `${abroad ? `${plural(abroad, "visit")} from overseas. ` : ""}Click a state or city to see only its visits.` : "From the visitor's connection, close not exact"}
       flush
     >
-      <div className="grid grid-cols-1 gap-x-10 gap-y-4 px-5 pb-5 md:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] sm:px-6">
-        <div className="relative mx-auto w-full max-w-[24rem]">
+      <div className="grid grid-cols-1 gap-x-10 gap-y-6 px-5 pb-5 sm:px-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
           {ready ? (
-            <svg viewBox={AU_VIEWBOX} className="block h-auto w-full" role="img" aria-label="Visits by state">
-              {(Object.entries(AU_STATES) as [keyof typeof AU_STATES, string][]).map(([code, d]) => {
-                const n = byState.get(code) ?? 0;
-                const on = facets.place === `AU-${code}`;
-                return (
-                  <path
-                    key={code}
-                    d={d}
-                    fill="#161412"
-                    fillOpacity={n ? 0.12 + (n / top) * 0.72 : 0.05}
-                    stroke={on ? "#161412" : "#ffffff"}
-                    strokeWidth={on ? 1.6 : 0.8}
-                    strokeLinejoin="round"
-                    className="cursor-pointer outline-none transition-[fill-opacity] duration-500 hover:fill-opacity-90"
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`${stateName(code)}: ${plural(n, "visit")}`}
-                    onPointerEnter={() => setHover(code)}
-                    onPointerLeave={() => setHover(null)}
-                    onFocus={() => setHover(code)}
-                    onBlur={() => setHover(null)}
-                    onClick={() => pick("place", `AU-${code}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        pick("place", `AU-${code}`);
-                      }
-                    }}
-                  />
-                );
-              })}
-            </svg>
+            <TrafficMap
+              byState={byState}
+              cities={cities}
+              picked={facets.place}
+              onPickState={(code) => pick("place", `AU-${code}`)}
+              onPickCity={(id) => pick("place", id)}
+            />
           ) : (
-            <Bone className="aspect-[400/370] w-full" />
-          )}
-          {ready && shown && (
-            <p className="pointer-events-none absolute top-0 left-0 text-[0.8125rem]">
-              <span className="block text-ink">{stateName(shown)}</span>
-              <span className="text-ink-soft tabular-nums">{plural(byState.get(shown) ?? 0, "visit")}</span>
-            </p>
+            <Bone className="aspect-[412/382] w-full" />
           )}
         </div>
         <div className="min-w-0">
@@ -654,9 +608,9 @@ function Places({ ready, data, facets, pick }: Part) {
             {ready ? (
               <ShortList
                 rows={rows}
-                empty={view === "countries" ? "No visits in this period" : "No visits from Australia in this period"}
+                empty={view === "states" ? "No visits from Australia in this period" : "No visits in this period"}
                 title={`Where they are: ${view}`}
-                onPick={view === "cities" ? undefined : (id) => pick("place", id)}
+                onPick={(id) => pick("place", id)}
                 picked={facets.place}
               />
             ) : (
@@ -704,13 +658,12 @@ function Listings({ ready, data, vendors, facets, pick, narrowed }: Part & { ven
               <span className="block truncate text-[0.8125rem] text-ink-soft">{[craft, r.channel && `Mostly ${CHANNELS[r.channel].toLowerCase()}`].filter(Boolean).join(" · ")}</span>
             </span>
           </button>
-          <span className="grid shrink-0 grid-cols-[2.5rem_3.75rem] items-center gap-x-2 text-right sm:gap-x-3 text-[0.875rem] tabular-nums sm:grid-cols-[6.5rem_4.5rem_3.5rem]">
+          <span className="grid shrink-0 grid-cols-[3rem_3.5rem] items-center gap-x-2 text-right text-[0.875rem] tabular-nums sm:grid-cols-[6.5rem_5rem] sm:gap-x-3">
             <span className="flex flex-col items-end">
               <span className="text-ink">{num(r.views)}</span>
               {data?.before && r.before > 0 && (r.before >= MIN_BASE ? <Delta value={r.views / r.before - 1} /> : <span className="text-[0.75rem] text-ink-soft">{num(r.before)} before</span>)}
             </span>
-            <span className="text-ink">{num(r.enquiries)}</span>
-            <span className="hidden text-ink-soft sm:block">{r.views ? pctText(pct(r.enquiries, r.views)) : "–"}</span>
+            <span className="text-ink-soft">{num(r.visitors)}</span>
           </span>
           <Link href={`/vendors/${r.slug}`} target="_blank" aria-label={`Open ${r.name}'s page`} className="hidden shrink-0 p-1 sm:block text-ink-mute transition-colors hover:text-ink">
             <Icon name="arrow-up-right" className="size-3.5" strokeWidth={1.5} />
@@ -724,10 +677,9 @@ function Listings({ ready, data, vendors, facets, pick, narrowed }: Part & { ven
     <div className="flex items-center gap-3 border-b hairline px-5 pb-2 text-[0.75rem] text-ink-soft sm:px-6">
       <span className="hidden w-5 sm:block" />
       <span className="flex-1">Listing</span>
-      <span className="grid shrink-0 grid-cols-[2.5rem_3.75rem] gap-x-2 text-right sm:gap-x-3 sm:grid-cols-[6.5rem_4.5rem_3.5rem]">
+      <span className="grid shrink-0 grid-cols-[3rem_3.5rem] gap-x-2 text-right sm:grid-cols-[6.5rem_5rem] sm:gap-x-3">
         <span>Views</span>
-        <span>Enquiries</span>
-        <span className="hidden sm:block">Rate</span>
+        <span>Visitors</span>
       </span>
       <span className="hidden w-5.5 shrink-0 sm:block" />
     </div>
