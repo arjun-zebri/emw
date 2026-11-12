@@ -2,8 +2,8 @@
 
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useId, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useId, useState } from "react";
 import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
@@ -59,7 +59,6 @@ const accessErrors: Record<string, string> = {
 };
 
 function SignInView({ next, startWithLink, access }: { next?: string; startWithLink?: boolean; access?: string | null }) {
-  const router = useRouter();
   const id = useId();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -92,12 +91,6 @@ function SignInView({ next, startWithLink, access }: { next?: string; startWithL
     }
   };
 
-  // Warm both destinations so the hand-off is instant.
-  useEffect(() => {
-    router.prefetch("/admin/approvals");
-    router.prefetch("/account/listing");
-  }, [router]);
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy || leaving) return;
@@ -118,8 +111,10 @@ function SignInView({ next, startWithLink, access }: { next?: string; startWithL
       return;
     }
     setLeaving(true);
-    // Let the page dissolve before the dashboard arrives.
-    setTimeout(() => router.push(next && canOpen(session, next) ? next : homeOf(session)), 650);
+    // Let the page dissolve, then load the portal in full. A client-side push could land on a
+    // response the router cached while signed out (the proxy's redirect back to /login), leaving
+    // this faded-out page on screen; a full load always goes to the server with the new session.
+    setTimeout(() => window.location.assign(next && canOpen(session, next) ? next : homeOf(session)), 650);
   };
 
   return (
