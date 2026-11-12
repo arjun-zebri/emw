@@ -382,6 +382,20 @@ export type Database = {
           },
         ]
       }
+      vendor_views: {
+        Row: { day: string; vendor_id: string; views: number }
+        Insert: { day: string; vendor_id: string; views?: number }
+        Update: { day?: string; vendor_id?: string; views?: number }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_views_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendors: {
         Row: {
           based: string | null
@@ -404,6 +418,7 @@ export type Database = {
           services: string[]
           signoff: string | null
           slug: string
+          stats_enabled: boolean
           status: Database["public"]["Enums"]["vendor_status"]
           story: string[]
           travels: string | null
@@ -432,6 +447,7 @@ export type Database = {
           services?: string[]
           signoff?: string | null
           slug: string
+          stats_enabled?: boolean
           status?: Database["public"]["Enums"]["vendor_status"]
           story?: string[]
           travels?: string | null
@@ -460,6 +476,7 @@ export type Database = {
           services?: string[]
           signoff?: string | null
           slug?: string
+          stats_enabled?: boolean
           status?: Database["public"]["Enums"]["vendor_status"]
           story?: string[]
           travels?: string | null
@@ -502,6 +519,7 @@ export type Database = {
       is_team: { Args: never; Returns: boolean }
       is_team_owner: { Args: never; Returns: boolean }
       is_vendor_member: { Args: { vendor: string }; Returns: boolean }
+      record_vendor_view: { Args: { vendor_slug: string }; Returns: undefined }
     }
     Enums: {
       post_status: "draft" | "scheduled" | "published"

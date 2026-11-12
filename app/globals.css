@@ -412,3 +412,31 @@ html:not(.js) .intro {
     animation: none;
   }
 }
+
+/* Skeletons (components/ui/Skeleton.tsx): a block in the shape of what's coming, with a slow sheen. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--color-ink) 6%, transparent);
+}
+.skeleton-night {
+  background: color-mix(in oklab, var(--color-paper) 8%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-paper) 55%, transparent), transparent);
+    animation: skeleton-sheen 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+  .skeleton-night::after {
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-paper) 10%, transparent), transparent);
+  }
+}
+@keyframes skeleton-sheen {
+  to {
+    transform: translateX(100%);
+  }
+}

@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ArrowLink } from "@/components/ui/ArrowLink";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { VendorCard } from "@/components/vendors/VendorCard";
 import { photoRatio } from "@/data/images";
@@ -33,12 +34,17 @@ function shuffle<T>(list: T[]) {
   return a;
 }
 
-/** Five published vendors with photos, picked afresh on every visit. A landscape cover leads when there is one, as it fills the wide tile best. */
+/**
+ * Five published vendors with photos. Vendors the team pins (Admin → Vendors, `featured`) come
+ * first; the rest are picked afresh on every visit. A landscape cover leads when there is one, as
+ * it fills the wide tile best.
+ */
 async function Picks() {
   await connection();
-  const pool = shuffle((await getListings()).filter((v): v is Vendor & { cover: string } => !!v.cover));
+  const withPhoto = (await getListings()).filter((v): v is Vendor & { cover: string } => !!v.cover);
+  const pool = [...shuffle(withPhoto.filter((v) => v.featured)), ...shuffle(withPhoto.filter((v) => !v.featured))].slice(0, layout.length);
   const lead = pool.find((v) => (photoRatio(v, v.cover) ?? 0) >= 1.2) ?? pool[0];
-  const chosen = lead ? [lead, ...pool.filter((v) => v !== lead)].slice(0, layout.length) : [];
+  const chosen = lead ? [lead, ...pool.filter((v) => v !== lead)] : [];
 
   return chosen.map((v, i) => (
     <div key={v.slug} data-reveal suppressHydrationWarning style={{ "--d": `${(i % 3) * 0.08}s` } as React.CSSProperties} className={clsx(layout[i].cell)}>
@@ -52,12 +58,15 @@ async function Picks() {
   ));
 }
 
-/** Holds the grid's shape while the picks arrive, so nothing below it jumps. */
+/** The grid's shape while the picks arrive, so nothing below it jumps. */
 function Placeholder() {
   return layout.map((l, i) => (
     <div key={i} aria-hidden className={l.cell}>
-      <div className={l.aspect} />
-      <div className="h-[4.25rem]" />
+      <Skeleton className={l.aspect} />
+      <div className="h-[4.25rem] pt-4">
+        <Skeleton className="h-[1.35rem] w-3/5" />
+        <Skeleton className="mt-2.5 h-[0.85rem] w-2/5" />
+      </div>
     </div>
   ));
 }

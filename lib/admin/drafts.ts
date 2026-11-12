@@ -72,6 +72,8 @@ export type Draft = QueueRow & {
   story: string[];
   /** A double-width tile in the directory, chosen by the team. */
   largeTile: boolean;
+  /** Pinned to the home page's "Meet some of our vendors" row, chosen by the team (`vendors.featured`). */
+  featured: boolean;
   email?: string;
   phone?: string;
   website?: string;
@@ -222,7 +224,7 @@ export async function loadDraft(id: string) {
   const [vendor, row, notes] = await Promise.all([
     db()
       .from("vendors")
-      .select("id, person, services, languages, service_area, story, large_tile, email, phone, website, instagram, facebook, vendor_photos(id, path, width, height, position)")
+      .select("id, person, services, languages, service_area, story, large_tile, featured, email, phone, website, instagram, facebook, vendor_photos(id, path, width, height, position)")
       .eq("id", id)
       .single(),
     db().from("vendor_queue").select(ROW).eq("id", id).single(),
@@ -240,6 +242,7 @@ export async function loadDraft(id: string) {
     serviceArea: v.service_area as AreaCode[],
     story: v.story,
     largeTile: v.large_tile,
+    featured: v.featured,
     email: opt(v.email),
     phone: opt(v.phone),
     website: opt(v.website),
@@ -283,20 +286,29 @@ export async function reopen(vendorId: string) {
   await Promise.all([loadCounts(), loadPage(), loadDecisions()]);
 }
 
-// ── Directory tile ──────────────────────────────────────────────────────
+// ── Placement: directory tile, home page pin ────────────────────────────
 
-/** Give a draft a double-width tile in the directory, or take it away. Shows at once; goes back if the database refuses. */
-export async function setLargeTile(draft: Draft, on: boolean) {
-  const patch = (largeTile: boolean) => {
+const placementColumn = { largeTile: "large_tile", featured: "featured" } as const;
+
+/**
+ * Turn one of the team's placement switches on or off: a double-width tile in the directory, or a
+ * pin to the home page's vendor row. Shows at once; goes back if the database refuses.
+ */
+export async function setPlacement(draft: Draft, key: keyof typeof placementColumn, on: boolean) {
+  const patch = (value: boolean) => {
     const d = state.details[draft.id];
-    if (d) set({ details: { ...state.details, [draft.id]: { ...d, largeTile } } });
+    if (d) set({ details: { ...state.details, [draft.id]: { ...d, [key]: value } } });
   };
   patch(on);
-  const { error } = await db().from("vendors").update({ large_tile: on }).eq("id", draft.id);
+  const { error } = await db()
+    .from("vendors")
+    .update({ [placementColumn[key]]: on } as Record<(typeof placementColumn)[keyof typeof placementColumn], boolean>)
+    .eq("id", draft.id);
   if (error) {
     patch(!on);
     throw new Error(error.message);
   }
+  await refreshListings().catch(() => undefined);
 }
 
 // ── Photos ──────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
+import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
 import { areaLabel, languages as languageNames, serviceLabels } from "@/data/taxonomy";
 import {
@@ -17,7 +18,7 @@ import {
   reopen,
   reorderPhotos,
   retry,
-  setLargeTile,
+  setPlacement,
   setQuery,
   useQueue,
   type Decision,
@@ -460,12 +461,11 @@ function QueueList({ rows, selected, tab, onSelect }: { rows: QueueRow[]; select
       </Panel>
     );
   }
+  if (rows.length === 0 && (list.total === null || list.loading)) return <QueueSkeleton />;
   if (rows.length === 0) {
     return (
       <Panel>
-        {list.total === null || list.loading ? (
-          <Empty title="Loading">Fetching the businesses waiting for approval.</Empty>
-        ) : filtered ? (
+        {filtered ? (
           <Empty title="No matches">Nothing in {tab === "ready" ? "Ready for approval" : "Missing data"} matches that.</Empty>
         ) : (
           <Empty title="All clear">
@@ -529,7 +529,9 @@ function QueueList({ rows, selected, tab, onSelect }: { rows: QueueRow[]; select
       </Panel>
       <div ref={end} className="py-4 text-center text-[0.75rem] text-ink-mute" aria-live="polite">
         {list.loading ? (
-          "Loading more"
+          <span className="block text-left">
+            <QueueSkeletonRows count={2} />
+          </span>
         ) : list.error ? (
           <button type="button" onClick={() => void loadMore()} className="link-line">
             Couldn&rsquo;t load more. Try again
@@ -645,9 +647,13 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
       )}
 
       {!draft ? (
-        <div className="space-y-3 p-6" aria-busy="true">
-          <div className="h-[28rem] animate-pulse bg-paper-soft" />
-          <div className="h-4 w-2/3 animate-pulse bg-paper-soft" />
+        <div className="grid grid-cols-1 gap-8 p-6 lg:grid-cols-12" aria-busy="true">
+          <Skeleton className="aspect-[4/5] w-full lg:col-span-7 lg:max-h-[70vh]" />
+          <div className="lg:col-span-5">
+            <Skeleton className="h-12 w-4/5" />
+            <Skeleton className="mt-4 h-4 w-1/2" />
+            <SkeletonLines lines={4} className="mt-10 text-[1.125rem]" />
+          </div>
         </div>
       ) : view === "listing" ? (
         // Exactly the public markup; nothing in it links anywhere.
@@ -721,6 +727,7 @@ function DraftActions({ row, draft, busy, onApprove, onDecline }: { row: QueueRo
       <p className="t-small mr-auto text-[0.75rem]">
         {blocked ? "Approving opens up once nothing is missing." : "Publishing doesn't email the business. Either can be undone."}
       </p>
+      {draft && <HomePin draft={draft} />}
       {draft && <LargeTile draft={draft} />}
       <Btn onClick={() => setDeclining(true)} disabled={busy}>
         Decline
@@ -730,6 +737,30 @@ function DraftActions({ row, draft, busy, onApprove, onDecline }: { row: QueueRo
       </Btn>
     </div>
   );
+}
+
+/** The queue while it loads: rows in the shape of the real ones, thumbnail and two lines. */
+export function QueueSkeleton() {
+  return (
+    <Panel flush>
+      <div aria-busy="true">
+        <QueueSkeletonRows count={6} />
+      </div>
+    </Panel>
+  );
+}
+
+function QueueSkeletonRows({ count }: { count: number }) {
+  return Array.from({ length: count }, (_, i) => (
+    <div key={i} aria-hidden className={clsx("flex items-center gap-4 px-5 py-3 sm:px-6", i > 0 && "border-t border-ink/[0.06]")}>
+      <Skeleton className="size-14 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <Skeleton className="h-4" style={{ width: `${[46, 38, 52, 34, 44, 40][i % 6]}%` }} />
+        <Skeleton className="mt-2 h-3 w-1/4" />
+      </div>
+      <Skeleton className="hidden h-3 w-14 sm:block" />
+    </div>
+  ));
 }
 
 const ratioOf = (p: DraftPhoto) => (p.width && p.height ? p.width / p.height : 1);
@@ -742,12 +773,27 @@ function LargeTile({ draft }: { draft: Draft }) {
     <label className="mr-3 flex items-center gap-2.5 text-[0.875rem] text-ink" title={portrait && draft.largeTile ? "The cover is portrait, so the wide tile crops it. A landscape cover suits it best." : undefined}>
       <Toggle
         checked={draft.largeTile}
-        onChange={(on) => void setLargeTile(draft, on).catch((e: Error) => toast(`Couldn't change the tile: ${e.message}`))}
+        onChange={(on) => void setPlacement(draft, "largeTile", on).catch((e: Error) => toast(`Couldn't change the tile: ${e.message}`))}
         label="Large tile in the directory"
         disabled={!cover}
       />
       Large tile
       {portrait && draft.largeTile && <Icon name="alert" className="size-4 text-warn" strokeWidth={1.5} />}
+    </label>
+  );
+}
+
+/** Pins the vendor to the home page's "Meet some of our vendors" row, ahead of the vendors picked at random. Needs a photo, as the row is all photographs. */
+function HomePin({ draft }: { draft: Draft }) {
+  return (
+    <label className="mr-3 flex items-center gap-2.5 text-[0.875rem] text-ink">
+      <Toggle
+        checked={draft.featured}
+        onChange={(on) => void setPlacement(draft, "featured", on).catch((e: Error) => toast(`Couldn't change the home page pin: ${e.message}`))}
+        label="Pinned to the home page"
+        disabled={!draft.photos[0]}
+      />
+      Home page
     </label>
   );
 }

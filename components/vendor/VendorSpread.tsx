@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { Button } from "@/components/ui/Button";
+import { CountView } from "@/components/vendor/CountView";
 import { Enquire } from "@/components/vendor/Enquire";
 import { Gallery, GalleryImage } from "@/components/vendor/Gallery";
 import { StickyColumn } from "@/components/vendor/StickyColumn";
@@ -78,6 +79,7 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
 
   return (
     <Gallery images={images} name={vendor.name} slug={vendor.slug}>
+      {!still && <CountView slug={vendor.slug} />}
       <article className="pt-[var(--header-h)]">
         <div className="shell">
           <Link href="/vendors" transitionTypes={["nav-back"]} className="t-small group my-5 inline-flex items-center gap-2 hover:text-ink">

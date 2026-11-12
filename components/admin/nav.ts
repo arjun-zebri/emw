@@ -18,7 +18,7 @@ export const ownerNav: NavGroup[] = [
     title: "Manage",
     items: [
       { href: "/admin/approvals", label: "Approvals", icon: "inbox", badge: "approvals" },
-      { href: "/admin/vendors", label: "Vendors", icon: "store", soon: true },
+      { href: "/admin/vendors", label: "Vendors", icon: "store" },
       { href: "/admin/couples", label: "Couples", icon: "heart", soon: true },
       { href: "/admin/journal", label: "Journal", icon: "pen", soon: true },
     ],
