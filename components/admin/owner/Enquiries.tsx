@@ -246,7 +246,7 @@ export function Enquiries() {
 }
 
 /** The period, top right: a preset, or two dates. Days are Melbourne days. */
-function PeriodControl({ filters, range, update }: { filters: Filters; range: Range; update: (c: Partial<Filters>) => void }) {
+export function PeriodControl({ filters, range, update }: { filters: Filters; range: Range; update: (c: Partial<Filters>) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="w-44 border border-ink/15 bg-surface px-3 py-2 transition-colors hover:border-ink/40">

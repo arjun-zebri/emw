@@ -132,5 +132,28 @@ export function buckets(list: Enquiry[], before: Enquiry[], r: Range, prev?: Ran
   return { unit, cols };
 }
 
+/** The same columns as `buckets`, from counts already added up per day (Admin → Traffic). */
+export function bucketDays(days: { day: string; value: number }[], before: { day: string; value: number }[], r: Range, prev?: Range) {
+  const n = daysIn(r);
+  const unit: Unit = n <= 14 ? "day" : n <= 120 ? "week" : "month";
+  const keyOf = (day: string) => (unit === "day" ? day : unit === "week" ? weekStart(day) : day.slice(0, 7));
+  const cols: { key: string; value: number; prev: number; range: Range }[] = [];
+  for (let d = r.start; d <= r.end; d = addDays(d, 1)) {
+    const key = keyOf(d);
+    if (cols.at(-1)?.key === key) cols.at(-1)!.range.end = d;
+    else cols.push({ key, value: 0, prev: 0, range: { start: d, end: d } });
+  }
+  const at = new Map(cols.map((c, i) => [c.key, i]));
+  for (const d of days) {
+    const i = at.get(keyOf(d.day));
+    if (i !== undefined) cols[i].value += d.value;
+  }
+  if (prev)
+    for (const d of before) {
+      const i = at.get(keyOf(addDays(d.day, n)));
+      if (i !== undefined) cols[i].prev += d.value;
+    }
+  return { unit, cols };
+}
 
 export const facetLabel: Record<Facet, string> = { vendor: "Vendor", craft: "Category", culture: "Culture", location: "Location" };

@@ -3,8 +3,9 @@
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
+import { countSearch } from "@/components/site/Analytics";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { languages, serviceLabels } from "@/data/taxonomy";
 import type { CraftId } from "@/data/types";
@@ -41,6 +42,14 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
     { ...filters, q: query },
   ).map((v) => byVendor.get(v)!);
   const wide = results.map(isWide);
+
+  // For Admin → Traffic: the words, once typing stops, and how many listings match them on their
+  // own (not narrowed by the filters), so a search that finds no one shows who to sign up.
+  useEffect(() => {
+    if (query.trim().length < 2) return;
+    const t = setTimeout(() => countSearch(query, filterVendors(cards.map((c) => c.vendor), { ...parseFilters(new URLSearchParams()), q: query }).length), 1500);
+    return () => clearTimeout(t);
+  }, [query, cards]);
   // Chosen overseas regions with no vendors at all yet.
   const empty = new Set(options.areas.filter(([, n]) => n === 0).map(([a]) => a));
   const abroad = filters.areas.filter((a) => isOverseas(a) && empty.has(a)).map((a) => areaFilterLabel(a));

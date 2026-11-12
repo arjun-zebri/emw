@@ -91,7 +91,6 @@ export function Overview() {
         className="mt-4"
         title="The rest fills in at launch"
         items={[
-          { icon: "overview", title: "Traffic", detail: "Visits, where couples come from and what they search for, once the new site is live." },
           { icon: "coin", title: "Revenue", detail: "Subscriptions and payments, once vendors pay for their listing through Stripe." },
           { icon: "people", title: "Couples", detail: "Couples who save vendors and send enquiries, once they can sign up." },
           { icon: "pulse", title: "Site health", detail: "Uptime and response times, checked every few minutes from launch day." },

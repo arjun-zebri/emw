@@ -92,7 +92,8 @@ export type Source = keyof typeof SOURCES;
 const craftNames: Record<string, string> = Object.fromEntries(crafts.map((c) => [c.id, c.name]));
 
 /** Search engines and social sites by name; anything else by its host. */
-function siteName(host: string) {
+/** A site's everyday name ("Instagram", "Google"), or its host. */
+export function siteName(host: string) {
   const h = host.replace(/^(www|m|l|lm)\./, "");
   const known: [RegExp, string][] = [
     [/(^|\.)google\./, "Google"],

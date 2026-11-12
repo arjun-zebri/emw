@@ -9,7 +9,7 @@ export const ownerNav: NavGroup[] = [
   {
     title: "Insights",
     items: [
-      { href: "/admin/traffic", label: "Traffic", icon: "trend", soon: true },
+      { href: "/admin/traffic", label: "Traffic", icon: "trend" },
       { href: "/admin/enquiries", label: "Enquiries", icon: "speech" },
       { href: "/admin/revenue", label: "Revenue", icon: "coin", soon: true },
     ],

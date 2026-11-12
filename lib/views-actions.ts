@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
+import { BOT_UA } from "./bots";
 import type { Database } from "./supabase/database.types";
 
 /*
@@ -10,12 +11,10 @@ import type { Database } from "./supabase/database.types";
  * previews are left out; the page itself counts a browser once per session (CountView).
  */
 
-const bot = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|headless|lighthouse|pingdom|monitor/i;
-
 export async function recordView(slug: string) {
   if (typeof slug !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 120) return;
   const ua = (await headers()).get("user-agent") ?? "";
-  if (!ua || bot.test(ua)) return;
+  if (!ua || BOT_UA.test(ua)) return;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) return;

@@ -525,7 +525,16 @@ export type Database = {
       is_team: { Args: never; Returns: boolean }
       is_team_owner: { Args: never; Returns: boolean }
       is_vendor_member: { Args: { vendor: string }; Returns: boolean }
+      record_page_view: {
+        Args: { p_city: string; p_campaign: string; p_country: string; p_device: string; p_ident: string; p_path: string; p_referrer: string; p_region: string }
+        Returns: undefined
+      }
+      record_site_search: { Args: { p_ident: string; p_matches: number; p_query: string }; Returns: undefined }
       record_vendor_view: { Args: { vendor_slug: string }; Returns: undefined }
+      traffic_summary: {
+        Args: { first_day: string; last_day: string; prev_first?: string; prev_last?: string }
+        Returns: Json
+      }
     }
     Enums: {
       post_status: "draft" | "scheduled" | "published"

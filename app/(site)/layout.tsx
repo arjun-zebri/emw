@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { MotionRuntime } from "@/components/motion/MotionRuntime";
+import { Analytics } from "@/components/site/Analytics";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { Trail } from "@/components/site/Trail";
@@ -14,6 +15,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <MotionRuntime />
       <Suspense fallback={null}>
         <Trail />
+        <Analytics />
       </Suspense>
     </>
   );
