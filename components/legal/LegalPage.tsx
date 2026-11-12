@@ -16,18 +16,23 @@ export function LegalPage({ page }: { page: Page }) {
         <h1 data-intro-in className="t-display">
           {page.title}
         </h1>
-        <div className="mt-[clamp(2.5rem,5vw,4rem)] max-w-[62ch] border-t hairline pt-[clamp(2rem,4vw,3rem)]">
+        {/* Each section a row across the page: its heading on the left, its text on the right. */}
+        <div className="mt-[clamp(2.5rem,5vw,4rem)]">
           {page.sections.length === 0 ? (
-            <p className="t-body">Our terms and conditions will be published here soon.</p>
+            <div className="grid grid-cols-1 gap-4 border-t hairline pt-6 md:grid-cols-12 md:gap-8">
+              <p className="t-body md:col-span-8 md:col-start-5">Our terms and conditions will be published here soon.</p>
+            </div>
           ) : (
             page.sections.map((s) => (
-              <section key={s.heading} className="mb-10 last:mb-0">
-                <h2 className="t-title mb-4">{s.heading}</h2>
-                {s.paragraphs.map((p) => (
-                  <p key={p} className="t-body mt-3 [overflow-wrap:anywhere]">
-                    {p}
-                  </p>
-                ))}
+              <section key={s.heading} className="grid grid-cols-1 gap-4 border-t hairline py-8 md:grid-cols-12 md:gap-8 md:py-10">
+                <h2 className="t-title md:col-span-4">{s.heading}</h2>
+                <div className="space-y-3 md:col-span-8 lg:col-span-7">
+                  {s.paragraphs.map((p) => (
+                    <p key={p} className="t-body [overflow-wrap:anywhere]">
+                      {p}
+                    </p>
+                  ))}
+                </div>
               </section>
             ))
           )}
