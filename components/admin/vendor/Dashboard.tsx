@@ -8,7 +8,8 @@ import { useEnquiries } from "@/lib/admin/enquiries";
 import { longDay, plural } from "@/lib/admin/format";
 import { useVendorSlug } from "@/lib/admin/session";
 import { useToday } from "@/lib/admin/time";
-import { Btn, NotYet, PageHeader, Panel } from "../ui";
+import { Btn, PageHeader, Panel } from "../ui";
+import { ProfileStats } from "./ProfileStats";
 
 export function Dashboard() {
   const slug = useVendorSlug();
@@ -75,17 +76,7 @@ export function Dashboard() {
         </Panel>
       )}
 
-      <NotYet
-        title="Your numbers start at launch"
-        items={[
-          { icon: "eye", title: "Profile views", detail: "How many couples open your listing, day by day." },
-          { icon: "arrow-up-right", title: "Clicks", detail: "Visits to your website, Instagram and Facebook from your listing." },
-          { icon: "speech", title: "Enquiries", detail: "How many couples write to you, and how quickly you reply." },
-          { icon: "search", title: "How they find you", detail: "The searches and categories that lead couples to you." },
-        ]}
-      >
-        Once the new site is live, you&rsquo;ll see how couples find and use your listing here.
-      </NotYet>
+      <ProfileStats slug={slug} enquiries={enquiries.list} enquiriesReady={enquiries.status === "ready"} />
     </>
   );
 }

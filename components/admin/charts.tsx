@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { num } from "@/lib/admin/format";
 
@@ -222,7 +223,7 @@ export function BarList({ rows, empty = "Nothing yet", onPick, picked }: { rows:
   );
 }
 
-/** A grey block standing in for text or a figure while the page loads, at the size of what replaces it. */
+/** A block standing in for text or a figure while the page loads: the shared Skeleton, under the name these charts use. */
 export function Bone({ className }: { className?: string }) {
-  return <span className={clsx("block animate-pulse bg-ink/[0.06]", className)} aria-hidden />;
+  return <Skeleton className={className} />;
 }
