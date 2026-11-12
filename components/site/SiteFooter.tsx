@@ -65,12 +65,12 @@ export async function SiteFooter() {
         </p>
         <p className="flex gap-6">
           <span>© 2026 {SITE.name}</span>
-          <a href={`${SITE.url}/privacy-policy/`} className="link-line">
+          <Link href="/privacy-policy" className="link-line">
             Privacy
-          </a>
-          <a href={`${SITE.url}/terms-and-conditions/`} className="link-line">
+          </Link>
+          <Link href="/terms-and-conditions" className="link-line">
             Terms
-          </a>
+          </Link>
         </p>
       </div>
     </footer>
