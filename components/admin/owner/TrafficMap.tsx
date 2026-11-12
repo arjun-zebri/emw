@@ -3,13 +3,13 @@
 import clsx from "clsx";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { AU_STATES, auPoint } from "@/data/au-map";
+import { AU_LABELS, AU_STATES, auPoint } from "@/data/au-map";
 import { states } from "@/data/taxonomy";
-import { num, plural } from "@/lib/admin/format";
+import { plural } from "@/lib/admin/format";
 
 /*
- * Australia for Admin → Traffic: states shaded by visits, a bubble on each city sized by its
- * visits. Drag to move, pinch or ⌘/Ctrl + scroll to zoom (plain scrolling still scrolls the
+ * Australia for Admin → Traffic: states shaded by visits and labelled with their share, a bubble
+ * on each city sized by its visits. Drag to move, pinch or ⌘/Ctrl + scroll to zoom (plain scrolling still scrolls the
  * page), or use the buttons. Picking a state or a city narrows the page to it and the map flies
  * there; clearing it flies back. Hand-drawn SVG, no map library.
  */
@@ -21,6 +21,8 @@ const HOME: View = { x: -6, y: -6, w: 412, h: 382 };
 const MIN_W = HOME.w / 10;
 const STATE_CODES = Object.keys(AU_STATES) as (keyof typeof AU_STATES)[];
 const ease = (t: number) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t));
+/** A share as a whole percentage, or "<1%" for a sliver. */
+export const share = (n: number, total: number) => (!total || !n ? "0%" : n / total < 0.01 ? "<1%" : `${Math.round((n / total) * 100)}%`);
 
 /** Keep the view the map's shape, no closer than 10× and no further out than all of Australia. */
 function clampView(v: View): View {
@@ -35,12 +37,15 @@ function clampView(v: View): View {
 
 export function TrafficMap({
   byState,
+  total,
   cities,
   picked,
   onPickState,
   onPickCity,
 }: {
   byState: Map<string, number>;
+  /** All visits in the period, overseas too: what the shares are of. */
+  total: number;
   cities: MapCity[];
   /** The place facet: "AU-VIC", or "city:Melbourne|VIC". */
   picked?: string;
@@ -185,7 +190,7 @@ export function TrafficMap({
       const r = (e.target as Element).getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top };
     })();
-    setTip({ x: src.x - box.left, y: src.y - box.top, title, detail: plural(n, "visit") });
+    setTip({ x: src.x - box.left, y: src.y - box.top, title, detail: `${plural(n, "visit")} · ${share(n, total)}` });
   };
 
   const top = Math.max(1, ...byState.values());
@@ -242,6 +247,22 @@ export function TrafficMap({
                 }
               }}
             />
+          );
+        })}
+        {STATE_CODES.map((code) => {
+          const at = AU_LABELS[code];
+          const n = byState.get(code) ?? 0;
+          if (!at || !n) return null;
+          const halo = { paintOrder: "stroke" as const, stroke: "#ffffff", strokeWidth: 3 * upp, strokeLinejoin: "round" as const, strokeOpacity: 0.85 };
+          return (
+            <text key={code} x={at.x} y={at.y} textAnchor={at.anchor ?? "middle"} className="pointer-events-none" style={halo}>
+              <tspan x={at.x} fontSize={11 * upp} className="fill-ink" fontWeight={500}>
+                {code}
+              </tspan>
+              <tspan x={at.x} dy={13 * upp} fontSize={11 * upp} className="fill-ink-soft">
+                {share(n, total)}
+              </tspan>
+            </text>
           );
         })}
         {cityPoints
@@ -319,9 +340,7 @@ export function TrafficMap({
           <Icon name="refresh" className="size-3.5" strokeWidth={1.6} />
         </button>
       </div>
-      <p className="mt-2 text-[0.75rem] text-ink-soft">
-        {num(cities.length)} {cities.length === 1 ? "city" : "cities"}. Drag to move, pinch or ⌘ + scroll to zoom.
-      </p>
+      <p className="mt-2 text-[0.75rem] text-ink-soft">Drag to move, pinch or ⌘ + scroll to zoom.</p>
     </div>
   );
 }

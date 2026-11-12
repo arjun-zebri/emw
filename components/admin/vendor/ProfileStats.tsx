@@ -6,7 +6,7 @@ import type { Enquiry } from "@/lib/admin/enquiries";
 import { day, num } from "@/lib/admin/format";
 import { useToday } from "@/lib/admin/time";
 import { sourceLine } from "@/lib/enquiry-fields";
-import { BarList, Columns } from "../charts";
+import { BarList, Trend } from "../charts";
 import { Empty, Panel, Stat } from "../ui";
 
 /**
@@ -48,7 +48,7 @@ export function ProfileStats({ slug, enquiries, enquiriesReady }: { slug: string
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel title="Profile views, day by day">
           {stats.status === "on" ? (
-            <Columns
+            <Trend
               data={stats.days.map((d) => ({ key: d.day, value: d.views }))}
               height={220}
               label="Profile views per day"

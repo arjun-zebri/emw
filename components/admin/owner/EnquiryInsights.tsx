@@ -9,7 +9,7 @@ import type { Enquiry, ListedVendor } from "@/lib/admin/enquiries";
 import { buckets, craftOfVendor, culturesOf, type Facet, type Facets, melDay, MIN_BASE, type Range } from "@/lib/admin/enquiry-filters";
 import { day, month, num, plural } from "@/lib/admin/format";
 import { dayNumber } from "@/lib/admin/time";
-import { BarList, Bone, Columns } from "../charts";
+import { BarList, Bone, Trend } from "../charts";
 import { Drawer } from "../Drawer";
 import { Delta, Panel, Stat } from "../ui";
 
@@ -131,7 +131,7 @@ export function EnquiryInsights(p: Props) {
 
       <Panel title={ready ? `Enquiries each ${unit}` : "Enquiries"} meta={ready ? `${day(range.start, { year: true })} to ${day(range.end, { year: true })}` : <Bone className="mt-1 h-4 w-48" />} className="mt-4">
         {ready ? (
-          <Columns
+          <Trend
             data={cols.map((c) => ({ key: c.key, value: c.value, prev: prev ? c.prev : undefined }))}
             label={`Enquiries each ${unit}`}
             xLabel={xLabel}

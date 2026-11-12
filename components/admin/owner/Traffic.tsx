@@ -12,11 +12,12 @@ import { day, month, num, plural } from "@/lib/admin/format";
 import { addMonths, useToday } from "@/lib/admin/time";
 import { siteName } from "@/lib/enquiry-fields";
 import { supabase } from "@/lib/supabase/browser";
-import { BarList, type BarRow, Bone, Columns } from "../charts";
+import { BarList, type BarRow, Bone, Trend } from "../charts";
 import { Drawer } from "../Drawer";
+import { Dropdown } from "../shared/Dropdown";
 import { Delta, Empty, NotYet, PageHeader, Panel, Tabs } from "../ui";
 import { PeriodControl } from "./Enquiries";
-import { type MapCity, TrafficMap } from "./TrafficMap";
+import { type MapCity, share, TrafficMap } from "./TrafficMap";
 
 /*
  * Visitor numbers for the team, from the site's own counter (app/api/v; no third party, no
@@ -179,6 +180,20 @@ export function Traffic() {
       label: facet === "channel" ? CHANNELS[value as Channel] : facet === "place" ? placeLabel(value) : facet === "vendor" ? (vendorName.get(value) ?? value) : value,
     }));
 
+  // Where visitors are: every state, then the countries visits came from (and a city, if one is picked on the map).
+  const locationOptions = useMemo(() => {
+    const abroad = [...new Set((data?.places ?? []).map((p) => p.country).filter((c): c is string => !!c && c !== "AU"))]
+      .map((c) => ({ value: c, label: countryName(c) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const city = facets.place?.startsWith("city:") ? [{ value: facets.place, label: placeLabel(facets.place) }] : [];
+    return [
+      { value: "all", label: "All locations" },
+      ...Object.keys(states).map((code) => ({ value: `AU-${code}`, label: stateName(code) })),
+      ...abroad,
+      ...city,
+    ];
+  }, [data, facets.place]);
+
   const header = (
     <PageHeader
       title="Traffic"
@@ -198,6 +213,15 @@ export function Traffic() {
               {live ? `${plural(live, "person", "people")} on the site now` : "No one on the site right now"}
             </span>
           )}
+          <div className="w-52 border border-ink/15 bg-surface px-3 py-2 transition-colors hover:border-ink/40">
+            <Dropdown
+              single
+              options={locationOptions}
+              value={facets.place ?? "all"}
+              onChange={(place: string) => setFacets((f) => ({ ...f, place: place === "all" ? undefined : place }))}
+              placeholder="All locations"
+            />
+          </div>
           <PeriodControl filters={filters} range={range} update={update} />
         </div>
       }
@@ -277,16 +301,12 @@ export function Traffic() {
 
       <div className={clsx("transition-opacity duration-300", ready && !fresh && "pointer-events-none opacity-50")}>
         <Headline ready={ready} data={data} range={range} prev={prev} zoom={(r) => update({ period: "custom", from: r.start, to: r.end })} />
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Sources ready={ready} data={data} facets={facets} pick={pick} />
           <Places ready={ready} data={data} facets={facets} pick={pick} />
         </div>
         <Listings ready={ready} data={data} vendors={vendors ?? []} facets={facets} pick={pick} narrowed={chips.length > 0} />
-        <Heading title="Where they land">
-          <p className="text-[0.875rem] text-ink-soft">The first page of each visit</p>
-        </Heading>
-        <Landings ready={ready} data={data} names={vendorName} facets={facets} pick={pick} />
-        <Demand ready={ready} data={data} />
+        <Demand ready={ready} data={data} names={vendorName} facets={facets} pick={pick} />
       </div>
       {aboutDrawer}
     </>
@@ -338,13 +358,30 @@ const listBones = (rows = 6) => (
   </div>
 );
 
+/** Each row's share of the whole, beside its count. */
+const withShare = (rows: BarRow[], total: number) => rows.map((r) => ({ ...r, note: share(r.value, total) }));
+
 /** The first rows of a list, with the rest a click away in a drawer. Only as tall as what's in it. */
-function ShortList({ rows, empty, title, onPick, picked }: { rows: BarRow[]; empty: string; title: string; onPick?: (id: string) => void; picked?: string }) {
+function ShortList({
+  rows,
+  empty,
+  title,
+  onPick,
+  picked,
+  shown = SHOWN,
+}: {
+  rows: BarRow[];
+  empty: string;
+  title: string;
+  onPick?: (id: string) => void;
+  picked?: string;
+  shown?: number;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <BarList rows={rows.slice(0, SHOWN)} empty={empty} onPick={onPick} picked={picked} />
-      {rows.length > SHOWN && (
+      <BarList rows={rows.slice(0, shown)} empty={empty} onPick={onPick} picked={picked} />
+      {rows.length > shown && (
         <button type="button" onClick={() => setOpen(true)} className="mt-3 px-3 text-[0.8125rem] text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink">
           See all {num(rows.length)}
         </button>
@@ -452,7 +489,7 @@ function Headline({ ready, data, range, prev, zoom }: { ready: boolean; data?: S
             <p className="mb-3 text-[0.8125rem] text-ink-soft">
               {m.label} each {unit}, {day(range.start, { year: true })} to {day(range.end, { year: true })}
             </p>
-            <Columns
+            <Trend
               data={cols.map((c) => ({ key: c.key, value: c.value, prev: prev ? c.prev : undefined }))}
               label={`${m.label} each ${unit}`}
               unit={m.unit}
@@ -480,10 +517,8 @@ const before = (then?: number) => (then !== undefined ? `${num(then)} the period
 
 // ── Sources ─────────────────────────────────────────────────────────────
 
-type SourceView = "channels" | "sites" | "campaigns";
-
 function Sources({ ready, data, facets, pick }: Part) {
-  const [view, setView] = useState<SourceView>("channels");
+  const total = data?.totals.visits ?? 0;
   const { channels, sites, hostsOf, campaigns } = useMemo(() => {
     const byName = new Map<string, { row: BarRow; hosts: string[] }>();
     for (const s of data?.sites ?? []) {
@@ -494,39 +529,30 @@ function Sources({ ready, data, facets, pick }: Part) {
       byName.set(name, e);
     }
     return {
-      channels: (data?.channels ?? []).map((c): BarRow => ({ id: c.channel, label: CHANNELS[c.channel] ?? c.channel, value: c.visits })),
-      sites: [...byName.values()].map((e) => e.row).sort((a, b) => b.value - a.value),
+      channels: withShare((data?.channels ?? []).map((c): BarRow => ({ id: c.channel, label: CHANNELS[c.channel] ?? c.channel, value: c.visits })), total),
+      sites: withShare([...byName.values()].map((e) => e.row).sort((a, b) => b.value - a.value), total),
       hostsOf: new Map([...byName].map(([name, e]) => [name, e.hosts])),
-      campaigns: (data?.campaigns ?? []).map((c): BarRow => ({ id: c.campaign, label: c.campaign, value: c.visits })),
+      campaigns: withShare((data?.campaigns ?? []).map((c): BarRow => ({ id: c.campaign, label: c.campaign, value: c.visits })), total),
     };
-  }, [data]);
+  }, [data, total]);
 
-  const lists: Record<SourceView, { rows: BarRow[]; empty: string; facet: Facet }> = {
-    channels: { rows: channels, empty: "No visits in this period", facet: "channel" },
-    sites: { rows: sites, empty: "No visits from other sites in this period", facet: "site" },
-    campaigns: { rows: campaigns, empty: "No visits from links tagged with utm_source in this period", facet: "campaign" },
-  };
-  const l = lists[view];
+  const part = (title: string, rows: BarRow[], empty: string, facet: Facet, shown: number) => (
+    <div className="border-t hairline pt-4 first:border-0 first:pt-0">
+      <p className="mb-2 px-3 text-[0.8125rem] text-ink-soft">{title}</p>
+      {ready ? (
+        <ShortList rows={rows} shown={shown} empty={empty} title={`Where couples come from: ${title.toLowerCase()}`} onPick={(id) => pick(facet, id, facet === "site" ? hostsOf.get(id) : undefined)} picked={facets[facet]} />
+      ) : (
+        listBones(Math.min(shown, 3))
+      )}
+    </div>
+  );
 
   return (
-    <Panel title="Where couples come from" meta="Visits from each. Click one to see only those visits." flush>
-      <div className="px-5 sm:px-6">
-        <Tabs<SourceView>
-          tabs={[
-            { id: "channels", label: "Channels" },
-            { id: "sites", label: "Sites" },
-            { id: "campaigns", label: "Campaigns" },
-          ]}
-          value={view}
-          onChange={setView}
-        />
-      </div>
-      <div className="px-2 pt-4 pb-5 sm:px-3">
-        {ready ? (
-          <ShortList rows={l.rows} empty={l.empty} title={`Where couples come from: ${view}`} onPick={(id) => pick(l.facet, id, l.facet === "site" ? hostsOf.get(id) : undefined)} picked={facets[l.facet]} />
-        ) : (
-          listBones()
-        )}
+    <Panel title="Where couples come from" meta="Share of visits from each. Click one to see only those." flush>
+      <div className="space-y-5 px-2 pb-5 sm:px-3">
+        {part("Channels", channels, "No visits in this period", "channel", 5)}
+        {part("Sites", sites, "No visits from other sites in this period", "site", 5)}
+        {part("Campaigns", campaigns, "No links tagged with utm_source in this period", "campaign", 3)}
       </div>
     </Panel>
   );
@@ -537,8 +563,10 @@ function Sources({ ready, data, facets, pick }: Part) {
 type PlaceView = "states" | "cities" | "countries";
 
 function Places({ ready, data, facets, pick }: Part) {
+  const [all, setAll] = useState(false);
   const [view, setView] = useState<PlaceView>("states");
   const places = useMemo(() => data?.places ?? [], [data]);
+  const total = places.reduce((a, p) => a + p.visits, 0);
 
   const byState = useMemo(() => {
     const m = new Map<string, number>();
@@ -552,6 +580,12 @@ function Places({ ready, data, facets, pick }: Part) {
         .map((p): MapCity => ({ id: cityId("AU", p.region ?? "", p.city!), name: p.city!, region: p.region ?? "", visits: p.visits, lat: p.lat!, lon: p.lon! })),
     [places],
   );
+  const abroad = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of places) if (p.country && p.country !== "AU") m.set(p.country, (m.get(p.country) ?? 0) + p.visits);
+    return [...m].sort((a, b) => b[1] - a[1]);
+  }, [places]);
+  const overseas = abroad.reduce((a, [, n]) => a + n, 0);
 
   const rows = useMemo(() => {
     const m = new Map<string, BarRow>();
@@ -569,32 +603,75 @@ function Places({ ready, data, facets, pick }: Part) {
         add(cityId(p.country, p.region ?? "", p.city), p.city, p.visits, p.country === "AU" ? (p.region ?? undefined) : countryName(p.country));
       }
     }
-    return [...m.values()].sort((a, b) => b.value - a.value);
-  }, [places, view]);
-
-  const abroad = places.filter((p) => p.country && p.country !== "AU").reduce((a, p) => a + p.visits, 0);
+    return withShare(
+      [...m.values()].sort((a, b) => b.value - a.value),
+      total,
+    );
+  }, [places, view, total]);
 
   return (
     <Panel
       title="Where they are"
-      meta={ready ? `${abroad ? `${plural(abroad, "visit")} from overseas. ` : ""}Click a state or city to see only its visits.` : "From the visitor's connection, close not exact"}
+      meta="Share of visits from each state. Click a state or city to see only those."
+      actions={
+        ready && total > 0 ? (
+          <button type="button" onClick={() => setAll(true)} className="text-[0.8125rem] text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink">
+            All places
+          </button>
+        ) : undefined
+      }
       flush
     >
-      <div className="grid grid-cols-1 gap-x-10 gap-y-6 px-5 pb-5 sm:px-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        <div className="min-w-0">
-          {ready ? (
+      <div className="px-5 pb-5 sm:px-6">
+        {ready ? (
+          <>
             <TrafficMap
               byState={byState}
+              total={total}
               cities={cities}
               picked={facets.place}
               onPickState={(code) => pick("place", `AU-${code}`)}
               onPickCity={(id) => pick("place", id)}
             />
-          ) : (
-            <Bone className="aspect-[412/382] w-full" />
-          )}
-        </div>
-        <div className="min-w-0">
+            {cities.length > 0 && (
+              <p className="mt-3 border-t hairline pt-3 text-[0.8125rem] text-ink-soft">
+                <span className="text-ink">Top cities</span>
+                {" · "}
+                {[...cities]
+                  .sort((x, y) => y.visits - x.visits)
+                  .slice(0, 6)
+                  .map((c, i) => (
+                    <span key={c.id}>
+                      {i > 0 && ", "}
+                      <button type="button" onClick={() => pick("place", c.id)} className={clsx("hover:text-ink hover:underline hover:underline-offset-4", facets.place === c.id && "text-ink underline underline-offset-4")}>
+                        {c.name} {share(c.visits, total)}
+                      </button>
+                    </span>
+                  ))}
+              </p>
+            )}
+            {overseas > 0 && (
+              <p className="mt-3 border-t hairline pt-3 text-[0.8125rem] text-ink-soft">
+                <span className="text-ink">Overseas {share(overseas, total)}</span>
+                {" · "}
+                {abroad.slice(0, 4).map(([c, n], i) => (
+                  <span key={c}>
+                    {i > 0 && ", "}
+                    <button type="button" onClick={() => pick("place", c)} className="hover:text-ink hover:underline hover:underline-offset-4">
+                      {countryName(c)} {share(n, total)}
+                    </button>
+                  </span>
+                ))}
+                {abroad.length > 4 && ` and ${plural(abroad.length - 4, "more country", "more countries")}`}
+              </p>
+            )}
+          </>
+        ) : (
+          <Bone className="aspect-[412/382] w-full" />
+        )}
+      </div>
+      <Drawer open={all} onClose={() => setAll(false)} title="Where they are">
+        <div className="px-6 pt-2">
           <Tabs<PlaceView>
             tabs={[
               { id: "states", label: "States" },
@@ -604,21 +681,19 @@ function Places({ ready, data, facets, pick }: Part) {
             value={view}
             onChange={setView}
           />
-          <div className="-mx-3 pt-4">
-            {ready ? (
-              <ShortList
-                rows={rows}
-                empty={view === "states" ? "No visits from Australia in this period" : "No visits in this period"}
-                title={`Where they are: ${view}`}
-                onPick={(id) => pick("place", id)}
-                picked={facets.place}
-              />
-            ) : (
-              listBones(5)
-            )}
-          </div>
         </div>
-      </div>
+        <div className="px-3 py-4">
+          <BarList
+            rows={rows}
+            empty={view === "states" ? "No visits from Australia in this period" : "No visits in this period"}
+            onPick={(id) => {
+              pick("place", id);
+              setAll(false);
+            }}
+            picked={facets.place}
+          />
+        </div>
+      </Drawer>
     </Panel>
   );
 }
@@ -755,87 +830,83 @@ function Listings({ ready, data, vendors, facets, pick, narrowed }: Part & { ven
   );
 }
 
-// ── Landing pages ───────────────────────────────────────────────────────
-
-function Landings({ ready, data, names, facets, pick }: Part & { names: Map<string, string> }) {
-  const rows = (data?.landings ?? []).map((l): BarRow => {
-    const slug = l.path.startsWith("/vendors/") ? l.path.slice(9) : undefined;
-    return { id: l.path, label: slug ? (names.get(slug) ?? slug) : (PAGE_NAMES[l.path] ?? l.path), detail: slug ? "Listing" : undefined, value: l.visits };
-  });
-  return (
-    <Panel flush className="pt-4">
-      <div className="px-2 pb-5 sm:px-3">
-        {ready ? (
-          <ShortList
-            rows={rows}
-            empty="No visits in this period"
-            title="Where they land"
-            onPick={(id) => id.startsWith("/vendors/") && pick("vendor", id.slice(9))}
-            picked={facets.vendor && `/vendors/${facets.vendor}`}
-          />
-        ) : (
-          listBones()
-        )}
-      </div>
-    </Panel>
-  );
-}
-
-// ── Demand ──────────────────────────────────────────────────────────────
+// ── What couples look for ───────────────────────────────────────────────
 
 type FilterView = "language" | "category" | "location" | "service";
 
-function Demand({ ready, data }: { ready: boolean; data?: Summary }) {
+function Demand({ ready, data, names, facets, pick }: Part & { names: Map<string, string> }) {
   const [view, setView] = useState<FilterView>("language");
-  const filterRows = useMemo(
-    () =>
-      (data?.filters ?? [])
-        .filter((f) => f.kind === view)
-        .map((f): BarRow => {
-          const label =
-            f.kind === "language"
-              ? f.value === "Other"
-                ? "Other languages"
-                : (languages[f.value as Language]?.native ?? f.value)
-              : f.kind === "category"
-                ? (craftById[f.value as CraftId]?.name ?? f.value)
-                : f.kind === "location"
-                  ? f.value === "AUS"
-                    ? "Australia"
-                    : (areas[f.value as AreaCode] ?? f.value)
-                  : (serviceLabels[f.value as Service] ?? f.value);
-          const native = f.kind === "language" ? languages[f.value as Language]?.native : undefined;
-          const detail = native && native !== f.value ? f.value : undefined;
-          return { id: f.value, label, detail, value: f.times };
-        })
-        .sort((a, b) => b.value - a.value),
-    [data, view],
+  const visits = data?.totals.visits ?? 0;
+  const landings = withShare(
+    (data?.landings ?? []).map((l): BarRow => {
+      const slug = l.path.startsWith("/vendors/") ? l.path.slice(9) : undefined;
+      return { id: l.path, label: slug ? (names.get(slug) ?? slug) : (PAGE_NAMES[l.path] ?? l.path), detail: slug ? "Listing" : undefined, value: l.visits };
+    }),
+    visits,
   );
-  const searches = (data?.searches ?? []).map((s): BarRow => ({ id: s.query, label: s.query, value: s.times, note: s.matches ? plural(s.matches, "match", "matches") : "No match" }));
-  const unmatched = (data?.searches ?? []).filter((s) => s.matches === 0).map((s): BarRow => ({ id: s.query, label: s.query, value: s.times }));
+  const filterRows = useMemo(() => {
+    const rows = (data?.filters ?? [])
+      .filter((f) => f.kind === view)
+      .map((f): BarRow => {
+        const native = f.kind === "language" ? languages[f.value as Language]?.native : undefined;
+        const label =
+          f.kind === "language"
+            ? f.value === "Other"
+              ? "Other languages"
+              : (native ?? f.value)
+            : f.kind === "category"
+              ? (craftById[f.value as CraftId]?.name ?? f.value)
+              : f.kind === "location"
+                ? f.value === "AUS"
+                  ? "Australia"
+                  : (areas[f.value as AreaCode] ?? f.value)
+                : (serviceLabels[f.value as Service] ?? f.value);
+        return { id: f.value, label, detail: native && native !== f.value ? f.value : undefined, value: f.times };
+      })
+      .sort((a, b) => b.value - a.value);
+    return withShare(rows, rows.reduce((a, r) => a + r.value, 0));
+  }, [data, view]);
+  const searchTotal = (data?.searches ?? []).reduce((a, s) => a + s.times, 0);
+  const searches = (data?.searches ?? []).map((s): BarRow => ({ id: s.query, label: s.query, detail: s.matches ? plural(s.matches, "match", "matches") : "No match", value: s.times, note: share(s.times, searchTotal) }));
+  const unmatched = (data?.searches ?? []).filter((s) => s.matches === 0).map((s): BarRow => ({ id: s.query, label: s.query, value: s.times, note: share(s.times, searchTotal) }));
 
   return (
     <>
       <Heading title="What couples look for">
-        <p className="text-[0.875rem] text-ink-soft">In the directory, each visitor counted once a day</p>
+        <p className="text-[0.875rem] text-ink-soft">Where they land, and what they choose and type in the directory</p>
       </Heading>
-      <Panel title="What they filter by" meta="The choices couples make in the directory" flush>
-        <div className="px-5 sm:px-6">
-          <Tabs<FilterView>
-            tabs={[
-              { id: "language", label: "Languages" },
-              { id: "category", label: "Categories" },
-              { id: "location", label: "Locations" },
-              { id: "service", label: "Services" },
-            ]}
-            value={view}
-            onChange={setView}
-          />
-        </div>
-        <div className="px-2 pt-4 pb-5 sm:px-3">{ready ? <ShortList rows={filterRows} empty="No one chose these in this period" title="What they filter by" /> : listBones()}</div>
-      </Panel>
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Searches" meta="The words couples type, and how many listings match them" flush>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel title="Where they land" meta="The first page of each visit, as a share of visits" flush>
+          <div className="px-2 pb-5 sm:px-3">
+            {ready ? (
+              <ShortList
+                rows={landings}
+                empty="No visits in this period"
+                title="Where they land"
+                onPick={(id) => id.startsWith("/vendors/") && pick("vendor", id.slice(9))}
+                picked={facets.vendor && `/vendors/${facets.vendor}`}
+              />
+            ) : (
+              listBones()
+            )}
+          </div>
+        </Panel>
+        <Panel title="What they filter by" meta="Directory choices, as a share of each kind" flush>
+          <div className="px-5 sm:px-6">
+            <Tabs<FilterView>
+              tabs={[
+                { id: "language", label: "Languages" },
+                { id: "category", label: "Categories" },
+                { id: "location", label: "Locations" },
+                { id: "service", label: "Services" },
+              ]}
+              value={view}
+              onChange={setView}
+            />
+          </div>
+          <div className="px-2 pt-4 pb-5 sm:px-3">{ready ? <ShortList rows={filterRows} empty="No one chose these in this period" title="What they filter by" /> : listBones()}</div>
+        </Panel>
+        <Panel title="Searches" meta="The words couples type, as a share of searches" flush>
           <div className="px-2 pb-5 sm:px-3">{ready ? <ShortList rows={searches} empty="No searches in this period" title="Searches" /> : listBones()}</div>
         </Panel>
         <Panel title="Found no one" meta="Vendors couples looked for that aren't listed yet" flush>

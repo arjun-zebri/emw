@@ -105,12 +105,12 @@ export type Unit = "day" | "week" | "month";
 const weekStart = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
 
 /**
- * Columns for the chart, each with the period before's count at the same place: days for a
- * fortnight or less, weeks up to about four months, months beyond. A column covers `range`.
+ * Points for the chart, each with the period before's count at the same place: days for up to
+ * three months, weeks up to about a year, months beyond. A column covers `range`.
  */
 export function buckets(list: Enquiry[], before: Enquiry[], r: Range, prev?: Range) {
   const n = daysIn(r);
-  const unit: Unit = n <= 14 ? "day" : n <= 120 ? "week" : "month";
+  const unit: Unit = n <= 92 ? "day" : n <= 400 ? "week" : "month";
   const keyOf = (day: string) => (unit === "day" ? day : unit === "week" ? weekStart(day) : day.slice(0, 7));
   const cols: { key: string; value: number; prev: number; range: Range }[] = [];
   for (let d = r.start; d <= r.end; d = addDays(d, 1)) {
@@ -135,7 +135,7 @@ export function buckets(list: Enquiry[], before: Enquiry[], r: Range, prev?: Ran
 /** The same columns as `buckets`, from counts already added up per day (Admin → Traffic). */
 export function bucketDays(days: { day: string; value: number }[], before: { day: string; value: number }[], r: Range, prev?: Range) {
   const n = daysIn(r);
-  const unit: Unit = n <= 14 ? "day" : n <= 120 ? "week" : "month";
+  const unit: Unit = n <= 92 ? "day" : n <= 400 ? "week" : "month";
   const keyOf = (day: string) => (unit === "day" ? day : unit === "week" ? weekStart(day) : day.slice(0, 7));
   const cols: { key: string; value: number; prev: number; range: Range }[] = [];
   for (let d = r.start; d <= r.end; d = addDays(d, 1)) {

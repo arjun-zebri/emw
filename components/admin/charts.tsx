@@ -6,9 +6,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { num } from "@/lib/admin/format";
 
 /*
- * Hand-drawn SVG charts (no chart library in the stack). One look throughout: ink columns no wider
- * than 24px with square bases, hairline grids, a tooltip on every column, and the values as a
- * table for screen readers. Text always wears text colours.
+ * Hand-drawn SVG charts (no chart library in the stack). One look throughout: an ink line over a
+ * faint fill for anything over time, ranked bars for anything else, hairline grids, a tooltip on
+ * every point, and the values as a table for screen readers. Text always wears text colours.
  */
 
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -39,20 +39,14 @@ function niceTicks(max: number, count = 4) {
 
 const PAD = { top: 12, right: 8, bottom: 28, left: 32 };
 
-/** A column with only its top corners rounded, square at the baseline. */
-function columnPath(x: number, y: number, w: number, h: number, r: number) {
-  if (h <= 0) return "";
-  const rr = Math.min(r, h, w / 2);
-  return `M${x},${y + h}V${y + rr}Q${x},${y} ${x + rr},${y}H${x + w - rr}Q${x + w},${y} ${x + w},${y + rr}V${y + h}Z`;
-}
-
 const PREV = "#cdc6ba";
 
 /**
- * One column per period, with the period before beside it in a lighter tone when there is one,
- * and a tooltip. Clicking a column calls `onPick` (to zoom in on it).
+ * A line over time, with the period before as a dashed line beneath it when there is one. Hover
+ * (or arrow keys) to read any point; with `onPick`, clicking a point calls it (to zoom in).
+ * Time series always use this, never columns.
  */
-export function Columns({
+export function Trend({
   data,
   height = 240,
   label,
@@ -66,7 +60,6 @@ export function Columns({
   label: string;
   xLabel: (key: string, long?: boolean) => string;
   unit?: [string, string];
-  /** Writes a value in place of "12 enquiries", for figures that aren't counts (a rate). */
   format?: (n: number) => string;
   onPick?: (index: number) => void;
 }) {
@@ -74,31 +67,67 @@ export function Columns({
   const [active, setActive] = useState<number | null>(null);
   const compare = data.some((d) => d.prev !== undefined);
   const { top, ticks } = niceTicks(Math.max(0, ...data.map((d) => Math.max(d.value, d.prev ?? 0))));
-  const w = Math.max(0, width - PAD.left - PAD.right);
+  const w = Math.max(0, width - PAD.left - PAD.right - 8);
   const h = height - PAD.top - PAD.bottom;
-  const band = w / Math.max(1, data.length);
-  const barW = compare ? Math.min(12, band * 0.32) : Math.min(24, band * 0.62);
-  const gap = compare ? Math.min(3, barW * 0.25) : 0;
+  const x = (i: number) => PAD.left + 8 + (data.length > 1 ? (i / (data.length - 1)) * w : w / 2);
   const y = (v: number) => PAD.top + h - (v / top) * h;
-  const every = Math.max(1, Math.ceil(data.length / (width < 520 ? 4 : 7)));
   const count = (n: number) => (format ? format(n) : `${num(n)} ${n === 1 ? unit[0] : unit[1]}`);
   const tick = (n: number) => (format ? format(n) : num(n));
+  const every = Math.max(1, Math.ceil(data.length / (width < 520 ? 4 : 7)));
+
+  const line = (pick: (d: (typeof data)[number]) => number) => data.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(pick(d)).toFixed(1)}`).join("");
+  const now = line((d) => d.value);
+  const area = data.length ? `${now}L${x(data.length - 1).toFixed(1)},${PAD.top + h}L${x(0).toFixed(1)},${PAD.top + h}Z` : "";
+  const before = compare ? line((d) => d.prev ?? 0) : "";
+
+  const nearest = (clientX: number, el: Element) => {
+    const r = el.getBoundingClientRect();
+    const px = clientX - r.left;
+    if (data.length < 2) return 0;
+    return Math.max(0, Math.min(data.length - 1, Math.round(((px - PAD.left - 8) / w) * (data.length - 1))));
+  };
   const a = active !== null ? data[active] : null;
+  const gradient = `trend-${label.replace(/\W+/g, "-")}`;
 
   return (
     <div>
-      {/* Always there, so the chart doesn't move when the comparison comes and goes. */}
       <div className={clsx("mb-3 flex h-5 items-center gap-5 text-[0.8125rem] text-ink-soft", !compare && "invisible")} aria-hidden={!compare}>
         <span className="flex items-center gap-2">
-          <span className="size-2.5 bg-ink" aria-hidden /> This period
+          <span className="h-0.5 w-4 bg-ink" aria-hidden /> This period
         </span>
         <span className="flex items-center gap-2">
-          <span className="size-2.5" style={{ background: PREV }} aria-hidden /> The period before
+          <span className="w-4 border-t-2 border-dashed" style={{ borderColor: PREV }} aria-hidden /> The period before
         </span>
       </div>
       <div ref={ref} className="relative" style={{ height }}>
         {width > 0 && (
-          <svg width={width} height={height} role="img" aria-label={label} className="block overflow-visible" onPointerLeave={() => setActive(null)}>
+          <svg
+            width={width}
+            height={height}
+            role="img"
+            aria-label={label}
+            tabIndex={0}
+            className={clsx("block overflow-visible outline-none", onPick && "cursor-pointer")}
+            onPointerMove={(e) => setActive(nearest(e.clientX, e.currentTarget))}
+            onPointerLeave={() => setActive(null)}
+            onClick={() => active !== null && onPick?.(active)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                e.preventDefault();
+                setActive((i) => Math.max(0, Math.min(data.length - 1, (i ?? (e.key === "ArrowRight" ? -1 : data.length)) + (e.key === "ArrowRight" ? 1 : -1))));
+              } else if (onPick && active !== null && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                onPick(active);
+              }
+            }}
+            onBlur={() => setActive(null)}
+          >
+            <defs>
+              <linearGradient id={gradient} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor="#161412" stopOpacity="0.1" />
+                <stop offset="1" stopColor="#161412" stopOpacity="0" />
+              </linearGradient>
+            </defs>
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="#161412" strokeOpacity={t === 0 ? 0.16 : 0.06} />
@@ -107,54 +136,39 @@ export function Columns({
                 </text>
               </g>
             ))}
-            {data.map((d, i) => {
-              const cx = PAD.left + band * i + band / 2;
-              const x = compare ? cx - barW - gap / 2 : cx - barW / 2;
-              return (
-                <g
-                  key={d.key}
-                  onPointerEnter={() => setActive(i)}
-                  onFocus={() => setActive(i)}
-                  onBlur={() => setActive(null)}
-                  onClick={() => onPick?.(i)}
-                  onKeyDown={(e) => {
-                    if (onPick && (e.key === "Enter" || e.key === " ")) {
-                      e.preventDefault();
-                      onPick(i);
-                    }
-                  }}
-                  tabIndex={0}
-                  role={onPick ? "button" : "img"}
-                  aria-label={`${xLabel(d.key, true)}: ${count(d.value)}${d.prev !== undefined ? `, ${num(d.prev)} the period before` : ""}`}
-                  className={clsx("outline-none", onPick && "cursor-pointer")}
-                  style={{ opacity: active !== null && active !== i ? 0.45 : 1, transition: "opacity 200ms" }}
-                >
-                  <rect x={PAD.left + band * i} y={PAD.top} width={band} height={h} fill="transparent" />
-                  {compare && <path d={columnPath(cx + gap / 2, y(d.prev ?? 0), barW, PAD.top + h - y(d.prev ?? 0), 2)} fill={PREV} />}
-                  <path d={columnPath(x, y(d.value), barW, PAD.top + h - y(d.value), compare ? 2 : 3)} fill="#161412" />
-                  {(data.length - 1 - i) % every === 0 && (
-                    <text x={cx} y={height - 8} textAnchor="middle" className="fill-ink-mute text-[0.6875rem]">
-                      {xLabel(d.key)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+            {data.map((d, i) =>
+              (data.length - 1 - i) % every === 0 ? (
+                <text key={d.key} x={x(i)} y={height - 8} textAnchor="middle" className="fill-ink-mute text-[0.6875rem]">
+                  {xLabel(d.key)}
+                </text>
+              ) : null,
+            )}
+            <path d={area} fill={`url(#${gradient})`} />
+            {compare && <path d={before} fill="none" stroke={PREV} strokeWidth={1.5} strokeDasharray="4 4" strokeLinejoin="round" strokeLinecap="round" />}
+            <path d={now} fill="none" stroke="#161412" strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" />
+            {a && active !== null && (
+              <g pointerEvents="none">
+                <line x1={x(active)} x2={x(active)} y1={PAD.top} y2={PAD.top + h} stroke="#161412" strokeOpacity={0.18} />
+                {compare && <circle cx={x(active)} cy={y(a.prev ?? 0)} r={3.5} fill="#ffffff" stroke={PREV} strokeWidth={1.5} />}
+                <circle cx={x(active)} cy={y(a.value)} r={4} fill="#161412" stroke="#ffffff" strokeWidth={2} />
+              </g>
+            )}
+            {data.length === 1 && <circle cx={x(0)} cy={y(data[0].value)} r={3} fill="#161412" />}
           </svg>
         )}
         {a && active !== null && width > 0 && (
           <div
-            className="pointer-events-none absolute top-2 z-10 min-w-40 border border-ink/10 bg-surface/95 px-3 py-2.5 text-[0.8125rem] shadow-[0_8px_24px_-12px_rgb(22_20_18/0.25)] backdrop-blur"
-            style={PAD.left + band * active + band / 2 > width - 200 ? { right: width - (PAD.left + band * active) + 6 } : { left: PAD.left + band * (active + 1) + 6 }}
+            className="pointer-events-none absolute top-0 z-10 min-w-40 border border-ink/10 bg-surface/95 px-3 py-2.5 text-[0.8125rem] shadow-[0_8px_24px_-12px_rgb(22_20_18/0.25)] backdrop-blur"
+            style={x(active) > width - 200 ? { right: width - x(active) + 12 } : { left: x(active) + 12 }}
           >
             <p className="text-[0.75rem] text-ink-soft">{xLabel(a.key, true)}</p>
             <p className="mt-1 flex items-center gap-2 text-[0.9375rem] font-medium tabular-nums">
-              {compare && <span className="size-2 bg-ink" aria-hidden />}
+              {compare && <span className="h-0.5 w-3 bg-ink" aria-hidden />}
               {count(a.value)}
             </p>
             {a.prev !== undefined && (
               <p className="mt-0.5 flex items-center gap-2 text-ink-soft tabular-nums">
-                <span className="size-2" style={{ background: PREV }} aria-hidden />
+                <span className="w-3 border-t-2 border-dashed" style={{ borderColor: PREV }} aria-hidden />
                 {format ? format(a.prev) : num(a.prev)} the period before
               </p>
             )}

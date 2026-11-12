@@ -27,3 +27,14 @@ export const AU_STATES: Record<
 const K = Math.cos((27 * Math.PI) / 180);
 const SCALE = 400 / ((154 - 112.9) * K);
 export const auPoint = (lon: number, lat: number) => ({ x: (lon - 112.9) * K * SCALE, y: (-10 - lat) * SCALE });
+
+/** Where each state's name sits on the map: clear of the capital's bubble, in open land or sea. The ACT is too small to label. */
+export const AU_LABELS: Partial<Record<keyof typeof AU_STATES, { x: number; y: number; anchor?: "start" | "middle" | "end" }>> = {
+  WA: { x: 80, y: 160 },
+  NT: { x: 201, y: 95 },
+  QLD: { x: 300, y: 140 },
+  SA: { x: 205, y: 228 },
+  NSW: { x: 318, y: 238 },
+  VIC: { x: 286, y: 284 },
+  TAS: { x: 304, y: 352, anchor: "end" },
+};

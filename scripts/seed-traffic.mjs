@@ -1,11 +1,13 @@
-// Fills Admin → Traffic on the staging database with 60 days of made-up visits, so the page can
-// be seen as it will look once the site has been live a while. Staging only.
+// Fills Admin → Traffic and Admin → Enquiries on the staging database with 60 days of made-up
+// visits and enquiries, so the pages can be seen as they will look once the site has been live a
+// while. Staging only.
 //
 //   node --env-file=.env.local scripts/seed-traffic.mjs            add the test visits
 //   node --env-file=.env.local scripts/seed-traffic.mjs --remove   take every one of them out again
 //
 // Every made-up visitor's code starts with 5eed5eed5eed, which real codes (random) never do in
-// practice, so --remove deletes exactly these and nothing real. Running it again first removes the
+// practice, and every made-up enquiry is from an @example.com address (a domain reserved for
+// examples, so no real couple has one), so --remove deletes exactly these and nothing real. Running it again first removes the
 // last batch. Vendor profile stats (vendor_views) are left alone, so no vendor's own dashboard
 // shows made-up views. The figures are fictional: they must never reach the public site or the
 // production database.
@@ -29,6 +31,9 @@ async function remove() {
     if (error) throw error;
     console.log(`Removed ${count} test rows from ${t}`);
   }
+  const { count, error } = await db.from("enquiries").delete({ count: "exact" }).like("email", "%@example.com");
+  if (error) throw error;
+  console.log(`Removed ${count} test enquiries`);
 }
 
 await remove();
@@ -187,7 +192,57 @@ const insert = async (table, rows) => {
   for (let i = 0; i < rows.length; i += 500) must(await db.from(table).insert(rows.slice(i, i + 500)));
   console.log(`Added ${rows.length} test rows to ${table}`);
 };
+// ── Enquiries ───────────────────────────────────────────────────────────
+// Never emailed (they go straight into the table), and no vendor on staging has an account, so
+// they reach no one. Spread over the same 60 days, to the listings couples view most.
+
+const couples = ["Linh & James", "Priya & Tom", "Mei & Daniel", "Sarah & Kenji", "Anh & Michael", "Grace & Ravi", "Jess & Hyun-woo", "Mai & Liam", "Chloe & Arjun", "Nina & Sam", "Hana & Oliver", "Ruby & Wei", "Isla & Rohan", "Kim & Ethan", "Thao & Ben"];
+const messages = [
+  "We're planning a two-day wedding with a tea ceremony in the morning and a reception at night. Would love to know if you're free and what your packages look like.",
+  "Hi, we loved your work on the site. Could you send through pricing for a half day? Our families speak Cantonese and English.",
+  "We're having a small ceremony followed by a banquet. Are you available on our date?",
+  "Looking for someone who understands both of our traditions. Can we set up a call?",
+  "Could you let us know your availability and rough costs? Thank you.",
+];
+const cultures = ["Chinese", "Vietnamese", "Indian", "Korean", "Filipino", "Australian", "Japanese", "Malaysian", "European"];
+const enquiries = [];
+for (let d = DAYS - 1; d >= 0; d--) {
+  const day = dayAt(d);
+  const n = Math.round((0.6 + (DAYS - d) * 0.045) * (0.5 + rnd()));
+  for (let i = 0; i < n; i++) {
+    const couple = couples[Math.floor(rnd() * couples.length)];
+    const vendor = pickWeighted(popular);
+    const wedding = new Date(Date.parse(`${day}T00:00:00Z`) + (120 + Math.floor(rnd() * 420)) * 86_400_000).toISOString().slice(0, 10);
+    const src = pickWeighted([
+      { s: "search", w: 25, detail: ["photographer", "tea ceremony", "celebrant", "makeup"] },
+      { s: "directory", w: 30, detail: ["Photography & Film", "Beauty & Attire", "Music & Performance"] },
+      { s: "home", w: 10 },
+      { s: "listing", w: 8 },
+      { s: "elsewhere", w: 15, detail: ["Instagram", "Google", "Facebook", "Pinterest"] },
+      { s: "direct", w: 12 },
+    ]);
+    const hour = d === 0 ? Math.min(19, Math.max(0, nowHour - 1)) : 8 + Math.floor(rnd() * 14);
+    const two = [cultures[Math.floor(rnd() * cultures.length)], cultures[Math.floor(rnd() * cultures.length)]];
+    enquiries.push({
+      vendor_id: vendor.id,
+      name: couple,
+      email: `${couple.toLowerCase().replace(/[^a-z]+/g, ".")}.${hex(4)}@example.com`,
+      wedding_date: wedding,
+      region: pickWeighted([{ r: "VIC", w: 45 }, { r: "NSW", w: 25 }, { r: "QLD", w: 12 }, { r: "WA", w: 8 }, { r: "SA", w: 5 }, { r: "ACT", w: 5 }]).r,
+      venue: ["A garden venue in the Yarra Valley", "Banquet hall in the city", "Family home, then a restaurant", "Winery near Geelong", "Beachside reception"][Math.floor(rnd() * 5)],
+      cultures: [...new Set(two)],
+      guests: String(40 + Math.floor(rnd() * 300)),
+      message: messages[Math.floor(rnd() * messages.length)],
+      source: src.s,
+      source_detail: src.detail ? src.detail[Math.floor(rnd() * src.detail.length)] : null,
+      read_at: d > 3 || rnd() < 0.4 ? when(day, hour + 2, 0) : null,
+      created_at: when(day, hour, Math.floor(rnd() * 59)),
+    });
+  }
+}
+
 await insert("page_views", views);
 await insert("site_searches", searchRows);
 await insert("site_filters", filterRows);
-console.log(`\n${DAYS} days of test traffic, ${dayAt(DAYS - 1)} to ${melToday}. Remove it with --remove.`);
+await insert("enquiries", enquiries);
+console.log(`\n${DAYS} days of test traffic and enquiries, ${dayAt(DAYS - 1)} to ${melToday}. Remove them with --remove.`);
