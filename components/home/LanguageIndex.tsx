@@ -46,40 +46,39 @@ export function LanguageIndex({
         <h2 data-reveal suppressHydrationWarning className={sectionTitle}>
           {title}
         </h2>
-        <p className="mt-[clamp(2rem,4vw,3.5rem)] font-display text-[clamp(1.9rem,3.2vw,3.25rem)] leading-[1.35] tracking-[-0.015em]">
+        {/* Set like a type specimen: each language in its own script, its English name captioned beneath,
+            so anyone can read every one before choosing. Caption and word dim together. */}
+        <div className="mt-[clamp(2rem,4vw,3.5rem)] flex flex-wrap items-start gap-x-[clamp(1.25rem,2.2vw,2rem)] gap-y-[clamp(1rem,1.8vw,1.5rem)]">
           {rows.map((r, i) => (
-            <span key={r.name}>
-              <button
-                type="button"
+            <button
+              key={r.name}
+              type="button"
+              aria-pressed={i === active}
+              onClick={() => setActive(i)}
+              className="group flex cursor-pointer flex-col items-start text-left"
+            >
+              <span
                 lang={r.lang}
-                aria-pressed={i === active}
-                onClick={() => setActive(i)}
                 className={clsx(
-                  "inline-block cursor-pointer whitespace-nowrap transition-colors duration-500",
-                  i === active ? "text-ink" : "text-ink/25 hover:text-ink/55",
+                  "whitespace-nowrap font-display text-[clamp(1.9rem,3.2vw,3.25rem)] leading-[1.1] tracking-[-0.015em] transition-colors duration-500",
+                  i === active ? "text-ink" : "text-ink/25 group-hover:text-ink/55",
                 )}
               >
-                <span
-                  className={clsx(
-                    "underline decoration-1 underline-offset-[0.22em] transition-[text-decoration-color] duration-500",
-                    i === active
-                      ? "decoration-ink/50"
-                      : "decoration-transparent",
-                  )}
-                >
-                  {r.native}
-                </span>
-                {/* The English name, small and always readable (not faded with the word), so anyone can read every language before choosing one. */}
-                {r.native !== r.name && (
-                  <span lang="en" className="ml-[0.4em] font-sans text-[0.8125rem] tracking-normal text-ink-mute">
-                    {r.name}
-                  </span>
+                {r.native}
+              </span>
+              <span
+                aria-hidden={r.native === r.name || undefined}
+                className={clsx(
+                  "mt-1.5 text-[0.8125rem] leading-none transition-colors duration-500",
+                  i === active ? "text-ink-mute" : "text-ink/50 group-hover:text-ink-mute",
+                  r.native === r.name && "invisible",
                 )}
-              </button>
-              {i < rows.length - 1 && " "}
-            </span>
+              >
+                {r.name}
+              </span>
+            </button>
           ))}
-        </p>
+        </div>
       </div>
 
       {/* Tall enough for five vendors and "View all", so choosing a language never shifts the page. */}
