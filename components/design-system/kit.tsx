@@ -19,7 +19,7 @@ export function Buttons() {
         <Stage ground="soft" className="flex min-h-48 flex-wrap items-center gap-x-8 gap-y-5 p-[clamp(1.5rem,4vw,3rem)]" caption="Solid, outline, arrow link">
           <Button>Enquire</Button>
           <Button variant="outline">View all vendors</Button>
-          <ArrowLink href="/vendors">Find vendors</ArrowLink>
+          <ArrowLink href="/vendors">Find your vendors</ArrowLink>
         </Stage>
         <Stage ground="night" className="flex min-h-48 flex-wrap items-center gap-x-8 gap-y-5 p-[clamp(1.5rem,4vw,3rem)]" caption="Paper button and text link, on night">
           <Button variant="paper">List your business</Button>
@@ -57,7 +57,7 @@ export function Heading() {
   return (
     <Section id="heading" title="Section heading">
       <Stage ground="paper" className="border-0 [&>div]:mb-0 [&>div]:pt-6">
-        <SectionHeading link={{ href: "/vendors", label: "View all" }}>Featured vendors</SectionHeading>
+        <SectionHeading link={{ href: "/vendors", label: "View all" }}>Meet some of our vendors</SectionHeading>
       </Stage>
     </Section>
   );

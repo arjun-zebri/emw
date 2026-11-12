@@ -41,7 +41,7 @@ const korean = Noto_Serif_KR({ weight: ["300", "400"], variable: "--font-korean"
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: SITE.name, template: `%s · ${SITE.name}` },
+  title: { default: `${SITE.name} · ${SITE.tagline}`, template: `%s · ${SITE.name}` },
   // The share card for any page that doesn't set its own. No canonical or URL here: pages that
   // don't set theirs (the 404, the portals) mustn't claim to be the home page.
   ...withoutUrl(pageMeta({ description: SITE.description, path: "/" })),

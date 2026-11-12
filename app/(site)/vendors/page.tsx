@@ -8,7 +8,8 @@ import { areaCounts, craftCounts, languageCounts, listedCrafts, locationLabel, s
 
 export const metadata: Metadata = pageMeta({
   title: "Vendors",
-  description: "Wedding vendors for couples bringing two cultures together, searchable by category and language.",
+  description:
+    "Celebrants, MCs, photographers, videographers, stylists, florists and more who honour your culture. Search by category, location and language.",
   path: "/vendors",
 });
 
@@ -25,9 +26,14 @@ export default async function VendorsPage() {
   return (
     <PageTransition>
       <div className="shell pt-[calc(var(--header-h)+clamp(3rem,8vw,6rem))] pb-[clamp(6rem,12vw,10rem)]">
-        <h1 data-intro-in className="t-display mb-[clamp(2.5rem,5vw,4rem)]">
+        <h1 data-intro-in className="t-display">
           Vendors
         </h1>
+        <p data-intro-in style={{ "--d": "0.12s" } as React.CSSProperties} className="t-body mt-6 mb-[clamp(2.5rem,5vw,4rem)] max-w-[58ch]">
+          Every wedding carries a story: your culture, your family, the traditions that matter to you. Maybe you know
+          yours by heart, or maybe you&rsquo;re still discovering it. These are vendors who&rsquo;ll honour it and help you
+          find your way.
+        </p>
         <Suspense fallback={<div className="h-[80vh]" />}>
           <VendorDirectory cards={cards} tabs={tabs} options={options} />
         </Suspense>

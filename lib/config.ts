@@ -4,5 +4,6 @@ export const SHOW_IMAGE_BRIEFS = true;
 export const SITE = {
   name: "East Meets Wed",
   url: "https://eastmeetswed.com",
-  description: "Wedding vendors for couples bringing two cultures together.",
+  tagline: "Wedding vendors who honour your story",
+  description: "Your culture belongs in your wedding. Find wedding vendors who honour your story.",
 };

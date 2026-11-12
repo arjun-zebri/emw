@@ -24,7 +24,7 @@ export function pageMeta({ title, description, path, image }: { title?: string; 
   // Vendor photos have a 1200px copy beside the original, the size share cards are drawn at.
   const src = image ?? siteImages.cover.src!;
   const images = [absolute(photoSrcSet(src) ? variantPath(src, 1200) : src)];
-  const shareTitle = title ? `${title} · ${SITE.name}` : SITE.name;
+  const shareTitle = title ? `${title} · ${SITE.name}` : `${SITE.name} · ${SITE.tagline}`;
   return {
     ...(title && { title }),
     description,

@@ -57,12 +57,12 @@ export function Colour() {
 
 const scale = [
   { cls: "t-display", size: "44–104px", sample: "Weddings that belong to two worlds", sampleCls: "t-display" },
-  { cls: "sectionTitle", size: "32–54px", sample: "Featured vendors", sampleCls: sectionTitle },
+  { cls: "sectionTitle", size: "32–54px", sample: "Meet some of our vendors", sampleCls: sectionTitle },
   { cls: "t-heading", size: "28–42px", sample: "Eight trays, seven trays", sampleCls: "t-heading" },
   { cls: "t-title", size: "22px", sample: "Sugar Bee Flowers", sampleCls: "t-title" },
-  { cls: "t-body", size: "16px", sample: "Celebrants, photographers, florists and musicians who know how to bring two cultures into one day.", sampleCls: "t-body max-w-[52ch]" },
+  { cls: "t-body", size: "16px", sample: "Find wedding vendors who honour your story, and help you find it.", sampleCls: "t-body max-w-[52ch]" },
   { cls: "t-small", size: "13px", sample: "Florist, Melbourne · Victoria", sampleCls: "t-small" },
-  { cls: "t-nav", size: "12px", sample: "Find vendors", sampleCls: "t-nav" },
+  { cls: "t-nav", size: "12px", sample: "Find your vendors", sampleCls: "t-nav" },
 ];
 
 const scriptOrder: Language[] = ["Cantonese", "Mandarin", "Vietnamese", "Korean", "Japanese", "Thai", "Teochew", "Hakka", "Indonesian", "Filipino"];

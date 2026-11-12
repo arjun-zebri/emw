@@ -192,11 +192,31 @@ export function filterVendors(
 }
 
 /** Same craft first, then vendors who share a language other than English; photographed vendors before the rest. */
+/** What a craft's vendors are called, for "More celebrants and MCs" under a vendor page. */
+const craftPeople: Record<CraftId, string> = {
+  ceremony: "celebrants and MCs",
+  "photo-film": "photographers and videographers",
+  "beauty-attire": "hair, makeup and attire",
+  "flowers-paper": "florists and stationers",
+  "music-performance": "musicians and performers",
+  "planning-styling": "planners and stylists",
+  "food-cake": "caterers and cake makers",
+  "venues-hire": "venues and hire",
+};
+
+/** The heading and link over a vendor's related vendors: named for its craft when it is the main craft of every one of them. */
+export function relatedHeading(vendor: Vendor, related: Vendor[]) {
+  const craft = primaryCraft(vendor).id;
+  return related.every((v) => primaryCraft(v).id === craft)
+    ? { title: `More ${craftPeople[craft]}`, href: `/vendors?craft=${craft}` }
+    : { title: "More vendors", href: "/vendors" };
+}
+
 export function relatedVendors(vendors: Vendor[], vendor: Vendor, count = 3): Vendor[] {
   const craft = primaryCraft(vendor).id;
   const tongues = (vendor.languages ?? []).filter((l): l is Language => l !== "English");
   const score = (v: Vendor) =>
-    (vendorCrafts(v).includes(craft) ? 4 : 0) + (v.languages?.some((l) => tongues.includes(l)) ? 2 : 0) + (v.cover ? 1 : 0);
+    (primaryCraft(v).id === craft ? 5 : vendorCrafts(v).includes(craft) ? 4 : 0) + (v.languages?.some((l) => tongues.includes(l)) ? 2 : 0) + (v.cover ? 1 : 0);
   return vendors
     .filter((v) => v.slug !== vendor.slug)
     .map((v) => ({ v, s: score(v) }))

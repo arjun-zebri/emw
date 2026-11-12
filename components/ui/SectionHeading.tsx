@@ -11,17 +11,27 @@ export const sectionTitle = "font-display text-[clamp(2rem,3.3vw,3.4rem)] leadin
 export function SectionHeading({
   children,
   link,
+  lede,
   className,
 }: {
   children: React.ReactNode;
   link?: { href: string; label: string };
+  /** One line under the title. */
+  lede?: string;
   className?: string;
 }) {
   return (
     <div className={clsx("mb-[clamp(2rem,4vw,3.5rem)] flex items-end justify-between gap-8 border-t hairline pt-[var(--section)]", className)}>
-      <h2 data-reveal suppressHydrationWarning className={clsx("max-w-[24ch]", sectionTitle)}>
-        {children}
-      </h2>
+      <div>
+        <h2 data-reveal suppressHydrationWarning className={clsx("max-w-[24ch]", sectionTitle)}>
+          {children}
+        </h2>
+        {lede && (
+          <p data-reveal suppressHydrationWarning style={{ "--d": "0.06s" } as React.CSSProperties} className="t-body mt-4 max-w-[48ch]">
+            {lede}
+          </p>
+        )}
+      </div>
       {link && (
         <div data-reveal suppressHydrationWarning style={{ "--d": "0.1s" } as React.CSSProperties} className="hidden shrink-0 pb-[0.3em] md:block">
           <ArrowLink href={link.href} transitionTypes={["nav-forward"]}>

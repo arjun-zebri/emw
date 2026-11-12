@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Media } from "@/components/media/Media";
 import { Intro } from "@/components/motion/Intro";
 import { ArrowLink } from "@/components/ui/ArrowLink";
@@ -26,12 +27,15 @@ export function Hero() {
           Weddings that belong to two worlds
         </h1>
         <p data-intro-in style={d(0.12)} className="t-body max-w-[36ch]">
-          Celebrants, photographers, florists and musicians who know how to bring two cultures into one day.
+          Find wedding vendors who honour your story, and help you find it.
         </p>
-        <div data-intro-in style={d(0.24)}>
+        <div data-intro-in style={d(0.24)} className="flex flex-wrap items-center gap-x-8 gap-y-4">
           <ArrowLink href="/vendors" transitionTypes={["nav-forward"]}>
-            Find vendors
+            Find your vendors
           </ArrowLink>
+          <Link href="/#blog" className="t-small link-line">
+            New to all this? Start with the journal
+          </Link>
         </div>
       </div>
     </section>

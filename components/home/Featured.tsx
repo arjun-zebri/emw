@@ -65,7 +65,9 @@ function Placeholder() {
 export function Featured() {
   return (
     <section className="shell pb-[var(--section)]">
-      <SectionHeading link={{ href: "/vendors", label: "View all" }}>Featured vendors</SectionHeading>
+      <SectionHeading link={{ href: "/vendors", label: "View all" }} lede="From every background. All here because culture matters to them.">
+        Meet some of our vendors
+      </SectionHeading>
       <div className={grid}>
         <Suspense fallback={<Placeholder />}>
           <Picks />

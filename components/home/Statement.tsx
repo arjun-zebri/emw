@@ -33,8 +33,8 @@ export function Statement() {
             grandmother said eight. Her grandfather said seven.
           </p>
           <p className="t-body mt-4">
-            East Meets Wed began with that conversation: a journal and directory for couples keeping their traditions, and
-            the reasons behind them.
+            East Meets Wed began with that conversation. It&rsquo;s a journal and a directory for couples who want to know
+            the why, so whatever you keep, change or make your own, you choose it on purpose.
           </p>
           <ArrowLink href="https://eastmeetswed.com/eight-trays-seven-trays/" className="mt-8">
             Read the story

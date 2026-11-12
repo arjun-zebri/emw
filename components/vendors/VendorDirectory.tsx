@@ -105,7 +105,6 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
           })}
         </nav>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-5 text-ink-mute">
-          {/* A row of its own on phones, so the hint reads in full. */}
           <label className="group flex min-w-0 basis-full items-center gap-2.5 py-1.5 md:w-60 md:basis-auto">
             <Icon name="search" className="size-4 shrink-0 transition-colors group-focus-within:text-ink" />
             <span className="sr-only">Search vendors</span>
@@ -113,7 +112,7 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
               type="search"
               value={query}
               onChange={(e) => search(e.target.value)}
-              placeholder="Search, e.g. tea ceremony"
+              placeholder="Search"
               enterKeyHint="search"
               className="min-w-0 flex-1 bg-transparent text-ink placeholder:text-ink-mute focus:outline-none [&::-webkit-search-cancel-button]:hidden"
             />
@@ -213,8 +212,9 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
           </ArrowLink>
         </div>
       ) : (
-        <div className="py-32 text-center">
-          <p className="t-heading mb-6">{query.trim() ? <>No vendors match &ldquo;{query.trim()}&rdquo;</> : "No vendors match those filters"}</p>
+        <div className="mx-auto max-w-[34rem] py-32 text-center">
+          <p className="t-heading mb-4">No matches found just yet</p>
+          <p className="t-body mb-8">We&rsquo;re adding new vendors all the time. Try fewer filters to see more.</p>
           <button
             type="button"
             onClick={() => {

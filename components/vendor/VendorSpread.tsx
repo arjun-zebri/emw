@@ -11,7 +11,7 @@ import { VendorCard } from "@/components/vendors/VendorCard";
 import { type Slot, vendorImages } from "@/data/images";
 import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
 import type { Vendor } from "@/data/types";
-import { locationLabel, socialHandle, youtubeChannel } from "@/lib/vendors";
+import { locationLabel, relatedHeading, socialHandle, youtubeChannel } from "@/lib/vendors";
 
 function displayUrl(url: string) {
   return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
@@ -67,6 +67,7 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
   const otherTongues = vendor.otherLanguages ?? [];
   const links = contactLinks(vendor);
   const gallery = rows(images);
+  const more = relatedHeading(vendor, related);
   const intro = (d: number) => (still ? {} : { "data-intro-in": true, style: { "--d": `${d}s` } as React.CSSProperties });
 
   const details = [
@@ -217,10 +218,10 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
         {related.length > 0 && (
           <section className="mt-[clamp(4rem,8vw,6rem)] border-t hairline">
             <div className="shell py-[clamp(3rem,6vw,5rem)]">
-              <div className="mb-8 flex items-baseline justify-between">
-                <h2 className="t-title">Similar vendors</h2>
-                <ArrowLink href="/vendors" transitionTypes={["nav-back"]}>
-                  All vendors
+              <div className="mb-8 flex items-baseline justify-between gap-6">
+                <h2 className="t-title">{more.title}</h2>
+                <ArrowLink href={more.href} transitionTypes={["nav-back"]} className="shrink-0">
+                  View all
                 </ArrowLink>
               </div>
               <div className="grid grid-cols-1 gap-x-[clamp(1rem,1.6vw,1.5rem)] gap-y-10 sm:grid-cols-3">

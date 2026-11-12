@@ -5,7 +5,7 @@ import { JournalStories } from "./JournalStories";
 export function Journal() {
   return (
     <section id="blog" className="shell scroll-mt-16 pb-[var(--section)]">
-      <SectionHeading>Blog</SectionHeading>
+      <SectionHeading lede="The stories behind the traditions, so you can make them your own.">Blog</SectionHeading>
       <JournalStories />
     </section>
   );
