@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
@@ -72,14 +72,16 @@ export function FilterDrawer({
       id: "areas",
       title: "Location",
       items: options.areas
-        .filter(([a]) => !isState(a))
+        // Overseas regions are held back for now: Australia only.
+        .filter(([a]) => a === "AUS")
         .map(([a]) => ({ value: a, label: areaFilterLabel(a), lang: undefined, selected: filters.areas.includes(a) })),
     },
   ];
-  // Once Australia is on, its states show beneath to narrow it.
-  const states = filters.areas.includes("AUS")
-    ? options.areas.filter(([a]) => isState(a)).map(([a]) => ({ value: a, label: areaFilterLabel(a, true), selected: filters.areas.includes(a) }))
-    : [];
+  // Once Australia is on, its states open beneath to narrow it.
+  const states = options.areas.filter(([a]) => isState(a)).map(([a]) => ({ value: a, label: areaFilterLabel(a, true), selected: filters.areas.includes(a) }));
+  const showStates = filters.areas.includes("AUS") && states.length > 0;
+  const reduce = useReducedMotion();
+  const statesRef = useRef<HTMLDivElement>(null);
   const chip = (selected: boolean) =>
     clsx(
       "t-small border px-3 py-2 whitespace-pre transition-colors duration-200",
@@ -140,15 +142,43 @@ export function FilterDrawer({
                         </button>
                       ))}
                     </div>
-                    {section.key === "areas" && states.length > 0 && (
-                      <div role="group" aria-label="States" className="mt-3 flex flex-wrap gap-2 border-l hairline pl-3">
-                        {states.map((s) => (
-                          <button key={s.value} type="button" aria-pressed={s.selected} onClick={() => toggle("areas", s.value)} className={chip(s.selected)}>
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <AnimatePresence initial={false}>
+                      {section.key === "areas" && showStates && (
+                        <motion.div
+                          key="states"
+                          role="group"
+                          aria-label="States"
+                          className="overflow-hidden"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: reduce ? 0 : 0.55, ease: [0.16, 1, 0.3, 1] }}
+                          // At the foot of the drawer the states would open out of sight, so bring them into view.
+                          onAnimationComplete={(def) => {
+                            if (typeof def === "object" && "height" in def && def.height === "auto")
+                              statesRef.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+                          }}
+                          ref={statesRef}
+                        >
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {states.map((s, i) => (
+                              <motion.button
+                                key={s.value}
+                                type="button"
+                                aria-pressed={s.selected}
+                                onClick={() => toggle("areas", s.value)}
+                                className={chip(s.selected)}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.04 * i, ease: [0.16, 1, 0.3, 1] }}
+                              >
+                                {s.label}
+                              </motion.button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </fieldset>
                 ))}
               </div>
