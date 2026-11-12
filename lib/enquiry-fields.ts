@@ -14,11 +14,54 @@ export const NOT_APPLICABLE = "Not applicable";
 
 const monthFmt = new Intl.DateTimeFormat("en-AU", { month: "long", year: "numeric", timeZone: "UTC" });
 
-/** "2027-03" → "March 2027"; "Not decided" and "Not applicable" read as themselves. */
+const dayFmt = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+/** "2027-03-14" → "14 March 2027"; "2027-03" → "March 2027"; "Not decided" and "Not applicable" read as themselves. */
 export function weddingLabel(v?: string | null) {
   if (!v) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return dayFmt.format(new Date(`${v}T00:00:00Z`));
   return /^\d{4}-\d{2}$/.test(v) ? monthFmt.format(new Date(`${v}-01T00:00:00Z`)) : v;
 }
+
+/** A real calendar day as YYYY-MM-DD, or null. */
+export function isoDay(y: number, m: number, d: number) {
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+/** "14/03/2027" (or 14-3-27, 14.3.2027) → "2027-03-14"; null if it isn't a real day. */
+export function parseDayInput(text: string) {
+  const m = text.trim().match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2}|\d{4})$/);
+  if (!m) return null;
+  const year = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  return isoDay(year, Number(m[2]), Number(m[1]));
+}
+
+/** "2027-03-14" → "14/03/2027", as the date field shows it. */
+export const dayInput = (iso: string) => iso.split("-").reverse().join("/");
+
+/** "120" → "About 120"; the older ranges read as themselves. */
+export const guestsLabel = (v?: string | null) => (!v ? undefined : /^\d+$/.test(v) ? `About ${Number(v).toLocaleString("en-AU")}` : v);
+
+/** Guests as the couple's approximate number: a whole number from 1 to 99999. */
+export const isGuestCount = (v: string) => /^[1-9]\d{0,4}$/.test(v);
+
+/** A place from the venue search (app/api/places): its name, its address, and its state code in Australia. */
+export type Place = { name: string; address: string; region?: string };
+
+/** An Australian state's name, as a place search returns it, to its code. */
+const stateCodes: Record<string, AreaCode> = {
+  Victoria: "VIC",
+  "New South Wales": "NSW",
+  Queensland: "QLD",
+  "Western Australia": "WA",
+  "South Australia": "SA",
+  Tasmania: "TAS",
+  "Australian Capital Territory": "ACT",
+  "Northern Territory": "NT",
+};
+export const stateCode = (name?: string) => (name ? stateCodes[name] : undefined);
 
 /** The months a couple can choose, from this one (YYYY-MM) for three years. */
 export function weddingMonths(thisMonth: string) {

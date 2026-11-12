@@ -4,7 +4,7 @@ import type { Language, Service } from "@/data/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
 import { EMAILS, emailAdmin, emailFrom, emailOrigin } from "./config";
-import { regionLabel, weddingLabel } from "@/lib/enquiry-fields";
+import { guestsLabel, regionLabel, weddingLabel } from "@/lib/enquiry-fields";
 import { emailOn } from "./switches";
 import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLive, passwordEmail, type Rendered } from "./templates";
 
@@ -157,7 +157,7 @@ export async function sendPasswordEmail(to: string, url: string): Promise<boolea
  */
 export async function sendEnquiryEmail(
   vendor: { id: string; name: string; slug: string; email: string | null },
-  e: { name: string; email: string; wedding_date: string | null; region: string | null; venue: string | null; cultures: string[]; traditions: string | null; guests: string | null; message: string },
+  e: { name: string; email: string; wedding_date: string | null; region: string | null; venue: string | null; cultures: string[]; traditions: string | null; guests: string | null; languages: string | null; message: string },
 ): Promise<string | null> {
   if (!(await emailOn("enquiry-vendor"))) return null;
   const to = vendor.email?.trim() || emailAdmin();
@@ -181,11 +181,13 @@ export async function sendEnquiryEmail(
 }
 
 /** The structured answers as the email shows them. */
-export function enquiryLines(e: { wedding_date: string | null; region: string | null; venue: string | null; cultures: string[]; traditions: string | null; guests: string | null }) {
+export function enquiryLines(e: { wedding_date: string | null; region: string | null; venue: string | null; cultures: string[]; traditions: string | null; guests: string | null; languages?: string | null }) {
   return {
     weddingDate: weddingLabel(e.wedding_date),
-    venue: [regionLabel(e.region), e.venue].filter(Boolean).join(", ") || undefined,
+    // The venue now carries its own address; the region alone is for older enquiries without one.
+    venue: e.venue || regionLabel(e.region),
     traditions: [e.cultures.join(", "), e.traditions].filter(Boolean).join(". ") || undefined,
-    guests: e.guests ?? undefined,
+    guests: guestsLabel(e.guests),
+    languages: e.languages ?? undefined,
   };
 }

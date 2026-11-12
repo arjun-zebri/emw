@@ -16,7 +16,7 @@ export type Enquiry = {
   name: string;
   email: string;
   phone?: string;
-  /** "YYYY-MM", "Not decided" or "Not applicable" (lib/enquiry-fields.ts reads it). */
+  /** "YYYY-MM-DD"; older ones "YYYY-MM", "Not decided" or "Not applicable" (weddingLabel in lib/enquiry-fields.ts reads them). */
   weddingDate?: string;
   /** An area code, or "Not decided". */
   region?: string;
@@ -29,6 +29,7 @@ export type Enquiry = {
   source?: Source;
   sourceDetail?: string;
   guests?: string;
+  languages?: string;
   message: string;
   /** Where the email went: the vendor, or the team when the listing had no email. Unset if it wasn't sent. */
   emailedTo?: string;
@@ -60,7 +61,7 @@ async function load(key: string, slug?: string) {
   for (let from = 0; ; from += PAGE) {
     let q = supabase()
       .from("enquiries")
-      .select("id, name, email, phone, wedding_date, region, venue, cultures, traditions, guests, message, source, source_detail, emailed_to, read_at, created_at, vendors!inner(name, slug)")
+      .select("id, name, email, phone, wedding_date, region, venue, cultures, traditions, guests, languages, message, source, source_detail, emailed_to, read_at, created_at, vendors!inner(name, slug)")
       .order("created_at", { ascending: false })
       .range(from, from + PAGE - 1);
     if (slug) q = q.eq("vendors.slug", slug);
@@ -87,6 +88,7 @@ async function load(key: string, slug?: string) {
       source: (e.source as Source | null) ?? undefined,
       sourceDetail: e.source_detail ?? undefined,
       guests: e.guests ?? undefined,
+      languages: e.languages ?? undefined,
       message: e.message,
       emailedTo: e.emailed_to ?? undefined,
       readAt: e.read_at ?? undefined,

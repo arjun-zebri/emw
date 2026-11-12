@@ -4,84 +4,29 @@ import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
+import { readTrail } from "@/components/site/Trail";
 import { Button } from "@/components/ui/Button";
 import { Portal } from "@/components/ui/Portal";
-import { readTrail } from "@/components/site/Trail";
-import { areaOptions, cultureNames } from "@/data/taxonomy";
-import { today } from "@/lib/admin/time";
 import { sendEnquiry } from "@/lib/enquiries-actions";
-import { GUESTS, NOT_APPLICABLE, NOT_DECIDED, weddingLabel, weddingMonths } from "@/lib/enquiry-fields";
 import { lockScroll } from "@/lib/lenis";
+import { DateField, fieldLine, VenueField } from "./EnquiryFields";
 
-// GUESTS in lib/enquiry-fields.ts, less "Not applicable", which has its own switch.
-const guestOptions = GUESTS.filter((g) => g !== NOT_APPLICABLE);
-const input =
-  "w-full border-b hairline bg-transparent py-3 text-ink placeholder:text-ink-mute/70 focus:border-ink focus:outline-none transition-colors";
-const chip = (on: boolean) =>
-  clsx("t-small border px-2.5 py-1 transition-colors", on ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink hover:text-ink");
-
-/** A native select drawn as one of the form's underlined lines: the placeholder in grey until something is chosen. */
-function Choice({ id, label, value, onChange, children }: { id: string; label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <div className="relative border-b hairline transition-colors focus-within:border-ink">
-      <label htmlFor={id} className="sr-only">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={clsx("w-full cursor-pointer appearance-none bg-transparent py-3 pr-8 focus:outline-none", value ? "text-ink" : "text-ink-mute/70")}
-      >
-        <option value="">{label}</option>
-        {children}
-      </select>
-      <Icon name="chevron-down" className="pointer-events-none absolute top-1/2 right-0 size-4 -translate-y-1/2 text-ink-mute" strokeWidth={1.4} />
-    </div>
-  );
-}
-
-/** The wedding month, three years ahead by year, or not decided, or not applicable (an engagement shoot). */
-function WeddingMonth({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
-  const months = weddingMonths(today().slice(0, 7));
-  const years = [...new Set(months.map((m) => m.slice(0, 4)))];
-  return (
-    <Choice id={id} label="Wedding date" value={value} onChange={onChange}>
-      {years.map((y) => (
-        <optgroup key={y} label={y}>
-          {months
-            .filter((m) => m.startsWith(y))
-            .map((m) => (
-              <option key={m} value={m}>
-                {weddingLabel(m)}
-              </option>
-            ))}
-        </optgroup>
-      ))}
-      <optgroup label="Or">
-        <option value={NOT_DECIDED}>Not decided yet</option>
-        <option value={NOT_APPLICABLE}>Not applicable</option>
-      </optgroup>
-    </Choice>
-  );
-}
+const label = "t-small mb-1 block text-ink";
+const optional = <span className="text-ink-mute"> (optional)</span>;
 
 /**
  * Enquire button and its slide-over form. Once the button has scrolled away, a slim bar keeps it
  * to hand at the foot of the screen. Sending saves the enquiry and emails it to the vendor
  * (lib/enquiries-actions.ts).
  */
-export function Enquire({ vendorName, slug, className }: { vendorName: string; slug: string; className?: string }) {
+export function Enquire({ vendorName, greeting, slug, className }: { vendorName: string; /** The vendor's first name, or the business name. */ greeting: string; slug: string; className?: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string>();
-  const [guests, setGuests] = useState<string | null>(null);
-  const [month, setMonth] = useState("");
-  const [region, setRegion] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
-  const [other, setOther] = useState(false);
+  const [date, setDate] = useState("");
+  const [venue, setVenue] = useState({ text: "", region: undefined as string | undefined });
   const [docked, setDocked] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -175,6 +120,10 @@ export function Enquire({ vendorName, slug, className }: { vendorName: string; s
                     onSubmit={async (e) => {
                       e.preventDefault();
                       if (sending) return;
+                      if (!date) {
+                        setError("Add your wedding date as DD/MM/YYYY.");
+                        return;
+                      }
                       const f = new FormData(e.currentTarget);
                       const field = (k: string) => (f.get(k) as string | null) ?? undefined;
                       setSending(true);
@@ -183,109 +132,87 @@ export function Enquire({ vendorName, slug, className }: { vendorName: string; s
                         slug,
                         name: field("name") ?? "",
                         email: field("email") ?? "",
-                        weddingDate: month || undefined,
-                        region: region || undefined,
-                        venue: field("venue"),
-                        cultures: picked,
-                        traditions: other ? field("traditions") : undefined,
-                        guests: guests ?? undefined,
+                        weddingDate: date,
+                        region: venue.region,
+                        venue: venue.text,
+                        traditions: field("traditions"),
+                        languages: field("languages"),
+                        guests: field("guests"),
                         message: field("message"),
                         website: field("website"),
                         trail: readTrail() ?? undefined,
-                      }).catch(() => ({ status: "error" as const, message: "That didn't send. Check your connection and try again." }));
+                      }).catch(() => ({ status: "error" as const, message: "That didn't send. Please check your email address and try again." }));
                       setSending(false);
                       if (r.status === "ok") setSent(true);
                       else setError(r.message);
                     }}
                     className="flex flex-1 flex-col px-6 pb-8 sm:px-8"
                   >
-                    <h2 className="t-heading mb-8">{vendorName}</h2>
-                    <div className="space-y-2">
-                      <label htmlFor={`${id}-names`} className="sr-only">Your names</label>
-                      <input id={`${id}-names`} name="name" required maxLength={200} placeholder="Your names" autoComplete="name" className={input} />
-                      <label htmlFor={`${id}-email`} className="sr-only">Email</label>
-                      <input id={`${id}-email`} name="email" type="email" required maxLength={320} placeholder="Email" autoComplete="email" className={input} />
-                      <WeddingMonth id={`${id}-date`} value={month} onChange={setMonth} />
-                      <Choice id={`${id}-region`} label="Where" value={region} onChange={setRegion}>
-                        {(["Australia", "Overseas"] as const).map((g) => (
-                          <optgroup key={g} label={g}>
-                            {areaOptions()
-                              .filter((o) => o.group === g)
-                              .map((o) => (
-                                <option key={o.value} value={o.value}>
-                                  {o.label}
-                                </option>
-                              ))}
-                          </optgroup>
-                        ))}
-                        <optgroup label="Or">
-                          <option value={NOT_DECIDED}>Not decided yet</option>
-                        </optgroup>
-                      </Choice>
-                      <label htmlFor={`${id}-venue`} className="sr-only">Venue</label>
-                      <input id={`${id}-venue`} name="venue" maxLength={300} placeholder="Venue, if you know it" className={input} />
+                    <h2 className="t-heading mb-8 text-balance">Say hello to {greeting}</h2>
+                    <div className="space-y-6">
+                      <div>
+                        <label htmlFor={`${id}-names`} className={label}>
+                          Your names
+                        </label>
+                        <input id={`${id}-names`} name="name" required maxLength={200} autoComplete="name" className={fieldLine} />
+                      </div>
+                      <div>
+                        <label htmlFor={`${id}-email`} className={label}>
+                          Email
+                        </label>
+                        <input id={`${id}-email`} name="email" type="email" required maxLength={320} autoComplete="email" className={fieldLine} />
+                      </div>
+                      <DateField id={`${id}-date`} label="Date" value={date} onChange={setDate} />
+                      <VenueField id={`${id}-venue`} label="Venue / Location" value={venue.text} onChange={(text, region) => setVenue({ text, region })} />
+                      <div>
+                        <label htmlFor={`${id}-traditions`} className={label}>
+                          Cultures / traditions{optional}
+                        </label>
+                        <input
+                          id={`${id}-traditions`}
+                          name="traditions"
+                          maxLength={300}
+                          placeholder="e.g. tea ceremony, lion dance. Not sure yet? Say that too."
+                          className={fieldLine}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`${id}-languages`} className={label}>
+                          Languages required{optional}
+                        </label>
+                        <input id={`${id}-languages`} name="languages" maxLength={300} className={fieldLine} />
+                      </div>
+                      <div>
+                        <label htmlFor={`${id}-guests`} className={label}>
+                          Guests{optional}
+                        </label>
+                        <input
+                          id={`${id}-guests`}
+                          name="guests"
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={99999}
+                          step={1}
+                          placeholder="Approximate number"
+                          className={clsx(fieldLine, "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none")}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`${id}-message`} className={label}>
+                          Message
+                        </label>
+                        <textarea
+                          id={`${id}-message`}
+                          name="message"
+                          required
+                          maxLength={5000}
+                          rows={4}
+                          placeholder="Tell us about your wedding"
+                          className={clsx(fieldLine, "resize-none")}
+                        />
+                      </div>
                     </div>
-                    <fieldset className="mt-8">
-                      <legend className="t-small mb-3">
-                        Cultures <span className="text-ink-mute">(optional)</span>
-                      </legend>
-                      <div className="flex flex-wrap gap-1.5">
-                        {cultureNames.map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            aria-pressed={picked.includes(c)}
-                            onClick={() => setPicked((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]))}
-                            className={chip(picked.includes(c))}
-                          >
-                            {c}
-                          </button>
-                        ))}
-                        <button type="button" aria-pressed={other} onClick={() => setOther(!other)} className={chip(other)}>
-                          Other
-                        </button>
-                      </div>
-                      {other && (
-                        <>
-                          <label htmlFor={`${id}-traditions`} className="sr-only">Other cultures and traditions</label>
-                          <input id={`${id}-traditions`} name="traditions" maxLength={300} autoFocus placeholder="In your words" className={clsx(input, "mt-2")} />
-                        </>
-                      )}
-                    </fieldset>
-                    <fieldset className="mt-8">
-                      <legend className="mb-3 flex w-full items-center justify-between gap-3">
-                        <span className="t-small">
-                          Guests <span className="text-ink-mute">(optional)</span>
-                        </span>
-                        <button
-                          type="button"
-                          aria-pressed={guests === "Not applicable"}
-                          aria-label="Guests: not applicable"
-                          onClick={() => setGuests(guests === "Not applicable" ? null : "Not applicable")}
-                          className={chip(guests === "Not applicable")}
-                        >
-                          Not applicable
-                        </button>
-                      </legend>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {guestOptions.map((g) => (
-                          <button
-                            key={g}
-                            type="button"
-                            aria-pressed={guests === g}
-                            onClick={() => setGuests(guests === g ? null : g)}
-                            className={clsx(
-                              "t-small border py-2 transition-colors",
-                              guests === g ? "border-ink bg-ink text-paper" : "hairline text-ink-soft hover:border-ink",
-                            )}
-                          >
-                            {g}
-                          </button>
-                        ))}
-                      </div>
-                    </fieldset>
-                    <label htmlFor={`${id}-message`} className="sr-only">Message</label>
-                    <textarea id={`${id}-message`} name="message" maxLength={5000} rows={4} placeholder="Message" className={clsx(input, "mt-6 resize-none")} />
                     {/* Hidden from people; bots fill it in, and the server drops what they send. */}
                     <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] size-px opacity-0" />
                     {error && (
@@ -293,15 +220,15 @@ export function Enquire({ vendorName, slug, className }: { vendorName: string; s
                         {error}
                       </p>
                     )}
-                    <Button type="submit" disabled={sending} className="mt-auto w-full">
+                    <Button type="submit" disabled={sending} className="mt-10 w-full">
                       {sending ? "Sending" : "Send enquiry"}
                     </Button>
                   </form>
                 ) : (
                   <div role="status" className="flex flex-1 flex-col items-start justify-center px-6 pb-24 sm:px-8">
                     <Icon name="check" className="mb-6 size-8" />
-                    <p className="t-heading mb-3">Enquiry sent</p>
-                    <p className="t-body">{vendorName} will reply by email.</p>
+                    <p className="t-heading mb-3">Thank you for enquiring</p>
+                    <p className="t-body">{vendorName} will get back to you directly by email.</p>
                   </div>
                 )}
               </motion.div>

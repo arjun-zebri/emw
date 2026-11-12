@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { cultureNames } from "@/data/taxonomy";
 import { sendEnquiryEmail } from "./email/send";
-import { classifySource, GUESTS, isRegion, NOT_APPLICABLE, NOT_DECIDED } from "./enquiry-fields";
+import { classifySource, GUESTS, isGuestCount, isoDay, isRegion } from "./enquiry-fields";
 import type { Database } from "./supabase/database.types";
 
 /*
@@ -19,16 +19,19 @@ export type EnquiryInput = {
   slug: string;
   name: string;
   email: string;
-  /** "YYYY-MM", "Not decided" or "Not applicable". */
+  /** The wedding day, "YYYY-MM-DD". */
   weddingDate?: string;
-  /** An area code, or "Not decided". */
+  /** The venue's state code, when the couple picked an Australian place from the search. */
   region?: string;
   venue?: string;
   /** From the cultures in data/taxonomy.ts. */
   cultures?: string[];
   /** Anything else about their cultures and traditions, in their words. */
   traditions?: string;
+  /** An approximate number, as digits. */
   guests?: string;
+  /** The languages they need, in their words. */
+  languages?: string;
   message?: string;
   /** How they reached the listing (components/site/Trail.tsx). */
   trail?: { pages?: unknown; referrer?: unknown; landing?: unknown };
@@ -46,6 +49,9 @@ const db = () =>
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+/** NT's wording for a failed send. */
+const UNSENT = "That didn't send. Please check your email address and try again.";
+
 const tidy = (s: unknown, max: number) => (typeof s === "string" ? s.trim().replace(/\s+/g, " ").slice(0, max) : "");
 
 export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
@@ -55,12 +61,18 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   const name = tidy(input.name, 200);
   const email = tidy(input.email, 320).toLowerCase();
   const message = typeof input.message === "string" ? input.message.trim().slice(0, 5000) : "";
-  const guests = GUESTS.find((g) => g === input.guests);
-  const weddingDate = typeof input.weddingDate === "string" && (/^\d{4}-(0[1-9]|1[0-2])$/.test(input.weddingDate) || input.weddingDate === NOT_DECIDED || input.weddingDate === NOT_APPLICABLE) ? input.weddingDate : null;
+  const guestText = tidy(input.guests, 10);
+  const guests = isGuestCount(guestText) ? guestText : GUESTS.find((g) => g === guestText);
+  const [y, m, d] = (typeof input.weddingDate === "string" ? input.weddingDate : "").split("-").map(Number);
+  const weddingDate = y && m && d ? isoDay(y, m, d) : null;
   const region = typeof input.region === "string" && isRegion(input.region) ? input.region : null;
+  const venue = tidy(input.venue, 300);
   const cultures = Array.isArray(input.cultures) ? cultureNames.filter((c) => input.cultures!.includes(c)) : [];
   if (!name) return { status: "error", message: "Add your names." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: "Check your email address." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: UNSENT };
+  if (!weddingDate) return { status: "error", message: "Add your wedding date as DD/MM/YYYY." };
+  if (!venue) return { status: "error", message: "Add your venue, or the suburb or city." };
+  if (!message) return { status: "error", message: "Tell them a little about your wedding." };
 
   const supabase = db();
   const { data: vendor } = await supabase
@@ -92,10 +104,11 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
     email,
     wedding_date: weddingDate,
     region,
-    venue: tidy(input.venue, 300) || null,
+    venue,
     cultures,
     traditions: tidy(input.traditions, 300) || null,
     guests: guests ?? null,
+    languages: tidy(input.languages, 300) || null,
     message,
     source: found.source,
     source_detail: found.detail ?? null,
@@ -103,7 +116,7 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   const { data: saved, error } = await supabase.from("enquiries").insert(row).select("id").single();
   if (error) {
     console.error(`[enquiry] Couldn't save an enquiry for ${vendor.slug}: ${error.message}`);
-    return { status: "error", message: "That didn't send. Try again in a moment." };
+    return { status: "error", message: UNSENT };
   }
 
   after(async () => {

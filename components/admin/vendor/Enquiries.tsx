@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { markEnquiryRead, useEnquiries, type Enquiry } from "@/lib/admin/enquiries";
 import { ago, day, time } from "@/lib/admin/format";
-import { regionLabel, sourceLine, weddingLabel } from "@/lib/enquiry-fields";
+import { guestsLabel, regionLabel, sourceLine, weddingLabel } from "@/lib/enquiry-fields";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { Bone } from "../charts";
 import { Avatar, Badge, Btn, Empty, PageHeader } from "../ui";
@@ -71,7 +71,7 @@ export function Enquiries() {
                         <span className={clsx("truncate text-[0.875rem]", !e.readAt && "font-medium")}>{e.name}</span>
                         <span className="shrink-0 text-[0.6875rem] text-ink-mute">{ago(e.sentAt)}</span>
                       </span>
-                      <span className="mt-0.5 line-clamp-2 block text-[0.75rem] leading-snug text-ink-mute">{e.message || [weddingLabel(e.weddingDate), regionLabel(e.region)].filter(Boolean).join(" · ")}</span>
+                      <span className="mt-0.5 line-clamp-2 block text-[0.75rem] leading-snug text-ink-mute">{e.message || [weddingLabel(e.weddingDate), e.venue || regionLabel(e.region)].filter(Boolean).join(" · ")}</span>
                       {!e.readAt && (
                         <span className="mt-2 block">
                           <Badge>New</Badge>
@@ -120,8 +120,9 @@ export function Thread({ enquiry: e, onBack, hiddenOnMobile, team }: { enquiry: 
           {(
             [
               ["Wedding", weddingLabel(e.weddingDate)],
-              ["Where", [regionLabel(e.region), e.venue].filter(Boolean).join(", ")],
-              ["Guests", e.guests],
+              ["Where", e.venue || regionLabel(e.region)],
+              ["Guests", guestsLabel(e.guests)],
+              ["Languages", e.languages],
               ["Cultures", [e.cultures.join(", "), e.traditions].filter(Boolean).join(". ")],
               ["Found you", sourceLine(e.source, e.sourceDetail)],
               ["Email", e.email],

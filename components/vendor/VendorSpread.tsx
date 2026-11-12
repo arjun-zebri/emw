@@ -157,7 +157,7 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
                       Enquire
                     </Button>
                   ) : (
-                    <Enquire vendorName={vendor.name} slug={vendor.slug} className="mt-6 w-full" />
+                    <Enquire vendorName={vendor.name} greeting={vendor.person?.trim().split(/\s+/)[0] || vendor.name} slug={vendor.slug} className="mt-6 w-full" />
                   )}
 
                   {links.length > 0 && (

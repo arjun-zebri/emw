@@ -42,6 +42,7 @@ export type Database = {
           email: string
           emailed_to: string | null
           guests: string | null
+          languages: string | null
           id: string
           message: string
           name: string
@@ -62,6 +63,7 @@ export type Database = {
           email: string
           emailed_to?: string | null
           guests?: string | null
+          languages?: string | null
           id?: string
           message?: string
           name: string
@@ -82,6 +84,7 @@ export type Database = {
           email?: string
           emailed_to?: string | null
           guests?: string | null
+          languages?: string | null
           id?: string
           message?: string
           name?: string

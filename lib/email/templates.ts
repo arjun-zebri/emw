@@ -441,6 +441,7 @@ export type EnquiryData = {
   venue?: string;
   traditions?: string;
   guests?: string;
+  languages?: string;
   message: string;
   /** The vendor can sign in, so the enquiry is in their account too. */
   hasAccount: boolean;
@@ -461,6 +462,7 @@ export function enquiry(d: EnquiryData): Rendered {
     ["Where", d.venue],
     ["Cultures", d.traditions],
     ["Guests", d.guests],
+    ["Languages", d.languages],
   ];
   const given = facts.filter((f): f is [string, string] => !!f[1]);
   const message = d.message.trim()
