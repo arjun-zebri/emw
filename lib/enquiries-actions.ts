@@ -1,6 +1,5 @@
 "use server";
 
-import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -8,11 +7,13 @@ import { cultureNames } from "@/data/taxonomy";
 import { sendEnquiryEmail } from "./email/send";
 import { classifySource, GUESTS, isGuestCount, isoDay, isRegion } from "./enquiry-fields";
 import type { Database } from "./supabase/database.types";
+import { allow, senderIp } from "./throttle";
 
 /*
  * A couple's enquiry from a vendor page: checked, saved, then emailed to the vendor once the couple
  * has their answer. Anyone can send one, so the server writes it with the secret key (there's no
- * insert policy) and refuses floods: a hidden field bots fill in, and a cap per sender per hour.
+ * insert policy) and refuses floods: a hidden field bots fill in, a form sent faster than anyone
+ * could type it, and a cap per sender per hour (lib/throttle.ts).
  */
 
 export type EnquiryInput = {
@@ -37,6 +38,8 @@ export type EnquiryInput = {
   trail?: { pages?: unknown; referrer?: unknown; landing?: unknown };
   /** The hidden field. A person leaves it empty. */
   website?: string;
+  /** When the form opened, in ms. */
+  openedAt?: number;
 };
 
 export type EnquiryResult = { status: "ok" } | { status: "error"; message: string };
@@ -49,14 +52,18 @@ const db = () =>
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+/** No one types names, a date, a venue and a message faster than this. */
+const MIN_MS = 3000;
+
 /** NT's wording for a failed send. */
 const UNSENT = "That didn't send. Please check your email address and try again.";
 
 const tidy = (s: unknown, max: number) => (typeof s === "string" ? s.trim().replace(/\s+/g, " ").slice(0, max) : "");
 
 export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
-  // A bot filled in the hidden field: say thanks and drop it.
+  // A bot filled in the hidden field, or raced through: say thanks and drop it.
   if (tidy(input.website, 200)) return { status: "ok" };
+  if (typeof input.openedAt === "number" && Date.now() - input.openedAt < MIN_MS) return { status: "ok" };
 
   const name = tidy(input.name, 200);
   const email = tidy(input.email, 320).toLowerCase();
@@ -86,17 +93,10 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? "eastmeetswed.com"}`;
   const found = classifySource(input.trail, origin, vendor.slug);
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-  const ipHash = createHash("sha256").update(`${process.env.SUPABASE_SECRET_KEY}:${ip}`).digest("hex");
   const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
-  const [{ count: fromIp }, { count: fromEmail }] = await Promise.all([
-    supabase.from("enquiry_attempts").select("ip_hash", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", hourAgo),
-    supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("email", email).gte("created_at", hourAgo),
-  ]);
-  if ((fromIp ?? 0) >= PER_HOUR || (fromEmail ?? 0) >= PER_HOUR)
+  const { count: fromEmail } = await supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("email", email).gte("created_at", hourAgo);
+  if ((fromEmail ?? 0) >= PER_HOUR || !(await allow("enquiry", [await senderIp()], PER_HOUR)))
     return { status: "error", message: "You've sent a lot of enquiries in the last hour. Try again a little later." };
-
-  await supabase.from("enquiry_attempts").insert({ ip_hash: ipHash });
 
   const row = {
     vendor_id: vendor.id,
@@ -120,7 +120,6 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   }
 
   after(async () => {
-    await supabase.from("enquiry_attempts").delete().lt("created_at", new Date(Date.now() - 86_400_000).toISOString());
     const to = await sendEnquiryEmail(vendor, row);
     if (to) await supabase.from("enquiries").update({ emailed_to: to }).eq("id", saved.id);
   });

@@ -109,18 +109,21 @@ export type Database = {
           },
         ]
       }
-      enquiry_attempts: {
+      form_attempts: {
         Row: {
           created_at: string
-          ip_hash: string
+          key_hash: string
+          kind: string
         }
         Insert: {
           created_at?: string
-          ip_hash: string
+          key_hash: string
+          kind: string
         }
         Update: {
           created_at?: string
-          ip_hash?: string
+          key_hash?: string
+          kind?: string
         }
         Relationships: []
       }

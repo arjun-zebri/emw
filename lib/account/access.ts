@@ -6,6 +6,7 @@ import { emailOrigin } from "@/lib/email/config";
 import { sendPasswordEmail } from "@/lib/email/send";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { allow, senderIp } from "@/lib/throttle";
 import { homeOf, readSession } from "@/lib/supabase/session";
 
 /*
@@ -18,6 +19,8 @@ import { homeOf, readSession } from "@/lib/supabase/session";
 
 const MIN_PASSWORD = 8;
 const WAIT_SECONDS = 120;
+/** Requests from one IP. */
+const PER_HOUR = 10;
 
 const admin = () =>
   createAdmin<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
@@ -27,11 +30,13 @@ const admin = () =>
 /**
  * Email a link to choose a password. Always answers "sent", whether or not there's an account, so
  * it can't be used to find out who has one; and sends at most one link every two minutes per
- * account, so it can't be used to fill someone's inbox.
+ * account, so it can't be used to fill someone's inbox; and answers at most ten requests an hour
+ * from one IP, so it can't be used to try addresses in bulk.
  */
 export async function requestPasswordLink(input: { email: string }): Promise<{ status: "sent" | "invalid" }> {
   const email = String(input.email ?? "").trim().toLowerCase();
   if (!isEmail(email)) return { status: "invalid" };
+  if (!(await allow("password-link", [await senderIp()], PER_HOUR))) return { status: "sent" };
   const db = admin();
 
   // Few enough accounts to look through in one page; revisit past a thousand.

@@ -30,6 +30,7 @@ export function Enquire({ vendorName, greeting, slug, className }: { vendorName:
   const [docked, setDocked] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const openedAt = useRef(0);
 
   // Dock the bar once the in-page button has gone off the top, and stand it down over the footer.
   useEffect(() => {
@@ -53,6 +54,7 @@ export function Enquire({ vendorName, greeting, slug, className }: { vendorName:
   useEffect(() => {
     lockScroll(open);
     if (!open) return;
+    openedAt.current = Date.now();
     panel.current?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     addEventListener("keydown", onKey);
@@ -140,6 +142,7 @@ export function Enquire({ vendorName, greeting, slug, className }: { vendorName:
                         guests: field("guests"),
                         message: field("message"),
                         website: field("website"),
+                        openedAt: openedAt.current,
                         trail: readTrail() ?? undefined,
                       }).catch(() => ({ status: "error" as const, message: "That didn't send. Please check your email address and try again." }));
                       setSending(false);

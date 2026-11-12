@@ -5,6 +5,7 @@ import { emailOrigin } from "@/lib/email/config";
 import { sendConfirmEmail } from "@/lib/email/send";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { allow, senderIp } from "@/lib/throttle";
 import { isEmail } from "./application";
 
 /*
@@ -13,6 +14,9 @@ import { isEmail } from "./application";
  * opened the account can't sign in, so no one can hold an address that isn't theirs (and Supabase
  * never links a Google or Microsoft sign-in to an unconfirmed account). Google and Microsoft
  * sign-in happen in the browser and come back through /auth/callback.
+ *
+ * Capped so bots can't make accounts in bulk or use us to fill a stranger's inbox: a few tries an
+ * hour from one IP, and a few confirmation emails an hour to one address (lib/throttle.ts).
  *
  * The link opens /list-your-business/confirm, a page whose script does the confirming. Mail
  * scanners that open every link don't run scripts, so they can't use it up first.
@@ -25,6 +29,12 @@ export type AccountResult =
   | { status: "exists" | "wrong" | "error" };
 
 const MIN_PASSWORD = 8;
+/** Creating an account and signing in to apply, together, from one IP. */
+const TRIES_PER_HOUR = 20;
+/** Confirmation emails to one address. */
+const LINKS_PER_HOUR = 3;
+
+const busy = (): AccountResult => ({ status: "invalid", message: "There have been a lot of tries from here in the last hour. Try again a little later." });
 
 const admin = () =>
   createAdmin<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
@@ -45,13 +55,16 @@ function check(email: string, password: string): AccountResult | null {
 const skipAllowed = () => process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development";
 
 /** A fresh confirmation link, emailed. Only for an account that exists and isn't confirmed yet. */
-async function sendLink(email: string, password: string) {
+async function sendLink(email: string, password: string): Promise<AccountResult> {
+  if (!(await allow("confirm-email", [email], LINKS_PER_HOUR)))
+    return { status: "invalid", message: "We’ve sent a few links to this address already. Check your inbox and spam folder, or try again in an hour." };
   const { data, error } = await admin().auth.admin.generateLink({ type: "signup", email, password });
   if (error || !data.properties?.hashed_token) {
     console.error(`[account] Couldn't make a confirmation link: ${error?.message ?? "no token"}`);
-    return false;
+    return { status: "error" };
   }
-  return sendConfirmEmail(email, `${emailOrigin()}/list-your-business/confirm?token=${encodeURIComponent(data.properties.hashed_token)}`);
+  const ok = await sendConfirmEmail(email, `${emailOrigin()}/list-your-business/confirm?token=${encodeURIComponent(data.properties.hashed_token)}`);
+  return ok ? sent() : { status: "error" };
 }
 
 const sent = (): AccountResult => ({ status: "sent", canSkip: skipAllowed() });
@@ -65,7 +78,7 @@ async function signInOrResend(email: string, password: string): Promise<AccountR
   const server = await createClient();
   const { error } = await server.auth.signInWithPassword({ email, password });
   if (!error) return { status: "signed-in" };
-  if (error.code === "email_not_confirmed") return (await sendLink(email, password)) ? sent() : { status: "error" };
+  if (error.code === "email_not_confirmed") return sendLink(email, password);
   return { status: "wrong" };
 }
 
@@ -74,6 +87,7 @@ export async function createAccount(input: { email: string; password: string }):
   const password = String(input.password ?? "");
   const bad = check(email, password);
   if (bad) return bad;
+  if (!(await allow("account", [await senderIp()], TRIES_PER_HOUR))) return busy();
 
   const made = await admin().auth.admin.createUser({ email, password, email_confirm: false, app_metadata: { emw_via: "apply" } });
   if (made.error) {
@@ -85,7 +99,7 @@ export async function createAccount(input: { email: string; password: string }):
     const again = await signInOrResend(email, password);
     return again.status === "wrong" ? { status: "exists" } : again;
   }
-  return (await sendLink(email, password)) ? sent() : { status: "error" };
+  return sendLink(email, password);
 }
 
 /**
@@ -112,6 +126,7 @@ export async function signInToApply(input: { email: string; password: string }):
   const email = String(input.email ?? "").trim().toLowerCase();
   const password = String(input.password ?? "");
   if (!isEmail(email) || !password) return { status: "invalid", message: "Enter your email and password." };
+  if (!(await allow("account", [await senderIp()], TRIES_PER_HOUR))) return busy();
   return signInOrResend(email, password);
 }
 
