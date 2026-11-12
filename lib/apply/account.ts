@@ -16,7 +16,7 @@ import { isEmail } from "./application";
  * sign-in happen in the browser and come back through /auth/callback.
  *
  * Capped so bots can't make accounts in bulk or use us to fill a stranger's inbox: a few tries an
- * hour from one IP, and a few confirmation emails an hour to one address (lib/throttle.ts).
+ * hour from one IP, and a few confirmation emails an hour (and a day) to one address (lib/throttle.ts).
  *
  * The link opens /list-your-business/confirm, a page whose script does the confirming. Mail
  * scanners that open every link don't run scripts, so they can't use it up first.
@@ -33,6 +33,7 @@ const MIN_PASSWORD = 8;
 const TRIES_PER_HOUR = 20;
 /** Confirmation emails to one address. */
 const LINKS_PER_HOUR = 3;
+const LINKS_PER_DAY = 6;
 
 const busy = (): AccountResult => ({ status: "invalid", message: "There have been a lot of tries from here in the last hour. Try again a little later." });
 
@@ -56,8 +57,8 @@ const skipAllowed = () => process.env.VERCEL_ENV === "preview" || process.env.NO
 
 /** A fresh confirmation link, emailed. Only for an account that exists and isn't confirmed yet. */
 async function sendLink(email: string, password: string): Promise<AccountResult> {
-  if (!(await allow("confirm-email", [email], LINKS_PER_HOUR)))
-    return { status: "invalid", message: "We’ve sent a few links to this address already. Check your inbox and spam folder, or try again in an hour." };
+  if (!(await allow("confirm-email", [{ key: email, perHour: LINKS_PER_HOUR, perDay: LINKS_PER_DAY }])))
+    return { status: "invalid", message: "We’ve sent a few links to this address already. Check your inbox and spam folder, or try again later." };
   const { data, error } = await admin().auth.admin.generateLink({ type: "signup", email, password });
   if (error || !data.properties?.hashed_token) {
     console.error(`[account] Couldn't make a confirmation link: ${error?.message ?? "no token"}`);
@@ -87,7 +88,7 @@ export async function createAccount(input: { email: string; password: string }):
   const password = String(input.password ?? "");
   const bad = check(email, password);
   if (bad) return bad;
-  if (!(await allow("account", [await senderIp()], TRIES_PER_HOUR))) return busy();
+  if (!(await allow("account", [{ key: await senderIp(), perHour: TRIES_PER_HOUR }]))) return busy();
 
   const made = await admin().auth.admin.createUser({ email, password, email_confirm: false, app_metadata: { emw_via: "apply" } });
   if (made.error) {
@@ -126,7 +127,7 @@ export async function signInToApply(input: { email: string; password: string }):
   const email = String(input.email ?? "").trim().toLowerCase();
   const password = String(input.password ?? "");
   if (!isEmail(email) || !password) return { status: "invalid", message: "Enter your email and password." };
-  if (!(await allow("account", [await senderIp()], TRIES_PER_HOUR))) return busy();
+  if (!(await allow("account", [{ key: await senderIp(), perHour: TRIES_PER_HOUR }]))) return busy();
   return signInOrResend(email, password);
 }
 

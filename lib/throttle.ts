@@ -6,11 +6,13 @@ import type { Database } from "./supabase/database.types";
 
 /*
  * Caps on the public forms, so no one can flood them: each attempt is a row in form_attempts, keyed
- * by a hash of who made it (the sender's IP, or the address an email goes to; never stored as is).
+ * by a hash of who made it or who it's aimed at (the sender's IP, the address an email goes to, the
+ * vendor an enquiry is for; never stored as is). Rows are kept a day.
  * Server only: it uses the secret key. Not a "use server" file, so the browser can't call it.
  */
 
 export type Kind = "enquiry" | "account" | "confirm-email" | "password-link";
+export type Cap = { key: string; perHour: number; perDay?: number };
 
 const db = () =>
   createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
@@ -18,6 +20,7 @@ const db = () =>
   });
 
 const hash = (key: string) => createHash("sha256").update(`${process.env.SUPABASE_SECRET_KEY}:${key}`).digest("hex");
+const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 
 /** The sender's IP. Vercel sets these headers itself, so a sender can't choose their own. */
 export async function senderIp() {
@@ -26,22 +29,27 @@ export async function senderIp() {
 }
 
 /**
- * True, and the attempt counted, if every key is under `perHour` attempts of this kind in the last
- * hour. False, and nothing counted, if any key has reached it. If the count can't be read the
- * attempt goes ahead: a real person is never turned away because the throttle is down.
+ * Counts this attempt against each cap and says whether it's within all of them. The attempt is
+ * recorded before counting, so a burst sent all at once can't slip through together: of any
+ * number arriving at the same moment, at most the cap get a yes. Refused attempts count too, so
+ * a flood stays refused until it stops. If the throttle can't be reached the attempt goes ahead:
+ * a real person is never turned away because it's down.
  */
-export async function allow(kind: Kind, keys: string[], perHour: number): Promise<boolean> {
+export async function allow(kind: Kind, caps: Cap[]): Promise<boolean> {
   const supabase = db();
-  const hashes = [...new Set(keys)].map(hash);
-  const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
-  const counts = await Promise.all(
-    hashes.map((h) => supabase.from("form_attempts").select("key_hash", { count: "exact", head: true }).eq("kind", kind).eq("key_hash", h).gte("created_at", hourAgo)),
-  );
-  if (counts.some((c) => (c.count ?? 0) >= perHour)) return false;
-  const { error } = await supabase.from("form_attempts").insert(hashes.map((key_hash) => ({ kind, key_hash })));
-  if (error) console.error(`[throttle] Couldn't count a ${kind} attempt: ${error.message}`);
+  const keyed = caps.map((c) => ({ ...c, hash: hash(c.key) }));
+  const { error } = await supabase.from("form_attempts").insert(keyed.map((c) => ({ kind, key_hash: c.hash })));
   after(async () => {
-    await supabase.from("form_attempts").delete().lt("created_at", new Date(Date.now() - 86_400_000).toISOString());
+    await supabase.from("form_attempts").delete().lt("created_at", ago(86_400_000));
   });
-  return true;
+  if (error) {
+    console.error(`[throttle] Couldn't count a ${kind} attempt: ${error.message}`);
+    return true;
+  }
+  const count = (h: string, ms: number) =>
+    supabase.from("form_attempts").select("key_hash", { count: "exact", head: true }).eq("kind", kind).eq("key_hash", h).gte("created_at", ago(ms)).then((r) => r.count ?? 0);
+  const over = await Promise.all(
+    keyed.flatMap((c) => [count(c.hash, 3_600_000).then((n) => n > c.perHour), ...(c.perDay ? [count(c.hash, 86_400_000).then((n) => n > c.perDay!)] : [])]),
+  );
+  return !over.some(Boolean);
 }

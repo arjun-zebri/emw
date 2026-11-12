@@ -36,7 +36,7 @@ const admin = () =>
 export async function requestPasswordLink(input: { email: string }): Promise<{ status: "sent" | "invalid" }> {
   const email = String(input.email ?? "").trim().toLowerCase();
   if (!isEmail(email)) return { status: "invalid" };
-  if (!(await allow("password-link", [await senderIp()], PER_HOUR))) return { status: "sent" };
+  if (!(await allow("password-link", [{ key: await senderIp(), perHour: PER_HOUR }]))) return { status: "sent" };
   const db = admin();
 
   // Few enough accounts to look through in one page; revisit past a thousand.

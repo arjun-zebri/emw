@@ -142,7 +142,7 @@ export function Enquire({ vendorName, greeting, slug, className }: { vendorName:
                         guests: field("guests"),
                         message: field("message"),
                         website: field("website"),
-                        openedAt: openedAt.current,
+                        filledMs: openedAt.current ? Date.now() - openedAt.current : undefined,
                         trail: readTrail() ?? undefined,
                       }).catch(() => ({ status: "error" as const, message: "That didn't send. Please check your email address and try again." }));
                       setSending(false);

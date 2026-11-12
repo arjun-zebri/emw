@@ -51,6 +51,9 @@ const flow: { id: StepId; section?: 0 | 1 | 2; intro?: boolean }[] = [
 const SAVED = "emw-apply";
 type Saved = { a: Application; step: StepId; startedAt: number };
 
+/** Milliseconds since a time on this device: how long the form has been open. */
+const since = (t: number) => Date.now() - t;
+
 export type FlowPhotos = { about: string; show: string; finish: string; welcome: string };
 
 type Phase = { kind: "form" } | { kind: "sending"; done: number; total: number } | { kind: "sent"; duplicate?: boolean };
@@ -185,7 +188,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
     if (!a.rights) return;
     setProblems([]);
     setPhase({ kind: "sending", done: 0, total: photos.length });
-    const res = await submitApplication(a, { photos: photos.length, startedAt: startedAt.current, trap: trap.current?.value ?? "" }).catch(() => ({ status: "error" as const }));
+    const res = await submitApplication(a, { photos: photos.length, filledMs: since(startedAt.current), trap: trap.current?.value ?? "" }).catch(() => ({ status: "error" as const }));
     if (res.status === "duplicate") return finished(true);
     if (res.status === "signed-out") {
       setPhase({ kind: "form" });

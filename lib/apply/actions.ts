@@ -46,9 +46,10 @@ const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString(
 const today = () => new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" });
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 
-export async function submitApplication(a: Application, meta: { photos: number; startedAt: number; trap: string }): Promise<Submitted> {
-  // Bots fill the hidden field, or race through. Answer as if it worked so they learn nothing.
-  if (meta.trap || Date.now() - meta.startedAt < MIN_SECONDS * 1000) return { status: "duplicate" };
+export async function submitApplication(a: Application, meta: { photos: number; filledMs?: number; trap: string }): Promise<Submitted> {
+  // Bots fill the hidden field, or race through. Answer as if it worked so they learn nothing. The
+  // time is measured on their device, so a clock that's set wrong can't turn a real vendor away.
+  if (meta.trap || (typeof meta.filledMs === "number" && meta.filledMs < MIN_SECONDS * 1000)) return { status: "duplicate" };
 
   const user = await applicant();
   if (!user) return { status: "signed-out" };

@@ -13,7 +13,8 @@ import { allow, senderIp } from "./throttle";
  * A couple's enquiry from a vendor page: checked, saved, then emailed to the vendor once the couple
  * has their answer. Anyone can send one, so the server writes it with the secret key (there's no
  * insert policy) and refuses floods: a hidden field bots fill in, a form sent faster than anyone
- * could type it, and a cap per sender per hour (lib/throttle.ts).
+ * could type it, a cap per sender, and a cap per vendor so no one listing's inbox can be flooded
+ * from many places at once (lib/throttle.ts).
  */
 
 export type EnquiryInput = {
@@ -38,14 +39,17 @@ export type EnquiryInput = {
   trail?: { pages?: unknown; referrer?: unknown; landing?: unknown };
   /** The hidden field. A person leaves it empty. */
   website?: string;
-  /** When the form opened, in ms. */
-  openedAt?: number;
+  /** How long the form was open before it was sent, in ms, timed on the couple's device. */
+  filledMs?: number;
 };
 
 export type EnquiryResult = { status: "ok" } | { status: "error"; message: string };
 
 /** Per sender (IP, and email) per hour. Generous for a couple writing to several vendors in one sitting. */
 const PER_HOUR = 12;
+/** Per vendor. Far beyond what any listing gets, so only a flood reaches it. */
+const VENDOR_PER_HOUR = 20;
+const VENDOR_PER_DAY = 50;
 
 const db = () =>
   createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
@@ -63,7 +67,7 @@ const tidy = (s: unknown, max: number) => (typeof s === "string" ? s.trim().repl
 export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   // A bot filled in the hidden field, or raced through: say thanks and drop it.
   if (tidy(input.website, 200)) return { status: "ok" };
-  if (typeof input.openedAt === "number" && Date.now() - input.openedAt < MIN_MS) return { status: "ok" };
+  if (typeof input.filledMs === "number" && input.filledMs < MIN_MS) return { status: "ok" };
 
   const name = tidy(input.name, 200);
   const email = tidy(input.email, 320).toLowerCase();
@@ -95,8 +99,10 @@ export async function sendEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
   const found = classifySource(input.trail, origin, vendor.slug);
   const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
   const { count: fromEmail } = await supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("email", email).gte("created_at", hourAgo);
-  if ((fromEmail ?? 0) >= PER_HOUR || !(await allow("enquiry", [await senderIp()], PER_HOUR)))
+  if ((fromEmail ?? 0) >= PER_HOUR || !(await allow("enquiry", [{ key: await senderIp(), perHour: PER_HOUR }])))
     return { status: "error", message: "You've sent a lot of enquiries in the last hour. Try again a little later." };
+  if (!(await allow("enquiry", [{ key: `vendor:${vendor.id}`, perHour: VENDOR_PER_HOUR, perDay: VENDOR_PER_DAY }])))
+    return { status: "error", message: `${vendor.name} has had a lot of enquiries today. Try again a little later.` };
 
   const row = {
     vendor_id: vendor.id,
