@@ -119,7 +119,7 @@ export function VendorDirectory({ cards, tabs, options }: { cards: VendorCardDat
           })}
         </nav>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-5 text-ink-mute">
-          <label className="group flex min-w-0 basis-full items-center gap-2.5 py-1.5 md:w-60 md:basis-auto">
+          <label className="group flex h-10 min-w-0 basis-full items-center gap-2.5 border border-ink/12 bg-surface px-3.5 transition-colors hover:border-ink/25 focus-within:border-ink/40 md:w-64 md:basis-auto">
             <Icon name="search" className="size-4 shrink-0 transition-colors group-focus-within:text-ink" />
             <span className="sr-only">Search vendors</span>
             <input
