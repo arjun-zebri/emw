@@ -3,7 +3,7 @@ import { imageUrl } from "@/lib/supabase/storage";
 /*
  * A journal post's body, as posts.body stores it: an ordered list of blocks.
  *
- *   p      a paragraph of runs: plain, bold, italic, or a link
+ *   p      a paragraph of runs: plain, bold, italic, underlined, or a link
  *   h      a heading, plain text; `level: 3` for the smaller subheading
  *   ul     a list, each item a line of runs; `ordered` numbers it
  *   img    one to three photos side by side at one height, never cropped, across the page;
@@ -23,7 +23,7 @@ export const DEFAULT_CATEGORY = "Culture";
 /** A category as stored: trimmed and short, or the default when there isn't one. */
 export const categoryOf = (c: unknown) => (typeof c === "string" && c.trim() ? c.trim().replace(/\s+/g, " ").slice(0, 40) : DEFAULT_CATEGORY);
 
-export type Run = { text: string; bold?: true; italic?: true; href?: string };
+export type Run = { text: string; bold?: true; italic?: true; underline?: true; href?: string };
 export type Photo = { src: string; alt: string; w?: number; h?: number };
 
 export type Block =
@@ -57,7 +57,7 @@ function readRuns(v: unknown): Run[] {
   return v.flatMap((r): Run[] => {
     if (!isObj(r) || !str(r.text)) return [];
     const href = str(r.href) && safeHref(str(r.href));
-    return [{ text: str(r.text), ...(r.bold ? { bold: true as const } : {}), ...(r.italic ? { italic: true as const } : {}), ...(href ? { href } : {}) }];
+    return [{ text: str(r.text), ...(r.bold ? { bold: true as const } : {}), ...(r.italic ? { italic: true as const } : {}), ...(r.underline ? { underline: true as const } : {}), ...(href ? { href } : {}) }];
   });
 }
 
@@ -111,7 +111,7 @@ export function tidyBody(blocks: Block[]): Block[] {
     for (const r of c) {
       if (!r.text) continue;
       const last = out.at(-1);
-      if (last && !!last.bold === !!r.bold && !!last.italic === !!r.italic && last.href === r.href) last.text += r.text;
+      if (last && !!last.bold === !!r.bold && !!last.italic === !!r.italic && !!last.underline === !!r.underline && last.href === r.href) last.text += r.text;
       else out.push({ ...r });
     }
     if (out[0]) out[0].text = out[0].text.replace(/^\s+/, "");

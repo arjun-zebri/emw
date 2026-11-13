@@ -36,6 +36,7 @@ export function runsHtml(c: Run[]) {
   return c
     .map((r) => {
       let h = esc(r.text);
+      if (r.underline) h = `<u>${h}</u>`;
       if (r.italic) h = `<i>${h}</i>`;
       if (r.bold) h = `<b>${h}</b>`;
       if (r.href) h = `<a href="${esc(r.href)}">${h}</a>`;
@@ -46,7 +47,7 @@ export function runsHtml(c: Run[]) {
 
 type Marks = Omit<Run, "text">;
 
-/** What a piece of the page holds, as runs: plain, bold, italic, links. Anything else is plain. */
+/** What a piece of the page holds, as runs: plain, bold, italic, underlined, links. Anything else is plain. */
 function readRuns(nodes: Iterable<Node>, marks: Marks = {}, out: Run[] = []): Run[] {
   for (const n of nodes) {
     if (n.nodeType === Node.TEXT_NODE) {
@@ -68,6 +69,7 @@ function readRuns(nodes: Iterable<Node>, marks: Marks = {}, out: Run[] = []): Ru
           ...marks,
           ...((t === "B" || t === "STRONG" || st.fontWeight === "bold" || Number(st.fontWeight) >= 600) && { bold: true }),
           ...((t === "I" || t === "EM" || st.fontStyle === "italic") && { italic: true }),
+          ...((t === "U" || st.textDecorationLine.includes("underline") || st.textDecoration.includes("underline")) && { underline: true }),
           ...(href && { href }),
         },
         out,
@@ -588,11 +590,11 @@ export function BodyEditor({
       }
     }
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && (e.key === "b" || e.key === "i")) {
+    if (mod && (e.key === "b" || e.key === "i" || e.key === "u")) {
       const k = kindAt(el);
       e.preventDefault();
       // Headings are plain words.
-      if (k !== "h2" && k !== "h3") document.execCommand(e.key === "b" ? "bold" : "italic");
+      if (k !== "h2" && k !== "h3") document.execCommand(e.key === "b" ? "bold" : e.key === "i" ? "italic" : "underline");
       return;
     }
     if (mod && e.altKey && /^Digit[0-3]$/.test(e.code)) {

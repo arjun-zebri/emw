@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import Link from "next/link";
+import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { type Block, type Photo, type Run, photoUrl, ratioOf } from "@/lib/journal/blocks";
 import type { Credit } from "@/lib/journal/posts";
@@ -88,25 +89,33 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
       </div>
 
       {vendors.length > 0 && (
-        <section className="shell mt-[var(--section)]">
-          <div className="border-t hairline pt-8">
-            <h2 className="t-heading">In this story</h2>
-            <ul className="mt-8 grid grid-cols-2 gap-x-[clamp(1rem,1.6vw,1.5rem)] gap-y-10 md:grid-cols-3 xl:grid-cols-4">
+        // The credits, in the article's own column: one line per vendor, however many there are.
+        <section className="shell mt-[clamp(4rem,7vw,6rem)]">
+          <div className={TEXT}>
+            <h2 className="t-title">In this story</h2>
+            <ul className="mt-5 border-t hairline">
               {vendors.map((v) => (
-                <li key={v.slug}>
-                  <Link href={`/vendors/${v.slug}`} prefetch className="group block">
-                    <span className="block overflow-hidden">
+                <li key={v.slug} className="border-b hairline">
+                  <Link href={`/vendors/${v.slug}`} prefetch className="group flex items-center gap-5 py-4">
+                    <span className="block w-16 shrink-0 overflow-hidden sm:w-20">
                       <Media
                         src={v.cover}
                         alt={v.name}
                         brief=""
                         quiet
-                        sizes="(min-width: 1280px) 25vw, 45vw"
-                        className="aspect-[4/5] w-full transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.03]"
+                        sizes="160px"
+                        className="aspect-[4/5] w-full transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.04]"
                       />
                     </span>
-                    <span className="t-title mt-4 block">{v.name}</span>
-                    <span className="t-small mt-1.5 block">{v.discipline}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="t-title block truncate">{v.name}</span>
+                      <span className="t-small mt-1 block">{v.discipline}</span>
+                    </span>
+                    <Icon
+                      name="arrow"
+                      className="size-4 shrink-0 text-ink-mute transition-[translate,color] duration-500 ease-out-expo group-hover:translate-x-1 group-hover:text-ink"
+                      strokeWidth={1.25}
+                    />
                   </Link>
                 </li>
               ))}
@@ -156,6 +165,7 @@ function BodyBlock({ b, prev }: { b: Block; prev?: Block }) {
 export function Runs({ c }: { c: Run[] }) {
   return c.map((r, i) => {
     let node: React.ReactNode = r.text;
+    if (r.underline) node = <u className="decoration-1 underline-offset-[0.22em]">{node}</u>;
     if (r.italic) node = <em>{node}</em>;
     if (r.bold) node = <strong className="font-medium text-ink">{node}</strong>;
     if (r.href) {
@@ -183,24 +193,33 @@ export function Runs({ c }: { c: Run[] }) {
 export function Photos({ block, className }: { block: Extract<Block, { type: "img" }>; className?: string }) {
   const many = block.images.length > 1;
   const sum = block.images.reduce((a, p) => a + (ratioOf(p) ?? 3 / 2), 0);
+  const ratio = ratioOf(block.images[0]);
+  const gaps = `${block.images.length - 1} * clamp(0.5rem, 1vw, 1rem)`;
+  // How wide the photos come out: the full measure, unless their height holds them narrower.
+  const w = many
+    ? block.height
+      ? `min(100%, calc(${block.height * sum}px + ${gaps}))`
+      : "100%"
+    : ratio
+      ? `min(100%, calc(${block.height ? `min(88vh, ${block.height}px)` : "88vh"} * ${ratio}))`
+      : "100%";
   return (
     <figure data-reveal-media suppressHydrationWarning className={clsx("mx-auto w-full max-w-[64rem]", className)}>
-      <div
-        className="mx-auto flex gap-[clamp(0.5rem,1vw,1rem)] max-sm:w-full! max-sm:flex-col"
-        // Made shorter in the editor, the row is as wide as its photos at that height.
-        style={many && block.height ? { width: `min(100%, calc(${block.height * sum}px + ${block.images.length - 1} * clamp(0.5rem, 1vw, 1rem)))` } : undefined}
-      >
-        {block.images.map((p, i) => (
-          <Frame
-            key={`${p.src}-${i}`}
-            photo={{ ...p, src: photoUrl(p.src), alt: p.alt || block.caption }}
-            sizes={many ? "(min-width: 1024px) 34vw, 100vw" : "(min-width: 1024px) 64rem, 100vw"}
-            grow={many}
-            tall={block.height}
-          />
-        ))}
+      {/* Narrower than the measure, they line up with the text's left edge, as far as they fit. */}
+      <div className="max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - 42rem) / 2, 100% - ${w}))` }}>
+        <div className="flex gap-[clamp(0.5rem,1vw,1rem)] max-sm:flex-col">
+          {block.images.map((p, i) => (
+            <Frame
+              key={`${p.src}-${i}`}
+              photo={{ ...p, src: photoUrl(p.src), alt: p.alt || block.caption }}
+              sizes={many ? "(min-width: 1024px) 34vw, 100vw" : "(min-width: 1024px) 64rem, 100vw"}
+              grow={many}
+              tall={block.height}
+            />
+          ))}
+        </div>
+        {block.caption && <figcaption className="t-small mt-3">{block.caption}</figcaption>}
       </div>
-      {block.caption && <figcaption className="t-small mt-3">{block.caption}</figcaption>}
     </figure>
   );
 }

@@ -11,16 +11,24 @@ import { thumbUrl } from "@/lib/supabase/storage";
 import { type Kind, kindAt, setKind } from "./BodyEditor";
 
 /*
- * The small bar over selected words: bold, italic and link, then what the line is (heading,
+ * The small bar over selected words: bold, italic, underline and link, then what the line is (heading,
  * subheading, a bulleted or numbered list). A link can be any web address, or one of the vendors,
- * found by name, which links to their page. ⌘B, ⌘I and ⌘K work too.
+ * found by name, which links to their page. ⌘B, ⌘I, ⌘U and ⌘K work too.
  *
  * It waits for the selection to settle (the mouse let go, or a pause in shift-arrowing) before it
  * shows, then stays where it first appeared while the selection changes, with the same buttons in
  * the same places, so it never chases the cursor.
  */
 
-type Spot = { x: number; y: number; link: string | null; kind: Kind | null; bold: boolean; italic: boolean };
+type Spot = { x: number; y: number; link: string | null; kind: Kind | null; bold: boolean; italic: boolean; underline: boolean };
+
+/** Whether the words sit in an underline of their own (a link's line doesn't count). */
+const underlined = (n: Node | null) => {
+  for (let el = n instanceof Element ? n : n?.parentElement; el && !el.matches("[data-body]"); el = el.parentElement) {
+    if (el.tagName === "U" || (el instanceof HTMLElement && /underline/.test(el.style.textDecoration + el.style.textDecorationLine))) return true;
+  }
+  return false;
+};
 
 /** The body of the post, if the words are in it. */
 const inEditable = (n: Node | null) => {
@@ -38,7 +46,7 @@ const LISTS: { kind: Kind; label: string; icon: IconName }[] = [
 ];
 
 const same = (a: Spot | null, b: Spot | null) =>
-  !!a && !!b && Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 && a.link === b.link && a.kind === b.kind && a.bold === b.bold && a.italic === b.italic;
+  !!a && !!b && Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 && a.link === b.link && a.kind === b.kind && a.bold === b.bold && a.italic === b.italic && a.underline === b.underline;
 
 export function FormatBar({ vendors }: { vendors: CreditVendor[] }) {
   const [spot, setSpot] = useState<Spot | null>(null);
@@ -47,6 +55,16 @@ export function FormatBar({ vendors }: { vendors: CreditVendor[] }) {
   const saved = useRef<Range | null>(null);
   const bar = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  // The suggestions under the link field, measured so the panel eases to each new size.
+  const list = useRef<HTMLDivElement>(null);
+  const [listHeight, setListHeight] = useState(0);
+  useEffect(() => {
+    const el = list.current;
+    if (!linking || !el) return;
+    const ro = new ResizeObserver(() => setListHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [linking]);
 
   const openLink = () => {
     const sel = getSelection();
@@ -97,6 +115,7 @@ export function FormatBar({ vendors }: { vendors: CreditVendor[] }) {
         kind: kindAt(block),
         bold: document.queryCommandState("bold"),
         italic: document.queryCommandState("italic"),
+        underline: underlined(sel.anchorNode),
       };
       setSpot((prev) => (same(prev, next) ? prev : next));
     };
@@ -193,6 +212,44 @@ export function FormatBar({ vendors }: { vendors: CreditVendor[] }) {
           >
             {linking ? (
               <div className="w-80">
+                {/* The panel sits above the words and grows upward, so the field stays put while suggestions come and go. */}
+                <motion.div
+                  initial={false}
+                  animate={{ height: listHeight }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div ref={list}>
+                    {(matches.length > 0 || typed) && (
+                      <ul className="border-b hairline py-1">
+                        {typed && (
+                          <li>
+                            <button type="button" onClick={() => link(typed)} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[0.8125rem] hover:bg-paper">
+                              <Icon name="link" className="size-3.5 shrink-0" strokeWidth={1.5} />
+                              <span className="truncate">{typed}</span>
+                            </button>
+                          </li>
+                        )}
+                        {matches.map((v) => (
+                          <li key={v.id}>
+                            <button
+                              type="button"
+                              onClick={() => link(`/vendors/${v.slug}`)}
+                              className="flex w-full items-center gap-3 px-3.5 py-2 text-left hover:bg-paper"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element -- a thumbnail straight from Storage */}
+                              {v.photo ? <img src={thumbUrl(v.photo)} alt="" className="size-8 shrink-0 object-cover" /> : <span className="size-8 shrink-0 bg-paper-soft" />}
+                              <span className="min-w-0">
+                                <span className="block truncate text-[0.875rem]">{v.name}</span>
+                                <span className="block truncate text-[0.75rem] text-ink-soft">{v.discipline}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </motion.div>
                 <input
                   ref={input}
                   value={query}
@@ -211,43 +268,18 @@ export function FormatBar({ vendors }: { vendors: CreditVendor[] }) {
                   aria-label="Link"
                   className="h-10 w-full bg-transparent px-3.5 text-[0.875rem] text-ink placeholder:text-ink-mute/60 focus:outline-none"
                 />
-                {(matches.length > 0 || typed) && (
-                  <ul className="border-t hairline py-1">
-                    {typed && (
-                      <li>
-                        <button type="button" onClick={() => link(typed)} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[0.8125rem] hover:bg-paper">
-                          <Icon name="link" className="size-3.5 shrink-0" strokeWidth={1.5} />
-                          <span className="truncate">{typed}</span>
-                        </button>
-                      </li>
-                    )}
-                    {matches.map((v) => (
-                      <li key={v.id}>
-                        <button
-                          type="button"
-                          onClick={() => link(`/vendors/${v.slug}`)}
-                          className="flex w-full items-center gap-3 px-3.5 py-2 text-left hover:bg-paper"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element -- a thumbnail straight from Storage */}
-                          {v.photo ? <img src={thumbUrl(v.photo)} alt="" className="size-8 shrink-0 object-cover" /> : <span className="size-8 shrink-0 bg-paper-soft" />}
-                          <span className="min-w-0">
-                            <span className="block truncate text-[0.875rem]">{v.name}</span>
-                            <span className="block truncate text-[0.75rem] text-ink-soft">{v.discipline}</span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             ) : (
               <div className="flex items-center px-1">
-                {/* Bold, italic and link don't apply to a heading: they stay, greyed, so nothing shifts. */}
+                {/* Bold, italic, underline and link don't apply to a heading: they stay, greyed, so nothing shifts. */}
                 <Mark label="Bold (⌘B)" on={spot.bold} off={heading} onClick={() => format(() => document.execCommand("bold"))} className="font-semibold">
                   B
                 </Mark>
                 <Mark label="Italic (⌘I)" on={spot.italic} off={heading} onClick={() => format(() => document.execCommand("italic"))} className="font-display text-[1.0625rem] italic">
                   I
+                </Mark>
+                <Mark label="Underline (⌘U)" on={spot.underline} off={heading} onClick={() => format(() => document.execCommand("underline"))}>
+                  <span className="underline decoration-1 underline-offset-[0.2em]">U</span>
                 </Mark>
                 {spot.link ? (
                   <Mark label="Remove link" on off={heading} onClick={() => format(() => document.execCommand("unlink"))}>
