@@ -9,7 +9,7 @@ import { LanguageName } from "@/components/ui/LanguageName";
 export type VendorCardData = { vendor: Vendor; location: string };
 
 /**
- * Image, name, and one line: the discipline and the languages they work in, set in their own scripts.
+ * Image, name, discipline, and beneath it the languages they work in, set in their own scripts.
  * The image carries a shared view-transition name, so opening a vendor morphs it into the vendor
  * page's cover. `prefetch` resolves the page ahead of the click, so the morph has a target to land on.
  */
@@ -49,12 +49,16 @@ export function VendorCard({
         </ViewTransition>
       </div>
       <h3 className="t-title mt-4">{vendor.name}</h3>
-      <p className="t-small mt-1.5 flex flex-wrap gap-x-3.5" title={location}>
-        <span>{vendor.discipline}</span>
-        {tongues.map((l) => (
-          <LanguageName key={l} name={l} className="text-ink-mute/75" />
-        ))}
+      <p className="t-small mt-1.5" title={location}>
+        {vendor.discipline}
       </p>
+      {tongues.length > 0 && (
+        <p className="t-small mt-0.5 flex flex-wrap gap-x-3.5">
+          {tongues.map((l) => (
+            <LanguageName key={l} name={l} className="text-ink-mute/75" />
+          ))}
+        </p>
+      )}
     </Link>
   );
 }

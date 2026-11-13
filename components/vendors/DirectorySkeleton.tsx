@@ -29,13 +29,14 @@ export function DirectorySkeleton() {
   );
 }
 
-/** One vendor card: the photo at its ratio, the name, the line beneath. */
+/** One vendor card: the photo at its ratio, the name, the discipline, the languages. */
 export function VendorCardSkeleton({ aspect = "aspect-[4/5]" }: { aspect?: string }) {
   return (
     <div aria-hidden>
       <Skeleton className={`${aspect} w-full`} />
       <Skeleton className="mt-4 h-[1.35rem] w-3/4" />
       <Skeleton className="mt-2.5 h-[0.85rem] w-1/2" />
+      <Skeleton className="mt-1.5 h-[0.85rem] w-2/5" />
     </div>
   );
 }
