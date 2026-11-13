@@ -121,7 +121,7 @@ function parse(root: HTMLElement, rows: Map<string, ImgBlock>): Block[] {
       const t = n.tagName;
       if (t === "FIGURE") {
         const id = n.dataset.photos;
-        if (id) out.push(rows.get(id) ?? { id, type: "img", images: [], caption: "" });
+        if (id) out.push(rows.get(id) ?? { id, type: "img", images: [], caption: "", wide: true });
       } else if (t === "UL" || t === "OL") {
         const items = [...n.children].filter((c) => c.tagName === "LI").map((li) => runsOrEmpty(readRuns(li.childNodes)));
         out.push({ id: "", type: "ul", items: items.length ? items : [[]], ...(t === "OL" && { ordered: true as const }) });
@@ -725,7 +725,7 @@ export function BodyEditor({
           "t-body min-h-[40vh] text-[1.0625rem] leading-[1.8] whitespace-pre-wrap outline-none [overflow-wrap:anywhere]",
           // Set as the article sets it, but flush with the cover: a column of text, headings in Boska, photos wider.
           "[&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:w-full [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:max-w-[42rem]",
-          "[&>*+*]:mt-6 [&>:is(h1,h2)]:mt-12 [&>:is(h3,h4,h5,h6)]:mt-10 [&>:is(h1,h2,h3,h4,h5,h6)+*]:mt-4 [&>figure]:my-12 [&>:first-child]:mt-0",
+          "[&>*+*]:mt-4 [&>:is(h1,h2)]:mt-12 [&>:is(h3,h4,h5,h6)]:mt-10 [&>:is(h1,h2,h3,h4,h5,h6)+*]:mt-4 [&>figure]:my-12 [&>:first-child]:mt-0",
           // The article's HEADING_2 and HEADING_3, written out so Tailwind sees them.
           "[&>:is(h1,h2,h3,h4,h5,h6)]:text-ink [&>:is(h1,h2)]:t-heading [&>:is(h1,h2)]:text-[clamp(1.625rem,2.2vw,2.125rem)] [&>:is(h1,h2)]:text-balance",
           "[&>:is(h3,h4,h5,h6)]:t-title [&>:is(h3,h4,h5,h6)]:text-[clamp(1.25rem,1.6vw,1.5rem)] [&>:is(h3,h4,h5,h6)]:text-balance",
@@ -806,7 +806,7 @@ export function BodyEditor({
 function PhotoPlaceholder({ onFiles, onRemove }: { onFiles: (files: File[]) => void; onRemove: () => void }) {
   const [over, setOver] = useState(false);
   return (
-    <div className="group/holder relative max-w-[42rem] select-none">
+    <div className="group/holder relative select-none">
       <button
         type="button"
         onClick={() => pickFiles(onFiles)}
@@ -863,7 +863,7 @@ function PhotoRow({
 
   if (waiting) {
     return (
-      <div className="max-w-[42rem]">
+      <div>
         <span className="skeleton block aspect-[3/2] w-full" />
       </div>
     );
@@ -875,7 +875,10 @@ function PhotoRow({
         {block.images.map((p, n) => {
           const ratio = ratioOf(p) ?? 3 / 2;
           return (
-            <div key={`${p.src}-${n}`} className="group/photo relative min-w-0 max-sm:w-full max-sm:flex-none!" style={{ flex: `${ratio} 1 0%`, aspectRatio: ratio }}>
+            <div key={`${p.src}-${n}`} className="group/photo relative min-w-0 max-sm:w-full max-sm:flex-none!"
+              // One photo shows whole on screen, however tall; several share the width at one height.
+              style={many ? { flex: `${ratio} 1 0%`, aspectRatio: ratio } : { aspectRatio: ratio, width: `min(100%, calc(80vh * ${ratio}))` }}
+            >
               <Media src={photoUrl(p.src)} alt={p.alt} brief="" quiet sizes={many ? "400px" : "900px"} className="size-full" />
               {uploading.has(p.src) && <span aria-hidden className="skeleton absolute inset-0 opacity-60 mix-blend-multiply" />}
               <div className="absolute right-2 bottom-2 flex gap-1.5 opacity-0 transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100">

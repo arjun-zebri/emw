@@ -462,13 +462,8 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
             slugTaken={slugTaken}
             live={effective === "published"}
             liveSlug={live && effective === "published" ? live.saved.slug : ""}
-            publishedAt={live?.publishedAt ?? null}
-            archivedAt={live?.archivedAt ?? null}
-            unpublished={unpublished}
             categories={categories}
             vendors={vendors.data ?? []}
-            words={words}
-            minutes={minutes}
           />
         </aside>
       </div>

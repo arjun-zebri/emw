@@ -121,7 +121,7 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
 }
 
 function BodyBlock({ b, prev }: { b: Block; prev?: Block }) {
-  const gap = !prev ? "" : b.type === "h" ? (b.level === 3 ? "mt-10" : "mt-12") : prev.type === "h" ? "mt-4" : "mt-6";
+  const gap = !prev ? "" : b.type === "h" ? (b.level === 3 ? "mt-10" : "mt-12") : "mt-4";
   if (b.type === "img") return <Photos block={b} className={prev ? "my-[clamp(2.5rem,4vw,3.5rem)]" : "mb-[clamp(2.5rem,4vw,3.5rem)]"} />;
   if (b.type === "h")
     return b.level === 3 ? (
@@ -191,7 +191,7 @@ export function Photos({ block, className }: { block: Extract<Block, { type: "im
             key={`${p.src}-${i}`}
             photo={{ ...p, src: photoUrl(p.src) }}
             sizes={many ? "(min-width: 1024px) 34vw, 100vw" : block.wide ? "(min-width: 1024px) 64rem, 100vw" : "(min-width: 768px) 42rem, 100vw"}
-            grow
+            grow={many}
           />
         ))}
       </div>

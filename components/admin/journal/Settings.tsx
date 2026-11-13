@@ -1,22 +1,24 @@
 "use client";
 
 import clsx from "clsx";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, Reorder } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import type { CreditVendor, PostContent } from "@/lib/admin/journal";
 import { describe, photoUrl, slugify } from "@/lib/journal/blocks";
 import { thumbUrl } from "@/lib/supabase/storage";
-import { DetailRow, rowInput } from "../shared/DetailRow";
 import { Dropdown } from "../shared/Dropdown";
 
 /*
- * The post's details beside it: whether it's a draft or published, its category and byline, the
- * vendors it credits (with their photos), its address, and how it looks in Google and when shared,
- * drawn as they'll appear rather than described.
+ * The post's details beside it: its category and byline, the vendors it credits (with their photos,
+ * dragged into order), its address, and how it looks in Google and when shared, drawn as they'll
+ * appear rather than described. Whatever can be changed sits in a box; the previews are just shown.
+ * Where the post stands is in the bar above, so it isn't repeated here.
  */
 
-const longDate = (iso: string) => new Date(iso).toLocaleDateString("en-AU", { timeZone: "Australia/Melbourne", day: "numeric", month: "long", year: "numeric" });
+/** A box around anything that can be typed in. */
+const box = "border border-ink/15 bg-surface transition-colors hover:border-ink/30 focus-within:border-ink/40";
+const field = "w-full bg-transparent text-[0.9375rem] text-ink placeholder:text-ink-mute/50 focus:outline-none";
 
 export function Settings({
   content,
@@ -25,13 +27,8 @@ export function Settings({
   slugTaken,
   live,
   liveSlug,
-  publishedAt,
-  archivedAt,
-  unpublished,
   categories,
   vendors,
-  words,
-  minutes,
 }: {
   content: PostContent;
   update: (fn: (c: PostContent) => PostContent) => void;
@@ -40,15 +37,9 @@ export function Settings({
   /** The post is in the journal now. */
   live: boolean;
   liveSlug: string;
-  publishedAt: string | null;
-  archivedAt: string | null;
-  /** Live, with changes not yet published. */
-  unpublished: boolean;
   /** Every category in use, and the house ones. */
   categories: string[];
   vendors: CreditVendor[];
-  words: number;
-  minutes: number;
 }) {
   const set = <K extends keyof PostContent>(k: K, v: PostContent[K]) => update((c) => ({ ...c, [k]: v }));
   const credited = content.vendors.map((id) => vendors.find((v) => v.id === id)).filter((v): v is CreditVendor => !!v);
@@ -62,19 +53,13 @@ export function Settings({
 
   return (
     <div className="space-y-6">
-      <Section title="Publishing">
-        <dl>
-          <DetailRow plain label="Status">
-            <p className="flex items-center gap-2 text-[0.9375rem] text-ink">
-              <span aria-hidden className={clsx("size-1.5 shrink-0 rounded-full", !live ? "bg-ink/25" : unpublished ? "bg-warn" : "bg-good")} />
-              {live ? `Published${publishedAt ? `, ${longDate(publishedAt)}` : ""}` : archivedAt ? `Archived, ${longDate(archivedAt)}` : "Draft"}
-            </p>
-            {live && unpublished && <p className="mt-1 text-[0.8125rem] text-ink-soft">Changes waiting to be published</p>}
-          </DetailRow>
-          <DetailRow plain label="Category" htmlFor="post-category">
+      <Section title="Details">
+        <div className="space-y-4">
+          <Field label="Category" htmlFor="post-category">
             <Dropdown
               id="post-category"
-              quiet
+              boxed
+              single
               searchable
               create="Add"
               options={categoryOptions}
@@ -82,55 +67,65 @@ export function Settings({
               onChange={(c) => set("category", c.trim().replace(/\s+/g, " ").slice(0, 40))}
               placeholder="Choose a category"
             />
-          </DetailRow>
-          <DetailRow plain label="Written by" htmlFor="post-author">
-            <input id="post-author" value={content.author} onChange={(e) => set("author", e.target.value)} placeholder="East Meets Wed" className={rowInput} />
-          </DetailRow>
-          <DetailRow plain label="Length">
-            <p className="text-[0.9375rem] text-ink">
-              {words.toLocaleString("en-AU")} words, {minutes} min read
-            </p>
-          </DetailRow>
-        </dl>
+          </Field>
+          <Field label="Written by" htmlFor="post-author">
+            <span className={clsx("flex h-10 items-center px-3", box)}>
+              <input id="post-author" value={content.author} onChange={(e) => set("author", e.target.value)} placeholder="East Meets Wed" className={field} />
+            </span>
+          </Field>
+        </div>
       </Section>
 
       <Section title="In this story" note="Credited at the end of the post, linked to their pages">
         <VendorPicker vendors={vendors} chosen={content.vendors} onAdd={(id) => set("vendors", [...content.vendors.filter((x) => x !== id), id])} />
-        <ul className="mt-3">
+        {credited.length > 1 && <p className="mt-4 text-[0.8125rem] text-ink-soft">Drag to change the order.</p>}
+        <Reorder.Group
+          axis="y"
+          values={credited.map((v) => v.id)}
+          onReorder={(ids) => set("vendors", [...ids, ...content.vendors.filter((id) => !ids.includes(id))])}
+          className={credited.length > 1 ? "mt-2" : "mt-3"}
+        >
           <AnimatePresence initial={false}>
-            {credited.map((v, i) => (
-              <motion.li
+            {credited.map((v) => (
+              <Reorder.Item
                 key={v.id}
-                layout="position"
+                value={v.id}
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                className="overflow-hidden"
+                whileDrag={{ scale: 1.02, boxShadow: "0 18px 36px -18px rgb(22 20 18 / 0.3)" }}
+                className="group/vendor relative cursor-grab bg-surface active:cursor-grabbing"
               >
                 <div className="flex items-center gap-3 border-t hairline py-2.5">
+                  <Icon name="grip" className="-ml-1 size-3.5 shrink-0 text-ink-mute/60 transition-colors group-hover/vendor:text-ink-soft" strokeWidth={1.5} />
                   {/* eslint-disable-next-line @next/next/no-img-element -- a thumbnail straight from Storage */}
-                  {v.photo ? <img src={thumbUrl(v.photo)} alt="" className="size-10 shrink-0 bg-paper-soft object-cover" /> : <span className="size-10 shrink-0 bg-paper-soft" />}
-                  <span className="min-w-0 flex-1">
+                  {v.photo ? <img src={thumbUrl(v.photo)} alt="" draggable={false} className="size-10 shrink-0 bg-paper-soft object-cover" /> : <span className="size-10 shrink-0 bg-paper-soft" />}
+                  <span className="min-w-0 flex-1 select-none">
                     <span className="block truncate font-display text-[1.0625rem] text-ink">{v.name}</span>
                     <span className="block truncate text-[0.8125rem] text-ink-soft">{v.discipline}</span>
                   </span>
-                  <span className="flex shrink-0">
-                    <SmallIcon label="Move up" icon="arrow-up" disabled={i === 0} onClick={() => set("vendors", swap(content.vendors, i, i - 1))} />
-                    <SmallIcon label="Move down" icon="arrow-down" disabled={i === credited.length - 1} onClick={() => set("vendors", swap(content.vendors, i, i + 1))} />
-                    <SmallIcon label={`Remove ${v.name}`} icon="close" onClick={() => set("vendors", content.vendors.filter((x) => x !== v.id))} />
-                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${v.name}`}
+                    title="Remove"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => set("vendors", content.vendors.filter((x) => x !== v.id))}
+                    className="flex size-7 shrink-0 items-center justify-center text-ink-mute opacity-0 transition hover:text-ink focus-visible:opacity-100 group-hover/vendor:opacity-100 max-lg:opacity-100"
+                  >
+                    <Icon name="close" className="size-3.5" strokeWidth={1.5} />
+                  </button>
                 </div>
-              </motion.li>
+              </Reorder.Item>
             ))}
           </AnimatePresence>
-        </ul>
+        </Reorder.Group>
       </Section>
 
       <Section title="Search and sharing">
-        <dl>
-          <DetailRow plain label="Address" htmlFor="post-slug">
-            <span className="flex items-baseline text-[0.9375rem]">
+        <div className="space-y-4">
+          <Field label="Address" htmlFor="post-slug">
+            <span className={clsx("flex h-10 items-center px-3 text-[0.9375rem]", box)}>
               <span className="shrink-0 text-ink-soft">/journal/</span>
               <input
                 id="post-slug"
@@ -141,26 +136,29 @@ export function Settings({
                 }}
                 onBlur={() => set("slug", slugify(content.slug || content.title))}
                 placeholder="from-the-title"
-                className={clsx(rowInput, "min-w-0 flex-1")}
+                className={clsx(field, "min-w-0 flex-1")}
               />
             </span>
-            {slugTaken && <p className="mt-1 text-[0.8125rem] text-bad">Another post uses this address. Choose another before publishing.</p>}
-            {live && liveSlug && slug !== liveSlug && !slugTaken && <p className="mt-1 text-[0.8125rem] text-ink-soft">The old address will forward here.</p>}
-          </DetailRow>
-          <DetailRow plain label="Description" htmlFor="post-description" aside={<span className={clsx("tabular-nums", over && "text-bad")}>{content.description.length} / 160</span>}>
-            <textarea
-              id="post-description"
-              rows={2}
-              value={content.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder={description || "A sentence or two for Google and share cards"}
-              className={clsx(rowInput, "min-h-[2lh] resize-none leading-relaxed [field-sizing:content]")}
-            />
-          </DetailRow>
-        </dl>
+            {slugTaken && <p className="mt-1.5 text-[0.8125rem] text-bad">Another post uses this address. Choose another before publishing.</p>}
+            {live && liveSlug && slug !== liveSlug && !slugTaken && <p className="mt-1.5 text-[0.8125rem] text-ink-soft">The old address will forward here.</p>}
+          </Field>
+          <Field label="Description" htmlFor="post-description" aside={<span className={clsx("tabular-nums", over && "text-bad")}>{content.description.length} / 160</span>}>
+            <span className={clsx("block px-3 py-2", box)}>
+              <textarea
+                id="post-description"
+                rows={2}
+                value={content.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder={description || "A sentence or two for Google and share cards"}
+                className={clsx(field, "block min-h-[2lh] resize-none leading-relaxed [field-sizing:content]")}
+              />
+            </span>
+          </Field>
+        </div>
 
         {/* How it turns up in Google, and as a link shared in a message. */}
-        <div className="mt-5 border-t hairline pt-5">
+        <p className="mt-6 text-[0.8125rem] text-ink-soft">How it shows in Google, and shared as a link</p>
+        <div className="mt-3 border-t hairline pt-4">
           <p className="truncate text-[0.8125rem] text-ink-soft">eastmeetswed.com › journal › {slug || "…"}</p>
           <p className="mt-1 line-clamp-2 text-[1.0625rem] leading-snug text-[#1a0dab]">{content.title || "Title"} · East Meets Wed</p>
           <p className="mt-1 line-clamp-2 text-[0.8125rem] leading-relaxed text-ink-soft">{description || "The opening words of the post show here until you write a description."}</p>
@@ -181,12 +179,6 @@ export function Settings({
     </div>
   );
 }
-
-const swap = <T,>(list: T[], a: number, b: number) => {
-  const next = [...list];
-  [next[a], next[b]] = [next[b], next[a]];
-  return next;
-};
 
 function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
@@ -306,10 +298,16 @@ function VendorPicker({ vendors, chosen, onAdd }: { vendors: CreditVendor[]; cho
   );
 }
 
-function SmallIcon({ label, icon, onClick, disabled }: { label: string; icon: "arrow-up" | "arrow-down" | "close"; onClick: () => void; disabled?: boolean }) {
+function Field({ label, htmlFor, aside, children }: { label: string; htmlFor: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className="flex size-7 items-center justify-center text-ink-mute transition-colors hover:text-ink disabled:opacity-25">
-      <Icon name={icon} className="size-3.5" strokeWidth={1.5} />
-    </button>
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between gap-4 text-[0.8125rem]">
+        <label htmlFor={htmlFor} className="text-ink-soft">
+          {label}
+        </label>
+        {aside && <span className="text-ink-mute">{aside}</span>}
+      </div>
+      {children}
+    </div>
   );
 }
