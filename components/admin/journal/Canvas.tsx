@@ -35,7 +35,7 @@ type Props = {
   setFocus: (f: Focus) => void;
 };
 
-const TEXT = "mx-auto w-full max-w-[42rem]";
+const TEXT = "w-full max-w-[42rem]";
 
 export function Canvas({ content, update, version, uploading, onFiles, date, minutes, focus, setFocus }: Props) {
   const body = useRef<BodyHandle>(null);
@@ -226,7 +226,7 @@ function Cover({
   const ratio = ratioOf(photo) ?? 3 / 2;
   return (
     <figure {...drop} className="group/cover mt-10">
-      <div className={clsx("relative mx-auto", over && "outline outline-2 outline-offset-4 outline-ink")} style={{ aspectRatio: ratio, width: `min(100%, calc(80vh * ${ratio}))` }}>
+      <div className={clsx("relative", over && "outline outline-2 outline-offset-4 outline-ink")} style={{ aspectRatio: ratio, width: `min(100%, calc(80vh * ${ratio}))` }}>
         <Media src={photoUrl(photo.src)} alt={photo.alt} brief="" quiet sizes="900px" priority className="size-full" />
         {uploading && <span aria-hidden className="skeleton absolute inset-0 opacity-60 mix-blend-multiply" />}
         <div className="absolute right-3 bottom-3 flex gap-1.5 opacity-0 transition-opacity group-focus-within/cover:opacity-100 group-hover/cover:opacity-100">
@@ -234,7 +234,7 @@ function Cover({
           <OnPhoto onClick={onRemove}>Remove</OnPhoto>
         </div>
       </div>
-      <AltField value={photo.alt} onChange={onAlt} className="mx-auto mt-3" style={{ width: `min(100%, calc(80vh * ${ratio}))` }} />
+      <AltField value={photo.alt} onChange={onAlt} className="mt-3" style={{ width: `min(100%, calc(80vh * ${ratio}))` }} />
     </figure>
   );
 }

@@ -16,9 +16,11 @@ import type { PhotoTarget } from "./ops";
  * blocks only when the post is opened (or replaced, by a discard or a reload), so the caret is never
  * disturbed.
  *
- * "/" opens a menu of what can be added: text, a heading, a subheading, a list, photos. "## ", "### ",
- * "- " and "1. " at the start of a line do the same. Photos sit in the page as rows of up to three,
- * each row a small island the typing flows around; dropped or pasted photos land where they fall.
+ * "/" opens a menu of what can be added: text, a heading, a subheading, a list, a photo. "## ", "### ",
+ * "- " and "1. " at the start of a line do the same. A photo from the menu starts as a placeholder,
+ * clicked (or dropped on) to fill it. Photos sit in the page as rows of up to three, each row a small
+ * island the typing flows around; dropped or pasted photos land where they fall. A placeholder left
+ * empty isn't saved.
  */
 
 type ImgBlock = Extract<Block, { type: "img" }>;
@@ -324,12 +326,12 @@ const COMMANDS: { kind: Kind | "img"; label: string; hint: string; icon: IconNam
   { kind: "h3", label: "Subheading", hint: "###", icon: "subheading", words: "subheading small heading h3" },
   { kind: "ul", label: "Bulleted list", hint: "-", icon: "list", words: "bulleted list bullets unordered" },
   { kind: "ol", label: "Numbered list", hint: "1.", icon: "list-ordered", words: "numbered list ordered steps" },
-  { kind: "img", label: "Photos", hint: "", icon: "image", words: "photos images pictures upload gallery" },
+  { kind: "img", label: "Photo", hint: "", icon: "image", words: "photo photos image images picture pictures upload gallery" },
 ];
 
 const SHORTCUTS: Record<string, Kind> = { "#": "h2", "##": "h2", "###": "h3", "-": "ul", "*": "ul", "1.": "ol" };
 
-const HINT = { P: "Write, or press / for headings, lists and photos", H2: "Heading", H3: "Subheading", LI: "List item" } as Record<string, string>;
+const HINT = { P: "Write, or press / for headings, lists and a photo", H2: "Heading", H3: "Subheading", LI: "List item" } as Record<string, string>;
 
 type Slash = { x: number; y: number; query: string; active: number };
 
@@ -366,6 +368,8 @@ export function BodyEditor({
   const seen = useRef(new Map<string, ImgBlock>());
   // Rows just made, waiting for their first photo.
   const fresh = useRef(new Set<string>());
+  // Rows added from the menu, empty until someone chooses a photo for them.
+  const [holders, setHolders] = useState<Set<string>>(() => new Set());
   const [figures, setFigures] = useState<{ id: string; node: HTMLElement }[]>([]);
   const [tick, setTick] = useState(0);
   const [slash, setSlash] = useState<Slash | null>(null);
@@ -420,13 +424,13 @@ export function BodyEditor({
     let removed = false;
     for (const f of figures) {
       const b = (body.find((x) => x.id === f.id) as ImgBlock | undefined) ?? seen.current.get(f.id);
-      if ((!b || !b.images.length) && !fresh.current.has(f.id) && f.node.isConnected) {
+      if ((!b || !b.images.length) && !fresh.current.has(f.id) && !holders.has(f.id) && f.node.isConnected) {
         f.node.remove();
         removed = true;
       }
     }
     if (removed) emit();
-  }, [figures, body, tick, emit]);
+  }, [figures, body, tick, holders, emit]);
 
   useImperativeHandle(
     ref,
@@ -492,6 +496,53 @@ export function BodyEditor({
     }
   };
 
+  /** An empty row in place of the line the caret is on, to be filled by clicking it. */
+  const addPlaceholder = (at: HTMLElement | null) => {
+    const el = root.current;
+    if (!el) return;
+    const anchor = at && at.parentNode === el ? at : null;
+    const id = blockId();
+    const tpl = document.createElement("template");
+    tpl.innerHTML = figureHtml(id);
+    const fig = tpl.content.firstElementChild as HTMLElement;
+    if (anchor && !anchor.textContent && anchor.tagName === "P") anchor.replaceWith(fig);
+    else if (anchor) anchor.after(fig);
+    else el.append(fig);
+    setHolders((h) => new Set(h).add(id));
+    emit();
+    const next = fig.nextElementSibling;
+    if (next) {
+      el.focus();
+      placeCaretIn(next, "start");
+    }
+  };
+
+  /** Fill a placeholder: it waits as the photos come in, and leaves the page if none arrive. */
+  const fillPlaceholder = (id: string, files: File[]) => {
+    const images = files.filter((f) => f.type.startsWith("image/")).slice(0, PHOTOS_PER_ROW);
+    if (!images.length) return;
+    fresh.current.add(id);
+    setHolders((h) => {
+      const next = new Set(h);
+      next.delete(id);
+      return next;
+    });
+    void onFiles(images, { kind: "row", blockId: id }).finally(() => {
+      fresh.current.delete(id);
+      setTick((t) => t + 1);
+    });
+  };
+
+  const removePlaceholder = (id: string, node: HTMLElement) => {
+    setHolders((h) => {
+      const next = new Set(h);
+      next.delete(id);
+      return next;
+    });
+    node.remove();
+    emit();
+  };
+
   const updateRow = (id: string, fn: (b: ImgBlock) => ImgBlock) => setBody((bs) => bs.map((b) => (b.id === id && b.type === "img" ? fn(b) : b)));
 
   // ── The "/" menu ──────────────────────────────────────────────────────
@@ -505,8 +556,7 @@ export function BodyEditor({
     eraseBack(erase);
     setSlash(null);
     if (kind === "img") {
-      const at = topOf(el, getSelection()?.anchorNode ?? null);
-      pickFiles((files) => addRows(files, { node: at }));
+      addPlaceholder(topOf(el, getSelection()?.anchorNode ?? null));
       return;
     }
     setKind(el, kind);
@@ -673,8 +723,8 @@ export function BodyEditor({
         onBlur={() => setSlash(null)}
         className={clsx(
           "t-body min-h-[40vh] text-[1.0625rem] leading-[1.8] whitespace-pre-wrap outline-none [overflow-wrap:anywhere]",
-          // Set as the article sets it: a column of text, headings in Boska, photos wider.
-          "[&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:mx-auto [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:w-full [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:max-w-[42rem]",
+          // Set as the article sets it, but flush with the cover: a column of text, headings in Boska, photos wider.
+          "[&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:w-full [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:max-w-[42rem]",
           "[&>*+*]:mt-6 [&>:is(h1,h2)]:mt-12 [&>:is(h3,h4,h5,h6)]:mt-10 [&>:is(h1,h2,h3,h4,h5,h6)+*]:mt-4 [&>figure]:my-12 [&>:first-child]:mt-0",
           // The article's HEADING_2 and HEADING_3, written out so Tailwind sees them.
           "[&>:is(h1,h2,h3,h4,h5,h6)]:text-ink [&>:is(h1,h2)]:t-heading [&>:is(h1,h2)]:text-[clamp(1.625rem,2.2vw,2.125rem)] [&>:is(h1,h2)]:text-balance",
@@ -688,6 +738,13 @@ export function BodyEditor({
       {figures.map((f) => {
         // A row brought back by undo shows as waiting until the next read puts its photos back.
         const b = body.find((x) => x.id === f.id) as ImgBlock | undefined;
+        if (holders.has(f.id) && !b?.images.length) {
+          return createPortal(
+            <PhotoPlaceholder key={f.id} onFiles={(files) => fillPlaceholder(f.id, files)} onRemove={() => removePlaceholder(f.id, f.node)} />,
+            f.node,
+            f.id,
+          );
+        }
         return createPortal(
           <PhotoRow
             key={f.id}
@@ -744,6 +801,44 @@ export function BodyEditor({
   );
 }
 
+// ── A photo to come ─────────────────────────────────────────────────────
+
+function PhotoPlaceholder({ onFiles, onRemove }: { onFiles: (files: File[]) => void; onRemove: () => void }) {
+  const [over, setOver] = useState(false);
+  return (
+    <div className="group/holder relative max-w-[42rem] select-none">
+      <button
+        type="button"
+        onClick={() => pickFiles(onFiles)}
+        onDragOver={(e) => {
+          if (![...e.dataTransfer.types].includes("Files")) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOver(false);
+          onFiles([...e.dataTransfer.files]);
+        }}
+        className={clsx(
+          "flex aspect-[2/1] w-full flex-col items-center justify-center gap-3 border border-dashed transition-colors duration-300",
+          over ? "border-ink bg-ink/[0.03]" : "border-ink/20 bg-surface hover:border-ink/40",
+        )}
+      >
+        <Icon name="image" className="size-5 text-ink-soft" strokeWidth={1.25} />
+        <span className="font-display text-[1.375rem] text-ink">Add a photo</span>
+        <span className="text-[0.8125rem] text-ink-soft">Choose one, or up to three side by side. Or drop them here.</span>
+      </button>
+      <span className="absolute top-2 right-2 opacity-0 transition-opacity group-focus-within/holder:opacity-100 group-hover/holder:opacity-100">
+        <OnPhoto onClick={onRemove}>Remove</OnPhoto>
+      </span>
+    </div>
+  );
+}
+
 // ── A row of photos ─────────────────────────────────────────────────────
 
 function PhotoRow({
@@ -768,14 +863,14 @@ function PhotoRow({
 
   if (waiting) {
     return (
-      <div className="mx-auto max-w-[42rem]">
+      <div className="max-w-[42rem]">
         <span className="skeleton block aspect-[3/2] w-full" />
       </div>
     );
   }
 
   return (
-    <div className={clsx("group/row mx-auto w-full select-none", width)}>
+    <div className={clsx("group/row w-full select-none", width)}>
       <div className="flex gap-3 max-sm:flex-col">
         {block.images.map((p, n) => {
           const ratio = ratioOf(p) ?? 3 / 2;

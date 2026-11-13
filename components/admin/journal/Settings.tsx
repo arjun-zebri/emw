@@ -26,6 +26,7 @@ export function Settings({
   live,
   liveSlug,
   publishedAt,
+  archivedAt,
   unpublished,
   categories,
   vendors,
@@ -40,6 +41,7 @@ export function Settings({
   live: boolean;
   liveSlug: string;
   publishedAt: string | null;
+  archivedAt: string | null;
   /** Live, with changes not yet published. */
   unpublished: boolean;
   /** Every category in use, and the house ones. */
@@ -65,7 +67,7 @@ export function Settings({
           <DetailRow plain label="Status">
             <p className="flex items-center gap-2 text-[0.9375rem] text-ink">
               <span aria-hidden className={clsx("size-1.5 shrink-0 rounded-full", !live ? "bg-ink/25" : unpublished ? "bg-warn" : "bg-good")} />
-              {live ? `Published${publishedAt ? `, ${longDate(publishedAt)}` : ""}` : "Draft"}
+              {live ? `Published${publishedAt ? `, ${longDate(publishedAt)}` : ""}` : archivedAt ? `Archived, ${longDate(archivedAt)}` : "Draft"}
             </p>
             {live && unpublished && <p className="mt-1 text-[0.8125rem] text-ink-soft">Changes waiting to be published</p>}
           </DetailRow>

@@ -45,6 +45,8 @@ export type JournalPost = {
   createdAt: string;
   updatedAt: string;
   oldSlugs: string[];
+  /** When it was archived: off the site and out of the main list, a draft underneath. */
+  archivedAt: string | null;
   /** What's in the post's own row: the live version, or the draft itself. */
   saved: PostContent;
   /** Unpublished changes to a live or scheduled post. */
@@ -64,6 +66,7 @@ export type ListedPost = {
   standfirst: string;
   hasEdits: boolean;
   credits: number;
+  archivedAt: string | null;
 };
 
 export type CreditVendor = { id: string; slug: string; name: string; discipline: string; photo?: string };
@@ -108,6 +111,7 @@ type Row = {
   author: string;
   status: PostStatus;
   published_at: string | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -186,7 +190,7 @@ function store<T>(fetcher: (key: string) => Promise<T>) {
 }
 
 const POST_COLUMNS =
-  "id, slug, old_slugs, title, standfirst, category, cover_path, cover_alt, cover_width, cover_height, body, description, author, status, published_at, created_at, updated_at";
+  "id, slug, old_slugs, title, standfirst, category, cover_path, cover_alt, cover_width, cover_height, body, description, author, status, published_at, archived_at, created_at, updated_at";
 
 const posts = store<JournalPost | null>(async (id) => {
   const { data, error } = await db()
@@ -206,6 +210,7 @@ const posts = store<JournalPost | null>(async (id) => {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     oldSlugs: data.old_slugs,
+    archivedAt: data.archived_at,
     saved,
     edits: edit ? { content: readContent(edit.data, saved), updatedAt: edit.updated_at } : null,
   };
@@ -233,6 +238,7 @@ const list = store<{ posts: ListedPost[]; reads: Record<string, { views: number;
         standfirst: c.standfirst,
         hasEdits: !!r.post_edits,
         credits: r.post_vendors.length,
+        archivedAt: r.archived_at,
       };
     }),
     // The figures are a nicety: without them (a hiccup, or before analytics existed) the list still shows.
@@ -406,7 +412,7 @@ export async function publishPost(post: JournalPost, content: PostContent) {
 
   const { data, error } = await db()
     .from("posts")
-    .update({ ...row, old_slugs: oldSlugs, status: "published", published_at: when })
+    .update({ ...row, old_slugs: oldSlugs, status: "published", published_at: when, archived_at: null })
     .eq("id", post.id)
     .eq("updated_at", post.updatedAt)
     .select("id")
@@ -432,6 +438,31 @@ export async function unpublishPost(post: JournalPost) {
   await writeCredits(post.id, content.vendors);
   await db().from("post_edits").delete().eq("post_id", post.id);
   await afterChange(post.id);
+}
+
+/**
+ * Put a post away: off the site if it was live (its unpublished changes come with it, as in
+ * unpublishPost) and out of the main list. Nothing is deleted.
+ */
+export async function archivePost(post: JournalPost) {
+  if (await changedElsewhere(post)) throw new StaleError();
+  const content = post.edits?.content ?? post.saved;
+  const { error } = await db()
+    .from("posts")
+    .update({ ...columnsOf(content), status: "draft", published_at: null, archived_at: new Date().toISOString() })
+    .eq("id", post.id);
+  if (error) throw new Error(error.message);
+  await writeCredits(post.id, content.vendors);
+  await db().from("post_edits").delete().eq("post_id", post.id);
+  await afterChange(post.id);
+}
+
+/** Bring an archived post back, as a draft. */
+export async function restorePost(post: JournalPost) {
+  const { error } = await db().from("posts").update({ archived_at: null }).eq("id", post.id);
+  if (error) throw new Error(error.message);
+  await posts.load(post.id);
+  void refreshList();
 }
 
 /** Throw away unpublished changes, back to what's live. */

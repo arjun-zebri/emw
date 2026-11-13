@@ -10,6 +10,7 @@ import { Article } from "@/components/journal/Article";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { time as clock, day } from "@/lib/admin/format";
 import {
+  archivePost,
   blankContent,
   createPost,
   deletePost,
@@ -21,6 +22,7 @@ import {
   prepareJournalPhoto,
   publishPost,
   reloadPost,
+  restorePost,
   saveContent,
   SlugTakenError,
   StaleError,
@@ -89,6 +91,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
   const [focus, setFocus] = useState<Focus | null>(() => (initial ? null : focusOn("title", "start")));
   // Draft or published. (A post scheduled before scheduling was taken away counts as published.)
   const effective = live && statusOf(live) !== "draft" ? "published" : "draft";
+  const archived = !!live?.archivedAt;
   // The address follows the title until someone sets it, or the post has been out in the world.
   const [slugTouched, setSlugTouched] = useState(() => !!initial && (initial.status !== "draft" || (!!initial.saved.slug && !initial.saved.slug.startsWith("draft-") && initial.saved.slug !== slugify(initial.saved.title))));
 
@@ -288,6 +291,21 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
       toast("Taken out of the journal. It’s a draft again.");
     });
 
+  const archive = () =>
+    run("archive", async () => {
+      await flush();
+      const wasLive = effective === "published";
+      await archivePost(peekPost(idRef.current!)!);
+      router.push("/admin/journal");
+      toast(wasLive ? "Archived and taken out of the journal" : "Archived");
+    });
+
+  const restore = () =>
+    run("restore", async () => {
+      await restorePost(peekPost(idRef.current!)!);
+      toast("Restored as a draft");
+    });
+
   const discard = () =>
     run("discard", async () => {
       await flush();
@@ -344,7 +362,9 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
     ...(effective === "published" && live ? [{ label: "View in the journal", icon: "arrow-up-right" as const, run: () => window.open(`/journal/${live.saved.slug}`, "_blank") }] : []),
     ...(effective === "published" && unpublished ? [{ label: "Discard changes", icon: "refresh" as const, run: discard, rule: true }] : []),
     ...(effective === "published" ? [{ label: "Move back to drafts", icon: "pen" as const, run: unpublish, rule: !unpublished }] : []),
-    ...(id ? [{ label: "Delete post", icon: "trash" as const, run: () => setConfirmDelete(true), danger: true, rule: true }] : []),
+    ...(id && archived ? [{ label: "Restore", icon: "refresh" as const, run: restore, rule: true }] : []),
+    ...(id && !archived ? [{ label: "Archive", icon: "archive" as const, run: archive, rule: effective !== "published" }] : []),
+    ...(id ? [{ label: "Delete post", icon: "trash" as const, run: () => setConfirmDelete(true), danger: true, rule: archived }] : []),
   ];
 
   // ── What it adds up to ────────────────────────────────────────────────
@@ -363,7 +383,9 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
         ? "Couldn’t save. Retrying when you next type."
         : save === "saving" || save === "pending"
           ? "Saving"
-          : effective === "draft"
+          : archived
+            ? "Archived"
+            : effective === "draft"
             ? savedAt
               ? `Draft, saved ${clock(savedAt)}`
               : live
@@ -432,7 +454,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
             setFocus={setFocus}
           />
         </div>
-        <aside className="min-w-0 xl:sticky xl:top-36 xl:col-span-4 xl:max-h-[calc(100vh-10rem)] xl:self-start xl:overflow-y-auto">
+        <aside className="min-w-0 xl:col-span-4">
           <Settings
             content={content}
             update={update}
@@ -441,6 +463,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
             live={effective === "published"}
             liveSlug={live && effective === "published" ? live.saved.slug : ""}
             publishedAt={live?.publishedAt ?? null}
+            archivedAt={live?.archivedAt ?? null}
             unpublished={unpublished}
             categories={categories}
             vendors={vendors.data ?? []}
@@ -583,14 +606,14 @@ function EditorSkeleton() {
       </div>
       <div className="grid grid-cols-1 gap-y-10 xl:grid-cols-12 xl:gap-x-[clamp(2rem,3vw,3.5rem)]">
         <div className="xl:col-span-8">
-          <div className="mx-auto max-w-[42rem]">
+          <div className="max-w-[42rem]">
             <Skeleton className="h-[clamp(2.5rem,4.4vw,4.25rem)] w-full" />
             <Skeleton className="mt-3 h-[clamp(2.5rem,4.4vw,4.25rem)] w-2/3" />
             <SkeletonLines lines={2} className="mt-7 max-w-[40ch] text-[1.25rem]" />
             <Skeleton className="mt-6 h-3.5 w-48" />
           </div>
           <Skeleton className="mt-10 aspect-[3/2] w-full" />
-          <SkeletonLines lines={4} className="mx-auto mt-12 max-w-[42rem] text-[1.0625rem] leading-[1.8]" />
+          <SkeletonLines lines={4} className="mt-12 max-w-[42rem] text-[1.0625rem] leading-[1.8]" />
         </div>
         <div className="space-y-6 xl:col-span-4">
           {[4, 2, 3].map((rows, i) => (

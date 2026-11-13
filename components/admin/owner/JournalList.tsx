@@ -14,15 +14,18 @@ import { Badge, Btn, Empty, PageHeader, Panel, Tabs, type Tone } from "../ui";
 /*
  * Every post, newest change first: its cover, title and standfirst as couples will see them, where
  * it stands (live, a draft, or live with changes waiting), and how many people have read
- * it. The three newest live posts are the ones on the home page, and say so.
+ * it. The three newest live posts are the ones on the home page, and say so. Archived posts keep
+ * to their own tab.
  */
 
-type Filter = "all" | PostStatus;
+type Kind = PostStatus | "archived";
+type Filter = "all" | Kind;
 
-export const postStatus: Record<PostStatus, { label: string; tone: Tone }> = {
+export const postStatus: Record<Kind, { label: string; tone: Tone }> = {
   published: { label: "Live", tone: "good" },
   scheduled: { label: "Scheduled", tone: "warn" },
   draft: { label: "Draft", tone: "neutral" },
+  archived: { label: "Archived", tone: "neutral" },
 };
 
 export function JournalList() {
@@ -30,7 +33,7 @@ export function JournalList() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
-  const posts = useMemo(() => (data?.posts ?? []).map((p) => ({ ...p, status: statusOf(p) })), [data]);
+  const posts = useMemo(() => (data?.posts ?? []).map((p) => ({ ...p, status: statusOf(p), kind: (p.archivedAt ? "archived" : statusOf(p)) as Kind })), [data]);
   const home = useMemo(
     () =>
       new Set(
@@ -42,9 +45,9 @@ export function JournalList() {
       ),
     [posts],
   );
-  const count = (s: PostStatus) => posts.filter((p) => p.status === s).length;
+  const count = (k: Kind) => posts.filter((p) => p.kind === k).length;
   const q = query.trim().toLowerCase();
-  const shown = posts.filter((p) => (filter === "all" || p.status === filter) && (!q || `${p.title} ${p.standfirst} ${p.category} ${p.author}`.toLowerCase().includes(q)));
+  const shown = posts.filter((p) => (filter === "all" ? p.kind !== "archived" : p.kind === filter) && (!q || `${p.title} ${p.standfirst} ${p.category} ${p.author}`.toLowerCase().includes(q)));
 
   return (
     <>
@@ -64,9 +67,10 @@ export function JournalList() {
           value={filter}
           onChange={setFilter}
           tabs={[
-            { id: "all", label: "All", count: posts.length },
+            { id: "all", label: "All", count: posts.length - count("archived") },
             { id: "published", label: "Live", count: count("published") },
             { id: "draft", label: "Drafts", count: count("draft") },
+            ...(count("archived") || filter === "archived" ? [{ id: "archived" as const, label: "Archived", count: count("archived") }] : []),
           ]}
         />
         <label className="relative mb-2 w-full sm:w-64">
@@ -100,14 +104,14 @@ export function JournalList() {
           <Empty title="The journal didn’t load">{error}</Empty>
         ) : shown.length === 0 ? (
           <Empty
-            title={q ? `No post matches “${query.trim()}”` : filter === "all" ? "No posts yet" : `No ${postStatus[filter as PostStatus].label.toLowerCase()} posts`}
-            action={!q && <Btn href="/admin/journal/new">Write a post</Btn>}
+            title={q ? `No post matches “${query.trim()}”` : filter === "all" ? "No posts yet" : `No ${postStatus[filter].label.toLowerCase()} posts`}
+            action={!q && filter !== "archived" && <Btn href="/admin/journal/new">Write a post</Btn>}
           />
         ) : (
           <ul>
             {shown.map((post, i) => (
               <li key={post.id} className={i ? "border-t border-ink/[0.06]" : undefined}>
-                <Row post={post} onHome={home.has(post.id)} reads={data?.reads[post.slug]} />
+                <Row post={post} kind={post.kind} onHome={home.has(post.id)} reads={data?.reads[post.slug]} />
               </li>
             ))}
           </ul>
@@ -117,10 +121,12 @@ export function JournalList() {
   );
 }
 
-function Row({ post, onHome, reads }: { post: ListedPost; onHome: boolean; reads?: { views: number; last30: number } }) {
-  const s = postStatus[post.status];
+function Row({ post, kind, onHome, reads }: { post: ListedPost; kind: Kind; onHome: boolean; reads?: { views: number; last30: number } }) {
+  const s = postStatus[kind];
   const when =
-    post.status === "published" && post.publishedAt
+    kind === "archived" && post.archivedAt
+      ? `Archived ${day(post.archivedAt)}`
+      : post.status === "published" && post.publishedAt
       ? `Published ${day(post.publishedAt, { year: true })}`
       : post.status === "scheduled" && post.publishedAt
         ? `Goes live ${day(post.publishedAt, { weekday: true })}`
