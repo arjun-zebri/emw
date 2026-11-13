@@ -31,12 +31,16 @@ export function PreviewFrame<T extends string>({
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     lockScroll(true);
+    // The page's own scrollbar space would show beside the preview's: give it up while this covers the page.
+    const root = document.documentElement.style;
+    root.scrollbarGutter = "auto";
     close.current?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     addEventListener("keydown", onKey);
     return () => {
       removeEventListener("keydown", onKey);
       lockScroll(false);
+      root.scrollbarGutter = "";
       before?.focus();
     };
   }, [onClose]);
