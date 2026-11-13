@@ -1,8 +1,6 @@
-import type { Metadata } from "next";
-import { Overview } from "@/components/admin/owner/Overview";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Overview" };
-
+/** The admin opens on Approvals. */
 export default function AdminHome() {
-  return <Overview />;
+  redirect("/admin/approvals");
 }

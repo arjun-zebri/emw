@@ -5,7 +5,6 @@ export type NavItem = { href: string; label: string; icon: IconName; badge?: "ap
 export type NavGroup = { title?: string; items: NavItem[] };
 
 export const ownerNav: NavGroup[] = [
-  { items: [{ href: "/admin", label: "Overview", icon: "overview", soon: true }] },
   {
     title: "Insights",
     items: [
@@ -19,7 +18,6 @@ export const ownerNav: NavGroup[] = [
     items: [
       { href: "/admin/approvals", label: "Approvals", icon: "inbox", badge: "approvals" },
       { href: "/admin/vendors", label: "Vendors", icon: "store" },
-      { href: "/admin/couples", label: "Couples", icon: "heart", soon: true },
       { href: "/admin/journal", label: "Journal", icon: "pen" },
     ],
   },
@@ -27,7 +25,7 @@ export const ownerNav: NavGroup[] = [
     title: "Settings",
     items: [
       { href: "/admin/notifications", label: "Notifications", icon: "bell" },
-      { href: "/admin/settings", label: "Team", icon: "people", soon: true },
+      { href: "/admin/account", label: "Account", icon: "cog" },
     ],
   },
 ];
