@@ -38,7 +38,7 @@ export function PostCards({ posts, lead = true, className }: { posts: LivePost[]
 
 export function PostCard({ post, aspect = "aspect-[4/5]" }: { post: LivePost; aspect?: string }) {
   return (
-    <Link href={`/blog/${post.slug}`} prefetch className="group block">
+    <Link href={`/journal/${post.slug}`} prefetch className="group block">
       <span className="block overflow-hidden">
         <Media
           src={post.cover?.src}
@@ -60,7 +60,7 @@ export function PostCard({ post, aspect = "aspect-[4/5]" }: { post: LivePost; as
 function Spread({ post }: { post: LivePost }) {
   return (
     <Link
-      href={`/blog/${post.slug}`}
+      href={`/journal/${post.slug}`}
       prefetch
       data-reveal
       suppressHydrationWarning

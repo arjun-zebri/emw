@@ -132,7 +132,7 @@ export function postMeta(post: LivePost): Metadata {
   return pageMeta({
     title: post.title,
     description: post.description,
-    path: `/blog/${post.slug}`,
+    path: `/journal/${post.slug}`,
     image: post.cover?.src,
     article: { publishedTime: post.publishedAt, modifiedTime: post.updatedAt },
   });
@@ -140,7 +140,7 @@ export function postMeta(post: LivePost): Metadata {
 
 /** A journal post as an article, with the vendors it credits as the businesses it mentions. */
 export function postLd(post: LivePost) {
-  const url = absolute(`/blog/${post.slug}`);
+  const url = absolute(`/journal/${post.slug}`);
   const by = post.author.trim();
   return {
     "@context": "https://schema.org",
@@ -167,7 +167,7 @@ export function postLd(post: LivePost) {
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
-          { "@type": "ListItem", position: 2, name: "Blog", item: absolute("/blog") },
+          { "@type": "ListItem", position: 2, name: "Journal", item: absolute("/journal") },
           { "@type": "ListItem", position: 3, name: post.title, item: url },
         ],
       },

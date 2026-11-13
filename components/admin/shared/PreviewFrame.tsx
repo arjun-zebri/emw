@@ -41,6 +41,17 @@ export function PreviewFrame<T extends string>({
     };
   }, [onClose]);
 
+  // The page's reveal-on-scroll is run by the public site, not here: show everything at once.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const show = () => el.querySelectorAll("[data-reveal]:not([data-in]), [data-reveal-media]:not([data-in])").forEach((n) => n.setAttribute("data-in", ""));
+    show();
+    const watch = new MutationObserver(show);
+    watch.observe(el, { childList: true, subtree: true });
+    return () => watch.disconnect();
+  }, []);
+
   return (
     <motion.div
       role="dialog"

@@ -73,7 +73,7 @@ const CHART_H = 240;
 const PAGE_NAMES: Record<string, string> = {
   "/": "Home",
   "/vendors": "Directory",
-  "/blog": "Blog",
+  "/journal": "Journal",
   "/list-your-business": "List your business",
   "/privacy-policy": "Privacy policy",
   "/terms-and-conditions": "Terms and conditions",

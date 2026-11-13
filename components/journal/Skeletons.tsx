@@ -1,7 +1,7 @@
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 
-/** The blog before its posts arrive: the lead spread, then a row of cards. */
-export function BlogSkeleton() {
+/** The journal before its posts arrive: the lead spread, then a row of cards. */
+export function JournalSkeleton() {
   return (
     <div aria-busy="true">
       <div className="grid grid-cols-1 items-end gap-x-[clamp(1.5rem,4vw,4.5rem)] gap-y-6 lg:grid-cols-12">

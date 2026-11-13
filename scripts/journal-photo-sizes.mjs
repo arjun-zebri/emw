@@ -1,5 +1,5 @@
 // Gives every journal photo already in the database what the editor's uploads have: the 480 and
-// 1200px copies beside it, and its size recorded in the post (cover and body), so the blog can
+// 1200px copies beside it, and its size recorded in the post (cover and body), so the journal can
 // hold each photo's shape while it loads. Posts brought over from WordPress need this once; run it
 // on staging, then on production at release. Safe to run again: photos with both are skipped.
 //

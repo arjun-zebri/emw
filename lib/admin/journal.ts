@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { PhotoError, preparePhoto } from "@/lib/apply/photos";
 import { refreshJournal } from "@/lib/journal/actions";
-import { type Block, type Category, CATEGORIES, type Photo, readBody, SLUG, slugify, tidyBody } from "@/lib/journal/blocks";
+import { type Block, type Category, categoryOf, DEFAULT_CATEGORY, type Photo, readBody, SLUG, slugify, tidyBody } from "@/lib/journal/blocks";
 import { supabase } from "@/lib/supabase/browser";
 import type { Json } from "@/lib/supabase/database.types";
 import { imageUrl, VARIANT_WIDTHS, variantPath } from "@/lib/supabase/storage";
@@ -10,15 +10,14 @@ import { imageUrl, VARIANT_WIDTHS, variantPath } from "@/lib/supabase/storage";
  * The journal, for the admin: read and written in Supabase as the signed-in team member, so row
  * level security decides what they reach.
  *
- * A draft saves into its own row as it's written. A post that is live, or scheduled, saves into
+ * A draft saves into its own row as it's written. A post that is live saves into
  * post_edits instead, so couples keep reading the published version until someone presses
  * "Publish changes"; then the edit is copied into the post and deleted. Every save names the
  * version it was made against, and is refused if the post changed elsewhere since (another tab,
  * another person), so two people never quietly overwrite each other.
  *
  * Photos go up as soon as they're added, prepared in the browser like a listing's (upright, JPEG,
- * 2000px plus the 1200 and 480 copies), to journal/<post id>/<random>.jpg. Photos picked from a
- * vendor's listing are copied there too, so the post keeps them whatever the vendor later changes.
+ * 2000px plus the 1200 and 480 copies), to journal/<post id>/<random>.jpg.
  * Files no version of the post uses any more are cleared when it's published, discarded or deleted.
  */
 
@@ -67,19 +66,18 @@ export type ListedPost = {
   credits: number;
 };
 
-export type CreditVendor = { id: string; slug: string; name: string; discipline: string; photo?: string; photos: string[] };
+export type CreditVendor = { id: string; slug: string; name: string; discipline: string; photo?: string };
 
 const db = () => supabase();
 const MIN_PHOTO = 800;
 export const DEFAULT_AUTHOR = "East Meets Wed";
 
-const asCategory = (c: string): Category => ((CATEGORIES as readonly string[]).includes(c) ? (c as Category) : "Culture");
 const filesOf = (path: string) => [path, ...VARIANT_WIDTHS.map((w) => variantPath(path, w))];
 
 export const blankContent = (): PostContent => ({
   title: "",
   standfirst: "",
-  category: "Culture",
+  category: DEFAULT_CATEGORY,
   cover: null,
   body: [],
   description: "",
@@ -117,7 +115,7 @@ type Row = {
 const contentOf = (r: Row, vendors: string[]): PostContent => ({
   title: r.title,
   standfirst: r.standfirst,
-  category: asCategory(r.category),
+  category: categoryOf(r.category),
   cover: r.cover_path
     ? { src: r.cover_path, alt: r.cover_alt, ...(r.cover_width && r.cover_height ? { w: r.cover_width, h: r.cover_height } : {}) }
     : null,
@@ -136,7 +134,7 @@ function readContent(raw: Json, fallback: PostContent): PostContent {
   return {
     title: s("title"),
     standfirst: s("standfirst"),
-    category: asCategory(s("category")),
+    category: categoryOf(s("category")),
     cover: cover && typeof cover.src === "string" ? cover : null,
     body: Array.isArray(o.body) ? readBody(o.body) : fallback.body,
     description: s("description"),
@@ -250,8 +248,8 @@ const vendorsStore = store<CreditVendor[]>(async () => {
     .order("name");
   if (error) throw new Error(error.message);
   return data.map((v) => {
-    const photos = [...v.vendor_photos].sort((a, b) => a.position - b.position).map((p) => imageUrl("vendor-photos", p.path));
-    return { id: v.id, slug: v.slug, name: v.name, discipline: v.discipline, photo: photos[0], photos };
+    const first = [...v.vendor_photos].sort((a, b) => a.position - b.position)[0];
+    return { id: v.id, slug: v.slug, name: v.name, discipline: v.discipline, photo: first && imageUrl("vendor-photos", first.path) };
   });
 });
 
@@ -261,7 +259,7 @@ export const usePost = (id: string | null) => posts.use(id);
 export const reloadPost = (id: string) => posts.load(id);
 /** The post as last read or saved, for a save that must name the version it builds on. */
 export const peekPost = (id: string) => posts.peek(id) ?? null;
-/** Published vendors, for credits and the photo library. */
+/** Published vendors, for credits and links. */
 export const useCreditVendors = () => vendorsStore.use("all");
 
 // ── Writing ─────────────────────────────────────────────────────────────
@@ -276,7 +274,7 @@ export class StaleError extends Error {
 /** The address is taken by another post. */
 export class SlugTakenError extends Error {
   constructor(slug: string) {
-    super(`Another post already uses /blog/${slug}`);
+    super(`Another post already uses /journal/${slug}`);
   }
 }
 
@@ -288,7 +286,7 @@ const slugFor = (c: PostContent) => (SLUG.test(c.slug) ? c.slug : slugify(c.titl
 const columnsOf = (c: PostContent) => ({
   title: c.title.trim(),
   standfirst: c.standfirst.trim(),
-  category: c.category,
+  category: categoryOf(c.category),
   cover_path: c.cover && !/^(blob|data):/.test(c.cover.src) ? c.cover.src : null,
   cover_alt: c.cover?.alt.trim() ?? "",
   cover_width: c.cover?.w ?? null,
@@ -395,22 +393,20 @@ async function changedElsewhere(post: JournalPost) {
 }
 
 /**
- * Put the post live with what the editor holds: now, or at `at` (a scheduled post goes live by
- * itself then). A post already live keeps its first publish date unless `at` says otherwise; an
- * address changed on a live post keeps the old one working.
+ * Put the post live with what the editor holds. A post already live keeps its first publish date;
+ * an address changed on a live post keeps the old one working.
  */
-export async function publishPost(post: JournalPost, content: PostContent, at?: string) {
+export async function publishPost(post: JournalPost, content: PostContent) {
   if (!content.title.trim()) throw new Error("Give the post a title first");
   if (await changedElsewhere(post)) throw new StaleError();
   const row = columnsOf(content);
   const wasLive = statusOf(post) === "published";
-  const when = at ?? (wasLive && post.publishedAt ? post.publishedAt : new Date().toISOString());
-  const future = Date.parse(when) > Date.now();
+  const when = wasLive && post.publishedAt ? post.publishedAt : new Date().toISOString();
   const oldSlugs = wasLive && post.saved.slug !== row.slug ? [...new Set([...post.oldSlugs, post.saved.slug])].filter((s) => s !== row.slug) : post.oldSlugs;
 
   const { data, error } = await db()
     .from("posts")
-    .update({ ...row, old_slugs: oldSlugs, status: future ? "scheduled" : "published", published_at: when })
+    .update({ ...row, old_slugs: oldSlugs, status: "published", published_at: when })
     .eq("id", post.id)
     .eq("updated_at", post.updatedAt)
     .select("id")
@@ -421,10 +417,10 @@ export async function publishPost(post: JournalPost, content: PostContent, at?: 
   await writeCredits(post.id, content.vendors);
   await db().from("post_edits").delete().eq("post_id", post.id);
   await afterChange(post.id);
-  return { future, slug: row.slug };
+  return { slug: row.slug };
 }
 
-/** Take a post off the blog. Unpublished changes come with it into the draft. */
+/** Take a post out of the journal. Unpublished changes come with it into the draft. */
 export async function unpublishPost(post: JournalPost) {
   if (await changedElsewhere(post)) throw new StaleError();
   const content = post.edits?.content ?? post.saved;
@@ -495,13 +491,6 @@ export async function uploadPrepared(postId: string, prepared: Awaited<ReturnTyp
     throw new Error(failed.message);
   }
   return { src: path, alt, w: prepared.width, h: prepared.height };
-}
-
-/** Fetch one of a vendor's listing photos, to copy into the post. */
-export async function fetchVendorPhoto(url: string) {
-  const res = await fetch(url);
-  if (!res.ok) throw new PhotoError("We couldn’t fetch that photo");
-  return prepareJournalPhoto(await res.blob());
 }
 
 export { PhotoError };

@@ -13,7 +13,7 @@ import { Badge, Btn, Empty, PageHeader, Panel, Tabs, type Tone } from "../ui";
 
 /*
  * Every post, newest change first: its cover, title and standfirst as couples will see them, where
- * it stands (live, scheduled, a draft, or live with changes waiting), and how many people have read
+ * it stands (live, a draft, or live with changes waiting), and how many people have read
  * it. The three newest live posts are the ones on the home page, and say so.
  */
 
@@ -50,7 +50,7 @@ export function JournalList() {
     <>
       <PageHeader
         title="Journal"
-        description="The stories on the blog. The three newest live posts show on the home page."
+        description="The stories in the journal. The three newest live posts show on the home page."
         actions={
           <Btn variant="primary" icon="pen" href="/admin/journal/new">
             Write a post
@@ -66,7 +66,6 @@ export function JournalList() {
           tabs={[
             { id: "all", label: "All", count: posts.length },
             { id: "published", label: "Live", count: count("published") },
-            { id: "scheduled", label: "Scheduled", count: count("scheduled") },
             { id: "draft", label: "Drafts", count: count("draft") },
           ]}
         />

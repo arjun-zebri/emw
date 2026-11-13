@@ -16,12 +16,12 @@ export async function generateStaticParams() {
   return posts.length ? posts.map((p) => ({ slug: p.slug })) : [{ slug: "_" }];
 }
 
-export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<"/journal/[slug]">): Promise<Metadata> {
   const found = await getPost((await params).slug);
   return found ? postMeta(found.post) : {};
 }
 
-export default function PostPage({ params }: PageProps<"/blog/[slug]">) {
+export default function PostPage({ params }: PageProps<"/journal/[slug]">) {
   return (
     <PageTransition>
       <div className="pt-[var(--header-h)] pb-[clamp(6rem,12vw,10rem)]">
@@ -33,12 +33,12 @@ export default function PostPage({ params }: PageProps<"/blog/[slug]">) {
   );
 }
 
-async function Post({ params }: { params: PageProps<"/blog/[slug]">["params"] }) {
+async function Post({ params }: { params: PageProps<"/journal/[slug]">["params"] }) {
   const { slug } = await params;
   const [found, posts] = await Promise.all([getPost(slug), getPosts()]);
   if (!found) notFound();
   // An address the post had before: send the link on to where it lives now.
-  if (found.moved) permanentRedirect(`/blog/${found.post.slug}`);
+  if (found.moved) permanentRedirect(`/journal/${found.post.slug}`);
   const { post } = found;
   const more = morePosts(posts, post);
 
@@ -51,7 +51,7 @@ async function Post({ params }: { params: PageProps<"/blog/[slug]">["params"] })
         more={
           more.length > 0 && (
             <section className="shell mt-[var(--section)]">
-              <SectionHeading link={{ href: "/blog", label: "All stories" }} className="pt-8">
+              <SectionHeading link={{ href: "/journal", label: "All stories" }} className="pt-8">
                 Keep reading
               </SectionHeading>
               <PostCards posts={more} lead={false} />

@@ -34,6 +34,8 @@ type Props<T extends string> = {
   single?: boolean;
   /** Draws its own bordered box (filter bars), and the list opens just beneath at exactly its width. */
   boxed?: boolean;
+  /** One choice only: what's typed in the search can be added as a new option, under this word ("Add"). */
+  create?: string;
 } & ({ multiple: true; value: T[]; onChange: (v: T[]) => void } | { multiple?: false; value: T; onChange: (v: T) => void });
 
 /**
@@ -57,11 +59,17 @@ export function Dropdown<T extends string>(props: Props<T>) {
   const uid = useId();
   const reduce = useReducedMotion();
 
-  const shown = useMemo(() => {
+  const matching = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
     return options.filter((o) => [o.label, o.hint, o.value].some((s) => s?.toLowerCase().includes(q)));
   }, [options, query]);
+  // A new option from the search, offered last, unless it's already there.
+  const typed = query.trim().replace(/\s+/g, " ");
+  const creatable = !!props.create && !props.multiple && !!typed && !options.some((o) => o.label.toLowerCase() === typed.toLowerCase());
+  const shown: (DropdownOption<T> & { created?: true })[] = creatable
+    ? [...matching, { value: typed as T, label: `${props.create} “${typed}”`, created: true }]
+    : matching;
 
   const show = (at = 0) => {
     setQuery("");
@@ -228,7 +236,7 @@ export function Dropdown<T extends string>(props: Props<T>) {
                 const on = selected.includes(o.value);
                 const heading = o.group && o.group !== shown[i - 1]?.group ? o.group : null;
                 return (
-                  <Fragment key={o.value}>
+                  <Fragment key={o.created ? "__new" : o.value}>
                     {heading && (
                       <li role="presentation" className={clsx("px-4 pb-1 text-[0.75rem] text-ink-mute", i > 0 ? "mt-1.5 border-t hairline pt-3" : "pt-1.5")}>
                         {heading}
@@ -249,17 +257,18 @@ export function Dropdown<T extends string>(props: Props<T>) {
                       {props.multiple && (
                         <span
                           className={clsx(
-                            "mt-[0.2em] flex size-3.5 shrink-0 items-center justify-center border transition-colors duration-200",
+                            "mt-[0.3em] flex size-3 shrink-0 items-center justify-center border transition-colors duration-200",
                             on ? "border-ink bg-ink text-paper" : "border-ink/25",
                           )}
                           aria-hidden
                         >
-                          {on && <Icon name="check" className="size-2.5" strokeWidth={2.25} />}
+                          {on && <Icon name="check" className="size-2" strokeWidth={2.5} />}
                         </span>
                       )}
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-4">
-                          <span lang={o.lang} className={clsx("inline-flex items-center gap-2", on ? "text-ink" : "text-ink-soft")}>
+                          <span lang={o.lang} className={clsx("inline-flex items-center gap-2", on || o.created ? "text-ink" : "text-ink-soft")}>
+                            {o.created && <Icon name="plus" className="size-3 shrink-0" strokeWidth={1.75} />}
                             {o.label}
                             {/* One choice: a small tick beside the chosen name, so no row gives up a column for it. */}
                             {!props.multiple && on && <Icon name="check" className="size-3 shrink-0" strokeWidth={2} />}

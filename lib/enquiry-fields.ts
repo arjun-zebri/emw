@@ -81,7 +81,7 @@ export const SOURCES = {
   search: "Searched the directory",
   directory: "Browsed the directory",
   home: "Home page",
-  blog: "Blog",
+  journal: "Journal",
   listing: "Another listing",
   site: "Elsewhere on the site",
   elsewhere: "Another website",
@@ -140,7 +140,7 @@ export function classifySource(t: { pages?: unknown; referrer?: unknown; landing
       return { source: "directory", detail: parts.join(", ").slice(0, 200) || undefined };
     }
     if (path === "/") return { source: "home" };
-    if (path.startsWith("/blog")) return { source: "blog", detail: path.slice(0, 200) };
+    if (path.startsWith("/journal")) return { source: "journal", detail: path.slice(0, 200) };
     if (path === `/vendors/${slug}`) return { source: "direct" };
     if (path.startsWith("/vendors/")) return { source: "listing", detail: path.slice("/vendors/".length, 200) };
     return { source: "site", detail: path.slice(0, 200) };

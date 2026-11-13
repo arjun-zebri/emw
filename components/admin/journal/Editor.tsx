@@ -4,8 +4,8 @@ import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Icon } from "@/components/icons/Icon";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Icon, type IconName } from "@/components/icons/Icon";
 import { Article } from "@/components/journal/Article";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { time as clock, day } from "@/lib/admin/format";
@@ -14,7 +14,6 @@ import {
   createPost,
   deletePost,
   discardEdits,
-  fetchVendorPhoto,
   type JournalPost,
   peekPost,
   PhotoError,
@@ -29,25 +28,25 @@ import {
   unpublishPost,
   uploadPrepared,
   useCreditVendors,
+  useJournal,
   usePost,
 } from "@/lib/admin/journal";
-import { bodyText, photoUrl, readingMinutes, SLUG, slugify, wordCount } from "@/lib/journal/blocks";
+import { bodyText, CATEGORIES, photoUrl, readingMinutes, SLUG, slugify, wordCount } from "@/lib/journal/blocks";
 import { toast } from "@/lib/admin/toast";
 import { Drawer } from "../Drawer";
 import { PreviewFrame } from "../shared/PreviewFrame";
 import { Btn, Empty } from "../ui";
-import { Canvas } from "./Canvas";
+import { Canvas, type Focus, focusOn } from "./Canvas";
 import { FormatBar } from "./FormatBar";
 import { type PhotoTarget, placePhotos, settlePhoto } from "./ops";
-import { PhotoLibrary, type Picked } from "./PhotoLibrary";
-import { melbourneIso, melbourneParts, Settings, type When } from "./Settings";
-import type { Focus } from "./TextBlock";
+import { Settings } from "./Settings";
 
 /*
  * Writing a post. The page is the article as couples will read it; its details sit beside it. A
- * draft saves itself a moment after each change. Once a post is live, changes save as unpublished
- * edits and couples keep reading what's published until "Publish changes"; the bar at the top says
- * which is which, and when it last saved.
+ * post is a draft until it's published. A draft saves itself a moment after each change. Once a
+ * post is live, changes save as unpublished edits and couples keep reading what's published until
+ * "Publish changes"; the bar at the top says which is which, and when it last saved. Everything
+ * else (preview, discard, back to draft, delete) is in the menu beside the button.
  */
 
 export function JournalEditor() {
@@ -67,18 +66,6 @@ export function JournalEditor() {
   return <Editing key={data.id} post={data} />;
 }
 
-// The time, to the quarter minute: enough to know whether a chosen date is still ahead.
-const nowish = () => Math.floor(Date.now() / 15_000) * 15_000;
-const useNow = () =>
-  useSyncExternalStore(
-    (l) => {
-      const t = setInterval(l, 15_000);
-      return () => clearInterval(t);
-    },
-    nowish,
-    () => 0,
-  );
-
 type SaveState = "idle" | "pending" | "saving" | "saved" | "error" | "stale";
 
 function Editing({ post: initial }: { post: JournalPost | null }) {
@@ -86,22 +73,22 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
   const [id, setId] = useState(initial?.id ?? null);
   const live = usePost(id).data ?? initial;
   const vendors = useCreditVendors();
-  const now = useNow();
+  const journal = useJournal();
 
   const [content, setContent] = useState<PostContent>(() => initial?.edits?.content ?? initial?.saved ?? blankContent());
   const [save, setSave] = useState<SaveState>("idle");
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [slugTaken, setSlugTaken] = useState(false);
   const [uploading, setUploading] = useState<Set<string>>(() => new Set());
-  const [library, setLibrary] = useState<PhotoTarget | null>(null);
+  // Bumped when the post is replaced from outside (discard, reload), so the body is drawn again.
+  const [drawn, setDrawn] = useState(0);
   const [previewing, setPreviewing] = useState(false);
   const [view, setView] = useState<"desktop" | "phone">("desktop");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [focus, setFocus] = useState<Focus | null>(initial ? null : { id: "title", at: "start", nonce: 0 });
-  const effective = live ? statusOf(live, now || undefined) : "draft";
-  const scheduled = effective === "scheduled";
-  const [when, setWhen] = useState<When>(() => (initial && statusOf(initial) === "scheduled" && initial.publishedAt ? melbourneParts(initial.publishedAt) : null));
+  const [focus, setFocus] = useState<Focus | null>(() => (initial ? null : focusOn("title", "start")));
+  // Draft or published. (A post scheduled before scheduling was taken away counts as published.)
+  const effective = live && statusOf(live) !== "draft" ? "published" : "draft";
   // The address follows the title until someone sets it, or the post has been out in the world.
   const [slugTouched, setSlugTouched] = useState(() => !!initial && (initial.status !== "draft" || (!!initial.saved.slug && !initial.saved.slug.startsWith("draft-") && initial.saved.slug !== slugify(initial.saved.title))));
 
@@ -208,7 +195,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
     return idRef.current!;
   };
 
-  const addPrepared = async (items: { file: Blob; alt: string }[], target: PhotoTarget) => {
+  const addPrepared = async (items: { file: Blob; alt: string }[], target: PhotoTarget): Promise<void> => {
     const prepared: { preview: string; p: Awaited<ReturnType<typeof prepareJournalPhoto>>; alt: string }[] = [];
     for (const it of items) {
       try {
@@ -251,33 +238,15 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
   };
 
   const onFiles = (files: File[], target: PhotoTarget) =>
-    void addPrepared(
+    addPrepared(
       files.map((f) => ({ file: f, alt: "" })),
       target,
     );
 
-  const onPicked = async (picked: Picked[], target: PhotoTarget) => {
-    // Credit the vendors whose photos are used.
-    update((c) => ({ ...c, vendors: [...c.vendors, ...picked.map((p) => p.vendor.id).filter((v, i, all) => !c.vendors.includes(v) && all.indexOf(v) === i)] }));
-    const items: { file: Blob; alt: string }[] = [];
-    for (const p of picked) {
-      try {
-        const prepared = await fetchVendorPhoto(p.url);
-        URL.revokeObjectURL(prepared.url);
-        items.push({ file: prepared.full, alt: `Photo by ${p.vendor.name}` });
-      } catch {
-        toast(`Couldn’t copy a photo from ${p.vendor.name}`);
-      }
-    }
-    await addPrepared(items, target);
-  };
-
   // ── Publishing ────────────────────────────────────────────────────────
 
-  const at = when ? melbourneIso(when.date, when.time) : undefined;
-  const future = !!at && Date.parse(at) > now;
   const unsaved = save === "pending" || save === "saving" || save === "error" || save === "stale";
-  const unpublished = effective !== "draft" && (!!live?.edits || unsaved || (!!at && at !== live?.publishedAt));
+  const unpublished = effective === "published" && (!!live?.edits || unsaved);
 
   const run = async (label: string, fn: () => Promise<void>) => {
     if (busy) return;
@@ -292,7 +261,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
     }
   };
 
-  const publish = (now = false) =>
+  const publish = () =>
     run("publish", async () => {
       if (!content.title.trim()) {
         setFocus({ id: "title", at: "start", nonce: Date.now() });
@@ -303,25 +272,20 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
       await flush();
       const current = peekPost(idRef.current!);
       if (!current) throw new Error("The post went missing");
-      const result = await publishPost(current, latest.current, now ? new Date().toISOString() : at);
-      setWhen(result.future ? melbourneParts(at!) : null);
+      const result = await publishPost(current, latest.current);
       setSlugTaken(false);
       setSlugTouched(true);
       setSave("saved");
       setSavedAt(new Date().toISOString());
-      const url = `/blog/${result.slug}`;
-      toast(
-        result.future ? `Scheduled for ${day(at!)} at ${clock(at!)}` : effective === "published" ? "Changes published" : "Published on the blog",
-        result.future ? undefined : { label: "View", run: () => window.open(url, "_blank") },
-      );
+      const url = `/journal/${result.slug}`;
+      toast(effective === "published" ? "Changes published" : "Published in the journal", { label: "View", run: () => window.open(url, "_blank") });
     });
 
   const unpublish = () =>
     run("unpublish", async () => {
       await flush();
       await unpublishPost(peekPost(idRef.current!)!);
-      setWhen(null);
-      toast("Taken off the blog. It’s a draft again.");
+      toast("Taken out of the journal. It’s a draft again.");
     });
 
   const discard = () =>
@@ -334,7 +298,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
       version.current++;
       savedVersion.current = version.current;
       setContent(fresh.saved);
-      setWhen(statusOf(fresh) === "scheduled" && fresh.publishedAt ? melbourneParts(fresh.publishedAt) : null);
+      setDrawn((d) => d + 1);
       setSave("saved");
       toast("Changes discarded. It’s back to what’s published.");
     });
@@ -361,29 +325,34 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
     version.current++;
     savedVersion.current = version.current;
     setContent(c);
+    setDrawn((d) => d + 1);
     setSave("saved");
   };
 
-  const primary =
-    effective === "draft"
-      ? { label: future ? "Schedule" : "Publish", run: () => publish() }
-      : scheduled
-        ? { label: future ? (unpublished ? "Update schedule" : "Scheduled") : "Publish now", run: () => publish(!future), disabled: future && !unpublished }
-        : { label: "Publish changes", run: () => publish(), disabled: !unpublished };
+  const primary = effective === "draft" ? { label: "Publish", disabled: false } : { label: "Publish changes", disabled: !unpublished };
 
-  const menu = [
-    ...(effective === "published" && live ? [{ label: "View on the blog", run: () => window.open(`/blog/${live.saved.slug}`, "_blank") }] : []),
-    ...(scheduled ? [{ label: "Publish now", run: () => publish(true) }] : []),
-    ...(effective !== "draft" && (live?.edits || unpublished) ? [{ label: "Discard changes", run: discard }] : []),
-    ...(effective !== "draft" ? [{ label: effective === "published" ? "Take off the blog" : "Cancel the schedule", run: unpublish }] : []),
-    { label: "Delete post", run: () => setConfirmDelete(true), danger: true },
+  const menu: MenuItem[] = [
+    {
+      label: "Preview",
+      icon: "eye",
+      run: () => {
+        // Let go of any selected words, so their format bar doesn't float over the preview.
+        getSelection()?.removeAllRanges();
+        setPreviewing(true);
+      },
+    },
+    ...(effective === "published" && live ? [{ label: "View in the journal", icon: "arrow-up-right" as const, run: () => window.open(`/journal/${live.saved.slug}`, "_blank") }] : []),
+    ...(effective === "published" && unpublished ? [{ label: "Discard changes", icon: "refresh" as const, run: discard, rule: true }] : []),
+    ...(effective === "published" ? [{ label: "Move back to drafts", icon: "pen" as const, run: unpublish, rule: !unpublished }] : []),
+    ...(id ? [{ label: "Delete post", icon: "trash" as const, run: () => setConfirmDelete(true), danger: true, rule: true }] : []),
   ];
 
   // ── What it adds up to ────────────────────────────────────────────────
 
   const words = useMemo(() => wordCount([content.title, content.standfirst, bodyText(content.body)].join(" ")), [content]);
   const minutes = readingMinutes(words);
-  const shownDate = at ?? live?.publishedAt ?? undefined;
+  const shownDate = effective === "published" ? (live?.publishedAt ?? undefined) : undefined;
+  const categories = useMemo(() => [...new Set([...CATEGORIES, ...(journal.data?.posts ?? []).map((p) => p.category)])], [journal.data]);
   const credited = (vendors.data ?? []).filter((v) => content.vendors.includes(v.id)).sort((a, b) => content.vendors.indexOf(a.id) - content.vendors.indexOf(b.id));
   const closePreview = useCallback(() => setPreviewing(false), []);
 
@@ -404,13 +373,11 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
               ? savedAt
                 ? `Unpublished changes, saved ${clock(savedAt)}`
                 : "Unpublished changes"
-              : scheduled
-                ? `Scheduled for ${day(live!.publishedAt!)} at ${clock(live!.publishedAt!)}`
-                : "Live on the blog";
+              : "Published";
 
   return (
     <>
-      <div className="sticky top-16 z-10 -mx-[var(--gutter)] -mt-8 mb-8 border-b hairline bg-paper/90 px-[var(--gutter)] backdrop-blur-xl md:-mt-10">
+      <div className="sticky top-16 z-10 -mt-8 mb-8 border-b hairline bg-paper/90 backdrop-blur-xl md:-mt-10">
         <div className="flex min-h-16 flex-wrap items-center gap-x-5 gap-y-2 py-3">
           <nav className="flex min-w-0 flex-1 items-center gap-2 text-[0.875rem] text-ink-soft">
             <Link href="/admin/journal" className="inline-flex shrink-0 items-center gap-1.5 transition-colors hover:text-ink">
@@ -427,7 +394,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
                   aria-hidden
                   className={clsx(
                     "size-1.5 rounded-full",
-                    save === "error" ? "bg-bad" : save === "saving" || save === "pending" ? "animate-pulse bg-ink/40" : effective === "published" && !unpublished ? "bg-good" : scheduled || unpublished ? "bg-warn" : "bg-ink/25",
+                    save === "error" ? "bg-bad" : save === "saving" || save === "pending" ? "animate-pulse bg-ink/40" : effective === "published" && !unpublished ? "bg-good" : unpublished ? "bg-warn" : "bg-ink/25",
                   )}
                 />
                 {stateLine}
@@ -435,13 +402,10 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
             )}
           </p>
           <div className="flex items-center gap-2">
-            <Btn onClick={() => setPreviewing(true)} icon="eye">
-              Preview
-            </Btn>
-            <Btn variant="primary" onClick={primary.run} disabled={!!busy || primary.disabled}>
+            <Btn variant="primary" onClick={publish} disabled={!!busy || primary.disabled}>
               {busy === "publish" ? "Publishing" : primary.label}
             </Btn>
-            <More items={menu} disabled={!!busy || (!id && !unsaved)} />
+            <More items={menu} disabled={!!busy} />
           </div>
         </div>
         {save === "stale" && (
@@ -455,13 +419,13 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
       </div>
 
       <div className="grid grid-cols-1 gap-y-10 xl:grid-cols-12 xl:gap-x-[clamp(2rem,3vw,3.5rem)]">
-        <div className="min-w-0 xl:col-span-8 lg:pl-12">
+        <div className="min-w-0 xl:col-span-8">
           <Canvas
             content={content}
             update={setTitleSlug}
+            version={drawn}
             uploading={uploading}
             onFiles={onFiles}
-            onLibrary={setLibrary}
             date={shownDate}
             minutes={minutes}
             focus={focus}
@@ -476,9 +440,9 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
             slugTaken={slugTaken}
             live={effective === "published"}
             liveSlug={live && effective === "published" ? live.saved.slug : ""}
-            when={when}
-            onWhen={setWhen}
             publishedAt={live?.publishedAt ?? null}
+            unpublished={unpublished}
+            categories={categories}
             vendors={vendors.data ?? []}
             words={words}
             minutes={minutes}
@@ -487,26 +451,6 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
       </div>
 
       <FormatBar vendors={vendors.data ?? []} />
-
-      <PhotoLibrary
-        open={!!library}
-        title={library?.kind === "cover" ? "Choose a cover" : library?.kind === "replace" ? "Replace the photo" : "Add photos"}
-        max={library?.kind === "insert" ? 3 : library?.kind === "add" ? Math.max(1, 3 - ((content.body.find((b) => b.id === library.blockId) as { images?: unknown[] } | undefined)?.images?.length ?? 0)) : 1}
-        vendors={vendors.data ?? []}
-        loading={vendors.status === "loading"}
-        credited={content.vendors}
-        onClose={() => setLibrary(null)}
-        onPick={(picked) => {
-          const target = library!;
-          setLibrary(null);
-          void onPicked(picked, target);
-        }}
-        onUpload={(files) => {
-          const target = library!;
-          setLibrary(null);
-          onFiles(files, target);
-        }}
-      />
 
       <AnimatePresence>
         {previewing && (
@@ -562,7 +506,7 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
           <p className="font-display text-[1.5rem] leading-tight text-ink">{content.title || "Untitled"}</p>
           <p className="mt-3 text-[0.9375rem] text-ink-soft">
             {effective === "published"
-              ? "It comes off the blog straight away, with its photos. Links to it will stop working."
+              ? "It comes out of the journal straight away, with its photos. Links to it will stop working."
               : "The post and its photos are removed. This can’t be undone."}
           </p>
         </div>
@@ -571,7 +515,9 @@ function Editing({ post: initial }: { post: JournalPost | null }) {
   );
 }
 
-function More({ items, disabled }: { items: { label: string; run: () => void; danger?: boolean }[]; disabled?: boolean }) {
+type MenuItem = { label: string; icon: IconName; run: () => void; danger?: boolean; /** A line above it. */ rule?: boolean };
+
+function More({ items, disabled }: { items: MenuItem[]; disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -609,10 +555,12 @@ function More({ items, disabled }: { items: { label: string; run: () => void; da
                   item.run();
                 }}
                 className={clsx(
-                  "flex h-10 w-full items-center px-4 text-left text-[0.875rem] transition-colors hover:bg-paper focus:bg-paper focus:outline-none",
+                  "flex h-10 w-full items-center gap-3 px-4 text-left text-[0.875rem] transition-colors hover:bg-paper focus:bg-paper focus:outline-none",
                   item.danger ? "text-bad" : "text-ink-soft hover:text-ink",
+                  item.rule && "mt-1.5 h-[2.875rem] border-t hairline pt-1.5",
                 )}
               >
+                <Icon name={item.icon} className="size-3.5 shrink-0" strokeWidth={1.5} />
                 {item.label}
               </button>
             ))}
@@ -634,7 +582,7 @@ function EditorSkeleton() {
         </div>
       </div>
       <div className="grid grid-cols-1 gap-y-10 xl:grid-cols-12 xl:gap-x-[clamp(2rem,3vw,3.5rem)]">
-        <div className="xl:col-span-8 lg:pl-12">
+        <div className="xl:col-span-8">
           <div className="mx-auto max-w-[42rem]">
             <Skeleton className="h-[clamp(2.5rem,4.4vw,4.25rem)] w-full" />
             <Skeleton className="mt-3 h-[clamp(2.5rem,4.4vw,4.25rem)] w-2/3" />

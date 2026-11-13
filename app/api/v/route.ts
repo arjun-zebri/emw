@@ -18,7 +18,7 @@ import { report } from "@/lib/observe/report";
  * they are never stored.
  */
 
-const PAGES = /^\/$|^\/vendors$|^\/blog$|^\/blog\/[a-z0-9]+(-[a-z0-9]+)*$|^\/vendors\/[a-z0-9]+(-[a-z0-9]+)*$|^\/list-your-business$|^\/privacy-policy$|^\/terms-and-conditions$/;
+const PAGES = /^\/$|^\/vendors$|^\/journal$|^\/journal\/[a-z0-9]+(-[a-z0-9]+)*$|^\/vendors\/[a-z0-9]+(-[a-z0-9]+)*$|^\/list-your-business$|^\/privacy-policy$|^\/terms-and-conditions$/;
 const MAX_BODY = 1024;
 
 const hostOf = (url: string) => {

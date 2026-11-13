@@ -5,7 +5,7 @@ import { type Block, type Photo, type Run, photoUrl, ratioOf } from "@/lib/journ
 import type { Credit } from "@/lib/journal/posts";
 
 /*
- * A journal post as couples read it, shared by the blog and the admin's preview so the preview is
+ * A journal post as couples read it, shared by the public journal and the admin's preview so the preview is
  * the real thing. A narrow column of text on the paper; photos run at their own shape, never
  * cropped, a row of two or three at one height, a single one wider than the text when the editor
  * asks; the vendors in the story close it, as the directory shows them.
@@ -32,6 +32,9 @@ const dateFmt = new Intl.DateTimeFormat("en-AU", {
 export const postDate = (iso: string) => dateFmt.format(new Date(iso));
 
 const TEXT = "mx-auto w-full max-w-[42rem]";
+/** The two heading sizes in a post, shared with the editor so it writes as it reads. */
+export const HEADING_2 = "t-heading text-[clamp(1.625rem,2.2vw,2.125rem)] text-balance";
+export const HEADING_3 = "t-title text-[clamp(1.25rem,1.6vw,1.5rem)] text-balance";
 
 export function Article({ post, vendors, more }: { post: ArticlePost; vendors: Credit[]; more?: React.ReactNode }) {
   // Posts from WordPress carry their cover photo in the body as well; it's already at the top.
@@ -118,24 +121,31 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
 }
 
 function BodyBlock({ b, prev }: { b: Block; prev?: Block }) {
-  const gap = !prev ? "" : b.type === "h" ? "mt-12" : prev.type === "h" ? "mt-4" : "mt-6";
+  const gap = !prev ? "" : b.type === "h" ? (b.level === 3 ? "mt-10" : "mt-12") : prev.type === "h" ? "mt-4" : "mt-6";
   if (b.type === "img") return <Photos block={b} className={prev ? "my-[clamp(2.5rem,4vw,3.5rem)]" : "mb-[clamp(2.5rem,4vw,3.5rem)]"} />;
-  if (b.type === "h") return <h2 className={clsx(TEXT, "t-heading text-[clamp(1.625rem,2.2vw,2.125rem)] text-balance", gap)}>{b.text}</h2>;
-  if (b.type === "ul")
+  if (b.type === "h")
+    return b.level === 3 ? (
+      <h3 className={clsx(TEXT, HEADING_3, gap)}>{b.text}</h3>
+    ) : (
+      <h2 className={clsx(TEXT, HEADING_2, gap)}>{b.text}</h2>
+    );
+  if (b.type === "ul") {
+    const List = b.ordered ? "ol" : "ul";
     return (
-      <ul className={clsx(TEXT, "t-body space-y-2 text-[1.0625rem] leading-[1.75]", gap)}>
+      <List className={clsx(TEXT, "t-body space-y-2 text-[1.0625rem] leading-[1.75]", gap)}>
         {b.items.map((item, i) => (
           <li key={i} className="flex gap-3">
-            <span aria-hidden className="w-4 shrink-0 text-ink-mute">
-              –
+            <span aria-hidden className={clsx("shrink-0 text-ink-mute", b.ordered ? "min-w-5 tabular-nums" : "w-4")}>
+              {b.ordered ? `${i + 1}.` : "–"}
             </span>
             <span className="min-w-0">
               <Runs c={item} />
             </span>
           </li>
         ))}
-      </ul>
+      </List>
     );
+  }
   return (
     <p className={clsx(TEXT, "t-body text-[1.0625rem] leading-[1.8] text-pretty", gap)}>
       <Runs c={b.content} />

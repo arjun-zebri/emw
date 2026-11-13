@@ -180,6 +180,8 @@ const paths = {
   heading: <path d="M6 5v14M18 5v14M6 12h12" />,
   link: <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />,
   list: <path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01" />,
+  "list-ordered": <path d="M10 7h10M10 12h10M10 17h10M4.5 5.5 5.75 5v4M4.25 14.25c.3-.5 2.25-.7 2.25.5 0 .9-2.25 1.4-2.25 2.5H6.6" />,
+  subheading: <path d="M8 8.5v9M16 8.5v9M8 13h8" />,
   grip: (
     <>
       <circle cx="9" cy="7" r=".9" fill="currentColor" />

@@ -4,8 +4,8 @@ import { imageUrl } from "@/lib/supabase/storage";
  * A journal post's body, as posts.body stores it: an ordered list of blocks.
  *
  *   p      a paragraph of runs: plain, bold, italic, or a link
- *   h      a subheading, plain text
- *   ul     a short list, each item a line of runs
+ *   h      a heading, plain text; `level: 3` for the smaller subheading
+ *   ul     a list, each item a line of runs; `ordered` numbers it
  *   img    one to three photos side by side at one height, never cropped; `wide` lets a single
  *          photo run wider than the text column
  *
@@ -15,16 +15,21 @@ import { imageUrl } from "@/lib/supabase/storage";
  * so they open and render like any other post and are rewritten on their next save.
  */
 
-export const CATEGORIES = ["Real weddings", "Culture", "Planning", "Vendors"] as const;
-export type Category = (typeof CATEGORIES)[number];
+/** The categories every post can choose from. The team can add their own; those live on the posts. */
+export const CATEGORIES = ["Real weddings", "Culture", "Planning", "Vendors"];
+export type Category = string;
+export const DEFAULT_CATEGORY = "Culture";
+
+/** A category as stored: trimmed and short, or the default when there isn't one. */
+export const categoryOf = (c: unknown) => (typeof c === "string" && c.trim() ? c.trim().replace(/\s+/g, " ").slice(0, 40) : DEFAULT_CATEGORY);
 
 export type Run = { text: string; bold?: true; italic?: true; href?: string };
 export type Photo = { src: string; alt: string; w?: number; h?: number };
 
 export type Block =
   | { id: string; type: "p"; content: Run[] }
-  | { id: string; type: "h"; text: string }
-  | { id: string; type: "ul"; items: Run[][] }
+  | { id: string; type: "h"; text: string; level?: 3 }
+  | { id: string; type: "ul"; items: Run[][]; ordered?: true }
   | { id: string; type: "img"; images: Photo[]; caption: string; wide?: true };
 
 export const PHOTOS_PER_ROW = 3;
@@ -73,9 +78,9 @@ export function readBody(raw: unknown): Block[] {
       case "p":
         return [{ id, type: "p", content: Array.isArray(b.content) ? readRuns(b.content) : str(b.text) ? [{ text: str(b.text) }] : [] }];
       case "h":
-        return [{ id, type: "h", text: str(b.text) }];
+        return [{ id, type: "h", text: str(b.text), ...(b.level === 3 && { level: 3 as const }) }];
       case "ul":
-        return [{ id, type: "ul", items: Array.isArray(b.items) ? b.items.map(readRuns) : [] }];
+        return [{ id, type: "ul", items: Array.isArray(b.items) ? b.items.map(readRuns) : [], ...(b.ordered === true && { ordered: true as const }) }];
       case "img": {
         const images = (Array.isArray(b.images) ? b.images.map(readPhoto) : [readPhoto(b)]).filter((p): p is Photo => !!p).slice(0, PHOTOS_PER_ROW);
         return images.length ? [{ id, type: "img", images, caption: str(b.caption), ...(b.wide && images.length === 1 ? { wide: true as const } : {}) }] : [];

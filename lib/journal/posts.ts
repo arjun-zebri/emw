@@ -2,10 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
 import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl } from "@/lib/supabase/storage";
-import { CATEGORIES, type Block, type Category, describe, photoUrl, readBody, bodyText, readingMinutes, wordCount } from "./blocks";
+import { type Block, type Category, categoryOf, describe, photoUrl, readBody, bodyText, readingMinutes, wordCount } from "./blocks";
 
 /*
- * The live journal posts, for the public blog. Read with the publishable key and no session, so
+ * The live journal posts, for the public journal pages. Read with the publishable key and no session, so
  * row level security returns only what a visitor may see: published posts, and scheduled ones once
  * their time has passed. One cached query serves every page; it is tagged "journal" so publishing
  * from the admin refreshes it at once (refreshJournal in ./actions.ts), and it refreshes itself
@@ -49,7 +49,7 @@ async function load(): Promise<LivePost[]> {
       .order("published_at", { ascending: false }),
     db.rpc("next_post_at"),
   ]);
-  // Fail loudly rather than cache an empty blog.
+  // Fail loudly rather than cache an empty journal.
   if (error) throw new Error(`Couldn't load the journal: ${error.message}`);
 
   // Come back when the next scheduled post goes live, so it appears on time.
@@ -72,7 +72,7 @@ async function load(): Promise<LivePost[]> {
       oldSlugs: p.old_slugs,
       title: p.title,
       standfirst: p.standfirst,
-      category: (CATEGORIES as readonly string[]).includes(p.category) ? (p.category as Category) : "Culture",
+      category: categoryOf(p.category),
       cover: p.cover_path
         ? { src: photoUrl(p.cover_path), alt: p.cover_alt, ...(p.cover_width && p.cover_height ? { w: p.cover_width, h: p.cover_height } : {}) }
         : undefined,
