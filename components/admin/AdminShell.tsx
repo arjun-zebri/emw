@@ -46,7 +46,8 @@ export function AdminShell({ role, children }: { role: "owner" | "vendor"; child
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Vendors have a page or two, so there's no search to open.
-      if (role === "owner" && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      // A page can take ⌘K for itself first (the journal editor links selected words with it).
+      if (role === "owner" && !e.defaultPrevented && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearch((s) => !s);
       }

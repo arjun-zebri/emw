@@ -17,8 +17,7 @@ export function placePhotos(c: PostContent, target: PhotoTarget, photos: Photo[]
   if (!b) {
     // The row isn't in the body yet (it was made a moment ago): add it at the end, where the editor will place it.
     const images = photos.slice(0, PHOTOS_PER_ROW);
-    // A new photo spans the page, like the cover; "Text width" narrows it.
-    body.push({ id: target.blockId, type: "img", images, caption: "", ...(images.length === 1 && { wide: true as const }) });
+    body.push({ id: target.blockId, type: "img", images, caption: "" });
     return { ...c, body };
   }
   if (b.type !== "img") return c;
@@ -29,8 +28,7 @@ export function placePhotos(c: PostContent, target: PhotoTarget, photos: Photo[]
     return { ...c, body };
   }
   const images = [...b.images, ...photos].slice(0, PHOTOS_PER_ROW);
-  // A row of several photos is never "wide": it already spans the full measure.
-  body[i] = { id: b.id, type: "img", images, caption: b.caption, ...(b.wide && images.length === 1 && { wide: true as const }) };
+  body[i] = { ...b, images };
   return { ...c, body };
 }
 

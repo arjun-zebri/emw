@@ -7,8 +7,8 @@ import type { Credit } from "@/lib/journal/posts";
 /*
  * A journal post as couples read it, shared by the public journal and the admin's preview so the preview is
  * the real thing. A narrow column of text on the paper; photos run at their own shape, never
- * cropped, a row of two or three at one height, a single one wider than the text when the editor
- * asks; the vendors in the story close it, as the directory shows them.
+ * cropped, a row of two or three at one height, across the page unless the editor
+ * made them shorter; the vendors in the story close it, as the directory shows them.
  */
 
 export type ArticlePost = {
@@ -77,7 +77,7 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
 
       {post.cover && (
         <figure data-reveal-media suppressHydrationWarning className="shell mt-[clamp(2rem,4vw,3.5rem)]">
-          <Frame photo={post.cover} sizes="(min-width: 1440px) 1300px, 100vw" priority className="max-w-[81.25rem]" />
+          <Frame photo={{ ...post.cover, alt: post.cover.alt || post.title }} sizes="(min-width: 1440px) 1300px, 100vw" priority className="max-w-[81.25rem]" />
         </figure>
       )}
 
@@ -182,20 +182,25 @@ export function Runs({ c }: { c: Run[] }) {
 /** One to three photos at one height, each at its own shape. */
 export function Photos({ block, className }: { block: Extract<Block, { type: "img" }>; className?: string }) {
   const many = block.images.length > 1;
-  const width = block.wide || many ? "max-w-[64rem]" : "max-w-[42rem]";
+  const sum = block.images.reduce((a, p) => a + (ratioOf(p) ?? 3 / 2), 0);
   return (
-    <figure data-reveal-media suppressHydrationWarning className={clsx("mx-auto w-full", width, className)}>
-      <div className="flex gap-[clamp(0.5rem,1vw,1rem)] max-sm:flex-col">
+    <figure data-reveal-media suppressHydrationWarning className={clsx("mx-auto w-full max-w-[64rem]", className)}>
+      <div
+        className="mx-auto flex gap-[clamp(0.5rem,1vw,1rem)] max-sm:w-full! max-sm:flex-col"
+        // Made shorter in the editor, the row is as wide as its photos at that height.
+        style={many && block.height ? { width: `min(100%, calc(${block.height * sum}px + ${block.images.length - 1} * clamp(0.5rem, 1vw, 1rem)))` } : undefined}
+      >
         {block.images.map((p, i) => (
           <Frame
             key={`${p.src}-${i}`}
-            photo={{ ...p, src: photoUrl(p.src) }}
-            sizes={many ? "(min-width: 1024px) 34vw, 100vw" : block.wide ? "(min-width: 1024px) 64rem, 100vw" : "(min-width: 768px) 42rem, 100vw"}
+            photo={{ ...p, src: photoUrl(p.src), alt: p.alt || block.caption }}
+            sizes={many ? "(min-width: 1024px) 34vw, 100vw" : "(min-width: 1024px) 64rem, 100vw"}
             grow={many}
+            tall={block.height}
           />
         ))}
       </div>
-      {block.caption && <figcaption className={clsx("t-small mt-3", !many && !block.wide && "max-w-[42rem]")}>{block.caption}</figcaption>}
+      {block.caption && <figcaption className="t-small mt-3">{block.caption}</figcaption>}
     </figure>
   );
 }
@@ -204,7 +209,7 @@ export function Photos({ block, className }: { block: Extract<Block, { type: "im
  * A photo held at its own ratio. In a row, `grow` gives each one a share of the width in proportion
  * to its ratio, so they all come out the same height. A photo whose size isn't known shows whole.
  */
-function Frame({ photo, sizes, priority, grow, className }: { photo: Photo; sizes: string; priority?: boolean; grow?: boolean; className?: string }) {
+function Frame({ photo, sizes, priority, grow, tall, className }: { photo: Photo; sizes: string; priority?: boolean; grow?: boolean; tall?: number; className?: string }) {
   const ratio = ratioOf(photo);
   if (!ratio) {
     return (
@@ -219,7 +224,7 @@ function Frame({ photo, sizes, priority, grow, className }: { photo: Photo; size
       className={clsx("block min-w-0", grow ? "max-sm:w-full max-sm:flex-none!" : "mx-auto", className)}
       style={{
         aspectRatio: ratio,
-        ...(grow ? { flex: `${ratio} 1 0%` } : { width: `min(100%, calc(88vh * ${ratio}))` }),
+        ...(grow ? { flex: `${ratio} 1 0%` } : { width: `min(100%, calc(${tall ? `min(88vh, ${tall}px)` : "88vh"} * ${ratio}))` }),
       }}
     >
       <Media src={photo.src} alt={photo.alt} brief="" quiet sizes={sizes} priority={priority} className="size-full" />

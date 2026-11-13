@@ -121,7 +121,7 @@ function parse(root: HTMLElement, rows: Map<string, ImgBlock>): Block[] {
       const t = n.tagName;
       if (t === "FIGURE") {
         const id = n.dataset.photos;
-        if (id) out.push(rows.get(id) ?? { id, type: "img", images: [], caption: "", wide: true });
+        if (id) out.push(rows.get(id) ?? { id, type: "img", images: [], caption: "" });
       } else if (t === "UL" || t === "OL") {
         const items = [...n.children].filter((c) => c.tagName === "LI").map((li) => runsOrEmpty(readRuns(li.childNodes)));
         out.push({ id: "", type: "ul", items: items.length ? items : [[]], ...(t === "OL" && { ordered: true as const }) });
@@ -368,8 +368,11 @@ export function BodyEditor({
   const seen = useRef(new Map<string, ImgBlock>());
   // Rows just made, waiting for their first photo.
   const fresh = useRef(new Set<string>());
-  // Rows added from the menu, empty until someone chooses a photo for them.
+  // Rows added from the menu. Empty, they show as a box to fill: before a photo is chosen, after
+  // one is turned away, or once its photos are removed.
   const [holders, setHolders] = useState<Set<string>>(() => new Set());
+  // Placeholders whose photos are being read and uploaded.
+  const [filling, setFilling] = useState<Set<string>>(() => new Set());
   const [figures, setFigures] = useState<{ id: string; node: HTMLElement }[]>([]);
   const [tick, setTick] = useState(0);
   const [slash, setSlash] = useState<Slash | null>(null);
@@ -517,20 +520,21 @@ export function BodyEditor({
     }
   };
 
-  /** Fill a placeholder: it waits as the photos come in, and leaves the page if none arrive. */
+  /**
+   * Fill a placeholder. It waits as the photos come in; if none make it (too small, or the upload
+   * failed, which the message says), it stays, ready for another.
+   */
   const fillPlaceholder = (id: string, files: File[]) => {
     const images = files.filter((f) => f.type.startsWith("image/")).slice(0, PHOTOS_PER_ROW);
     if (!images.length) return;
-    fresh.current.add(id);
-    setHolders((h) => {
-      const next = new Set(h);
-      next.delete(id);
-      return next;
-    });
-    void onFiles(images, { kind: "row", blockId: id }).finally(() => {
-      fresh.current.delete(id);
-      setTick((t) => t + 1);
-    });
+    setFilling((f) => new Set(f).add(id));
+    void onFiles(images, { kind: "row", blockId: id }).finally(() =>
+      setFilling((f) => {
+        const next = new Set(f);
+        next.delete(id);
+        return next;
+      }),
+    );
   };
 
   const removePlaceholder = (id: string, node: HTMLElement) => {
@@ -740,7 +744,7 @@ export function BodyEditor({
         const b = body.find((x) => x.id === f.id) as ImgBlock | undefined;
         if (holders.has(f.id) && !b?.images.length) {
           return createPortal(
-            <PhotoPlaceholder key={f.id} onFiles={(files) => fillPlaceholder(f.id, files)} onRemove={() => removePlaceholder(f.id, f.node)} />,
+            <PhotoPlaceholder key={f.id} busy={filling.has(f.id)} onFiles={(files) => fillPlaceholder(f.id, files)} onRemove={() => removePlaceholder(f.id, f.node)} />,
             f.node,
             f.id,
           );
@@ -803,8 +807,9 @@ export function BodyEditor({
 
 // ── A photo to come ─────────────────────────────────────────────────────
 
-function PhotoPlaceholder({ onFiles, onRemove }: { onFiles: (files: File[]) => void; onRemove: () => void }) {
+function PhotoPlaceholder({ busy, onFiles, onRemove }: { busy: boolean; onFiles: (files: File[]) => void; onRemove: () => void }) {
   const [over, setOver] = useState(false);
+  if (busy) return <span aria-busy="true" className="skeleton block aspect-[3/2] w-full" />;
   return (
     <div className="group/holder relative select-none">
       <button
@@ -859,7 +864,42 @@ function PhotoRow({
 }) {
   const many = block.images.length > 1;
   const room = block.images.length < PHOTOS_PER_ROW;
-  const width = block.wide || many ? "max-w-none" : "max-w-[42rem]";
+  const strip = useRef<HTMLDivElement>(null);
+  // The height while the bottom edge is being dragged; saved to the block when let go.
+  const [dragged, setDragged] = useState<number | null>(null);
+  const height = dragged ?? block.height;
+  const ratios = block.images.map((p) => ratioOf(p) ?? 3 / 2);
+  const sum = ratios.reduce((a, b) => a + b, 0);
+
+  const resize = (e: React.PointerEvent) => {
+    const el = strip.current;
+    const room = el?.parentElement?.getBoundingClientRect().width;
+    if (!el || !room) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const start = e.clientY;
+    const from = el.getBoundingClientRect().height;
+    // As tall as it can go: the full width (one photo also stops at 80% of the window).
+    const full = (room - GAP * (block.images.length - 1)) / sum;
+    const most = many ? full : Math.min(full, innerHeight * 0.8);
+    let h = from;
+    const move = (ev: PointerEvent) => {
+      h = Math.round(Math.min(Math.max(from + ev.clientY - start, MIN_HEIGHT), most));
+      setDragged(h);
+    };
+    const up = () => {
+      removeEventListener("pointermove", move);
+      setDragged(null);
+      // Dragged all the way back out, it's simply full size again.
+      onChange((b) => {
+        const { height, ...rest } = b;
+        void height;
+        return h >= most - 2 ? rest : { ...rest, height: h };
+      });
+    };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up, { once: true });
+  };
 
   if (waiting) {
     return (
@@ -870,24 +910,42 @@ function PhotoRow({
   }
 
   return (
-    <div className={clsx("group/row w-full select-none", width)}>
-      <div className="flex gap-3 max-sm:flex-col">
+    <div className="group/row w-full select-none">
+      <div
+        ref={strip}
+        className="relative flex gap-3 max-sm:w-full! max-sm:flex-col"
+        style={many && height ? { width: `min(100%, ${height * sum + GAP * (block.images.length - 1)}px)` } : undefined}
+      >
         {block.images.map((p, n) => {
-          const ratio = ratioOf(p) ?? 3 / 2;
+          const ratio = ratios[n];
+          const tall = height ? `min(80vh, ${height}px)` : "80vh";
           return (
             <div key={`${p.src}-${n}`} className="group/photo relative min-w-0 max-sm:w-full max-sm:flex-none!"
               // One photo shows whole on screen, however tall; several share the width at one height.
-              style={many ? { flex: `${ratio} 1 0%`, aspectRatio: ratio } : { aspectRatio: ratio, width: `min(100%, calc(80vh * ${ratio}))` }}
+              style={many ? { flex: `${ratio} 1 0%`, aspectRatio: ratio } : { aspectRatio: ratio, width: `min(100%, calc(${tall} * ${ratio}))` }}
             >
               <Media src={photoUrl(p.src)} alt={p.alt} brief="" quiet sizes={many ? "400px" : "900px"} className="size-full" />
               {uploading.has(p.src) && <span aria-hidden className="skeleton absolute inset-0 opacity-60 mix-blend-multiply" />}
-              <div className="absolute right-2 bottom-2 flex gap-1.5 opacity-0 transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100">
+              <div className="absolute right-2 bottom-4 flex gap-1.5 opacity-0 transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100">
                 <OnPhoto onClick={() => pickFiles((files) => onReplace(n, files), false)}>Replace</OnPhoto>
                 <OnPhoto onClick={() => onChange((b) => ({ ...b, images: b.images.filter((_, j) => j !== n) }))}>Remove</OnPhoto>
               </div>
             </div>
           );
         })}
+        {/* Drag the bottom edge to make the photos shorter or taller; they keep their shape. */}
+        <div
+          role="separator"
+          aria-label="Drag to change the height"
+          title="Drag to change the height"
+          onPointerDown={resize}
+          className={clsx(
+            "absolute inset-x-0 -bottom-2 flex h-4 cursor-ns-resize touch-none items-center justify-center transition-opacity max-sm:hidden",
+            dragged ? "opacity-100" : "opacity-0 group-hover/row:opacity-100",
+          )}
+        >
+          <span className="h-1.5 w-12 bg-surface shadow-[0_1px_4px_rgb(22_20_18/0.25)] ring-1 ring-ink/15" />
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-2">
@@ -900,45 +958,21 @@ function PhotoRow({
         />
         <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
           {room && <RowButton onClick={() => pickFiles(onAdd)}>Add a photo</RowButton>}
-          {!many && (
-            <RowButton onClick={() => onChange((b) => (b.wide ? { id: b.id, type: "img", images: b.images, caption: b.caption } : { ...b, wide: true }))}>
-              {block.wide ? "Text width" : "Wide"}
-            </RowButton>
-          )}
         </span>
-      </div>
-      <div className="mt-2 space-y-1.5 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
-        {block.images.map((p, n) => (
-          <AltField
-            key={`${p.src}-${n}`}
-            value={p.alt}
-            onChange={(alt) => onChange((b) => ({ ...b, images: b.images.map((x, j) => (j === n ? { ...x, alt } : x)) }))}
-          />
-        ))}
       </div>
     </div>
   );
 }
+
+/** The space between photos in a row, and the shortest a row can be dragged. */
+const GAP = 12;
+const MIN_HEIGHT = 160;
 
 export function OnPhoto({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} className="bg-paper/92 px-3 py-1.5 text-[0.8125rem] text-ink backdrop-blur transition-colors hover:bg-paper">
       {children}
     </button>
-  );
-}
-
-export function AltField({ value, onChange, className, style }: { value: string; onChange: (v: string) => void; className?: string; style?: React.CSSProperties }) {
-  return (
-    <label className={clsx("flex items-baseline gap-3 text-[0.8125rem]", className)} style={style}>
-      <span className="shrink-0 text-ink-soft">Description</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="What's in the photo, for people who can't see it"
-        className="min-w-0 flex-1 border-b border-transparent bg-transparent pb-0.5 text-ink placeholder:text-ink-mute/50 hover:border-ink/15 focus:border-ink/40 focus:outline-none"
-      />
-    </label>
   );
 }
 

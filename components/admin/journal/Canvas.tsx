@@ -7,7 +7,7 @@ import { Media } from "@/components/media/Media";
 import { postDate } from "@/components/journal/Article";
 import type { PostContent } from "@/lib/admin/journal";
 import { type Block, type Photo, photoUrl, ratioOf } from "@/lib/journal/blocks";
-import { AltField, BodyEditor, type BodyHandle, OnPhoto, pickFiles } from "./BodyEditor";
+import { BodyEditor, type BodyHandle, OnPhoto, pickFiles } from "./BodyEditor";
 import type { PhotoTarget } from "./ops";
 
 /*
@@ -88,7 +88,6 @@ export function Canvas({ content, update, version, uploading, onFiles, date, min
         photo={content.cover}
         uploading={!!content.cover && uploading.has(content.cover.src)}
         onFiles={(files) => void onFiles(files.slice(0, 1), { kind: "cover" })}
-        onAlt={(alt) => update((c) => (c.cover ? { ...c, cover: { ...c.cover, alt } } : c))}
         onRemove={() => update((c) => ({ ...c, cover: null }))}
       />
 
@@ -177,13 +176,11 @@ function Cover({
   photo,
   uploading,
   onFiles,
-  onAlt,
   onRemove,
 }: {
   photo: Photo | null;
   uploading: boolean;
   onFiles: (files: File[]) => void;
-  onAlt: (alt: string) => void;
   onRemove: () => void;
 }) {
   const [over, setOver] = useState(false);
@@ -234,7 +231,6 @@ function Cover({
           <OnPhoto onClick={onRemove}>Remove</OnPhoto>
         </div>
       </div>
-      <AltField value={photo.alt} onChange={onAlt} className="mt-3" style={{ width: `min(100%, calc(80vh * ${ratio}))` }} />
     </figure>
   );
 }

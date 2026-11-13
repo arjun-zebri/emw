@@ -6,8 +6,8 @@ import { imageUrl } from "@/lib/supabase/storage";
  *   p      a paragraph of runs: plain, bold, italic, or a link
  *   h      a heading, plain text; `level: 3` for the smaller subheading
  *   ul     a list, each item a line of runs; `ordered` numbers it
- *   img    one to three photos side by side at one height, never cropped; `wide` lets a single
- *          photo run wider than the text column
+ *   img    one to three photos side by side at one height, never cropped, across the page;
+ *          `height` (px), when the editor has dragged it shorter
  *
  * A photo's src is a path in the journal bucket (uploaded at 2000px with the 1200 and 480 copies
  * beside it, as vendor photos are), or a full URL. Posts brought over from WordPress were stored in
@@ -30,7 +30,7 @@ export type Block =
   | { id: string; type: "p"; content: Run[] }
   | { id: string; type: "h"; text: string; level?: 3 }
   | { id: string; type: "ul"; items: Run[][]; ordered?: true }
-  | { id: string; type: "img"; images: Photo[]; caption: string; wide?: true };
+  | { id: string; type: "img"; images: Photo[]; caption: string; height?: number };
 
 export const PHOTOS_PER_ROW = 3;
 
@@ -83,7 +83,7 @@ export function readBody(raw: unknown): Block[] {
         return [{ id, type: "ul", items: Array.isArray(b.items) ? b.items.map(readRuns) : [], ...(b.ordered === true && { ordered: true as const }) }];
       case "img": {
         const images = (Array.isArray(b.images) ? b.images.map(readPhoto) : [readPhoto(b)]).filter((p): p is Photo => !!p).slice(0, PHOTOS_PER_ROW);
-        return images.length ? [{ id, type: "img", images, caption: str(b.caption), ...(b.wide && images.length === 1 ? { wide: true as const } : {}) }] : [];
+        return images.length ? [{ id, type: "img", images, caption: str(b.caption), ...(typeof b.height === "number" && b.height > 0 && { height: Math.round(b.height) }) }] : [];
       }
       default:
         return [];
@@ -130,7 +130,7 @@ export function tidyBody(blocks: Block[]): Block[] {
     }
     // A photo still uploading (a local preview) is never saved.
     const images = b.images.filter((p) => !/^(blob|data):/.test(p.src));
-    return images.length ? [{ ...b, images, caption: b.caption.trim(), ...(images.length > 1 && { wide: undefined }) }] : [];
+    return images.length ? [{ ...b, images, caption: b.caption.trim() }] : [];
   });
 }
 
