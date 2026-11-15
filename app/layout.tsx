@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Serif_KR, Noto_Serif_Thai } from "next/font/google";
+import { Noto_Serif_JP, Noto_Serif_KR, Noto_Serif_SC, Noto_Serif_TC, Noto_Serif_Thai } from "next/font/google";
 import localFont from "next/font/local";
 import { IntroScript } from "@/components/motion/IntroScript";
 import { SITE } from "@/lib/config";
@@ -36,8 +36,13 @@ const neueMontreal = localFont({
 // Boska has no Thai or Hangul, so those scripts fall back to whatever the system has (a slanted Thai,
 // a sans-serif Korean). These serifs follow Boska in the display stack, so every language on the
 // page shares one upright serif voice. Self-hosted at build time; only the glyphs used are fetched.
-const thai = Noto_Serif_Thai({ subsets: ["thai"], weight: ["300", "400"], variable: "--font-thai", display: "swap" });
-const korean = Noto_Serif_KR({ weight: ["300", "400"], variable: "--font-korean", display: "swap", preload: false });
+const thai = Noto_Serif_Thai({ subsets: ["thai"], weight: ["300"], variable: "--font-thai", display: "swap" });
+const korean = Noto_Serif_KR({ weight: ["300"], variable: "--font-korean", display: "swap", preload: false });
+// Chinese and Japanese, each in its own regional forms (the same character is drawn differently in each).
+// globals.css picks one by the lang attribute; split by unicode range, so a page fetches only what it shows.
+const chineseSimplified = Noto_Serif_SC({ weight: ["300"], variable: "--font-sc", display: "swap", preload: false });
+const chineseTraditional = Noto_Serif_TC({ weight: ["300"], variable: "--font-tc", display: "swap", preload: false });
+const japanese = Noto_Serif_JP({ weight: ["300"], variable: "--font-jp", display: "swap", preload: false });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -54,7 +59,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-AU" className={`${boska.variable} ${switzer.variable} ${neueMontreal.variable} ${thai.variable} ${korean.variable}`} suppressHydrationWarning>
+    <html lang="en-AU" className={`${boska.variable} ${switzer.variable} ${neueMontreal.variable} ${thai.variable} ${korean.variable} ${chineseSimplified.variable} ${chineseTraditional.variable} ${japanese.variable}`} suppressHydrationWarning>
       <body>
         <IntroScript />
         <a href="#main" className="t-nav sr-only z-[100] bg-ink p-4 text-paper focus:not-sr-only focus:fixed focus:top-4 focus:left-4">

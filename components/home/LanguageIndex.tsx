@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { ArrowLink } from "@/components/ui/ArrowLink";
+import { BoskaMarks } from "@/components/ui/BoskaMarks";
 import { sectionTitle } from "@/components/ui/SectionHeading";
 
 export type LanguageRow = {
@@ -64,7 +65,7 @@ export function LanguageIndex({
                   i === active ? "text-ink" : "text-ink/25 group-hover:text-ink/55",
                 )}
               >
-                {r.native}
+                {r.lang === "vi" ? <BoskaMarks text={r.native} /> : r.native}
               </span>
               <span
                 aria-hidden={r.native === r.name || undefined}

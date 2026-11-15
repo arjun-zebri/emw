@@ -44,6 +44,24 @@ html[data-intro] {
   --intro: 0.05s;
 }
 
+/* Boska draws only Latin, and its metric fallback is Arial, which would otherwise catch every other
+   script first. Text marked with its language gets the serif drawn for that script instead. */
+:where(:lang(zh-Hans)) {
+  --font-display: var(--font-sc), serif;
+}
+:where(:lang(zh-Hant), :lang(yue), :lang(hak)) {
+  --font-display: var(--font-tc), serif;
+}
+:where(:lang(ja)) {
+  --font-display: var(--font-jp), serif;
+}
+:where(:lang(ko)) {
+  --font-display: var(--font-korean), serif;
+}
+:where(:lang(th)) {
+  --font-display: var(--font-thai), serif;
+}
+
 /* ── Base ─────────────────────────────────────────────────────────────── */
 
 html {
