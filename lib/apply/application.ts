@@ -65,7 +65,7 @@ export const LIMITS = {
   otherCraft: 80,
   photosMax: 12,
   /** Below this on the long edge a photo is refused, so every listing looks sharp on a large screen. */
-  photoMin: 2000,
+  photoMin: 1600,
   /**
    * Longer than this to one is refused: phone screenshots (about 2.2) and panoramas can't be shown well
    * uncropped. Every camera shape, 16:9 included, is under it.
