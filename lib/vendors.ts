@@ -39,13 +39,12 @@ export function listedCrafts(vendors: Vendor[]) {
 export type LanguageFilter = Language | "Other";
 
 /**
- * Languages couples can filter by, most vendors first. English is left out: nearly every vendor
- * speaks it, so choosing it filters almost nothing and only hides vendors by accident. "Other" comes
- * last and gathers the languages we don't list, like French.
+ * Languages couples can filter by, most vendors first. English is never one (see `languages`). "Other"
+ * comes last and gathers the languages we don't list, like French.
  */
 export function languageCounts(vendors: Vendor[]): [LanguageFilter, number][] {
   const counts = new Map<Language, number>();
-  for (const v of vendors) for (const l of v.languages ?? []) if (l !== "English") counts.set(l, (counts.get(l) ?? 0) + 1);
+  for (const v of vendors) for (const l of v.languages ?? []) counts.set(l, (counts.get(l) ?? 0) + 1);
   const other = vendors.filter((v) => v.otherLanguages?.length).length;
   return [...[...counts.entries()].sort((a, b) => b[1] - a[1]), ...(other ? [["Other", other] as [LanguageFilter, number]] : [])];
 }
@@ -191,7 +190,7 @@ export function filterVendors(
   return [...result].sort((a, b) => Number(!!b.cover) - Number(!!a.cover) || Number(b.featured) - Number(a.featured));
 }
 
-/** Same craft first, then vendors who share a language other than English; photographed vendors before the rest. */
+/** Same craft first, then vendors who share a language; photographed vendors before the rest. */
 /** What a craft's vendors are called, for "More celebrants and MCs" under a vendor page. */
 const craftPeople: Record<CraftId, string> = {
   ceremony: "celebrants and MCs",
@@ -214,7 +213,7 @@ export function relatedHeading(vendor: Vendor, related: Vendor[]) {
 
 export function relatedVendors(vendors: Vendor[], vendor: Vendor, count = 3): Vendor[] {
   const craft = primaryCraft(vendor).id;
-  const tongues = (vendor.languages ?? []).filter((l): l is Language => l !== "English");
+  const tongues = vendor.languages ?? [];
   const score = (v: Vendor) =>
     (primaryCraft(v).id === craft ? 5 : vendorCrafts(v).includes(craft) ? 4 : 0) + (v.languages?.some((l) => tongues.includes(l)) ? 2 : 0) + (v.cover ? 1 : 0);
   return vendors

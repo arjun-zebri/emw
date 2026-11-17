@@ -5,6 +5,7 @@ import type { ApplyPhoto } from "@/lib/apply/photos";
 import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
 import { imageUrl, VARIANT_WIDTHS, variantPath } from "@/lib/supabase/storage";
+import { withoutEnglish } from "@/data/taxonomy";
 
 /*
  * A vendor's own listing, for the portal: read and saved in Supabase as the signed-in vendor, so row
@@ -124,7 +125,7 @@ async function load(slug: string) {
       services: v.services as Service[],
       based: str(v.based),
       serviceArea: v.service_area as AreaCode[],
-      languages: v.languages as Language[],
+      languages: withoutEnglish(v.languages) as Language[],
       email: str(v.email),
       phone: str(v.phone),
       website: str(v.website),

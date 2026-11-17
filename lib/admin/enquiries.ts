@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { supabase } from "@/lib/supabase/browser";
 import type { Source } from "@/lib/enquiry-fields";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
+import { withoutEnglish } from "@/data/taxonomy";
 
 /*
  * Enquiries couples send from vendor pages, read from Supabase as the signed-in person: the team
@@ -147,7 +148,7 @@ export function loadListedVendors(): Promise<ListedVendor[]> {
     }
     return data.map((v) => {
       const cover = [...v.vendor_photos].sort((a, b) => a.position - b.position)[0];
-      return { slug: v.slug, name: v.name, services: v.services, languages: v.languages, areas: v.service_area, cover: cover && imageUrl("vendor-photos", variantPath(cover.path, 480)), photos: v.vendor_photos.length };
+      return { slug: v.slug, name: v.name, services: v.services, languages: withoutEnglish(v.languages), areas: v.service_area, cover: cover && imageUrl("vendor-photos", variantPath(cover.path, 480)), photos: v.vendor_photos.length };
     });
   });
   return listed;

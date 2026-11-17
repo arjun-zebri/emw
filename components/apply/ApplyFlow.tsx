@@ -60,8 +60,8 @@ export type FlowPhotos = { about: string; show: string; finish: string; welcome:
 
 type Phase = { kind: "form" } | { kind: "sending"; done: number; total: number } | { kind: "sent"; duplicate?: boolean };
 
-/** English first: most vendors work in it, so it's the one to tick before the rest. */
-const languageOrder: Language[] = ["English", ...(Object.keys(languageNames) as Language[]).filter((l) => l !== "English")];
+/** English isn't asked: every vendor is taken to work in it. */
+const languageOrder = Object.keys(languageNames) as Language[];
 const allStates = Object.keys(states) as StateCode[];
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -141,7 +141,8 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
     about: true,
     // Every craft they chose has at least one service, and "something else" says what.
     craft: (chosen.length > 0 || !!other) && chosen.every((c) => c.services.some((s) => a.services.includes(s))) && (!otherOn || !!other),
-    languages: a.languages.length > 0 || otherLanguageList(a.otherLanguages).length > 0,
+    // Optional: a vendor who works only in English skips it.
+    languages: true,
     where: a.serviceArea.length > 0,
     show: true,
     photos: photos.length > 0,
@@ -342,8 +343,8 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
               {step.id === "craft" && <Crafts a={a} set={set} flip={flip} headingId={headingId} uid={uid} />}
               {step.id === "languages" && (
                 <>
-                  <StepHead id={headingId} title="Which languages do you work in?">
-                    Choose every one you’re comfortable working in. Your listing shows each in its own script.
+                  <StepHead id={headingId} title="Which languages do you work in besides English?">
+                    Choose every one you’re comfortable working in, or carry on if it’s only English. Your listing shows each in its own script.
                   </StepHead>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
                     {languageOrder.map((l) => (

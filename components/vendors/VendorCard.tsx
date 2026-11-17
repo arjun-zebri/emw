@@ -33,7 +33,7 @@ export function VendorCard({
   priority?: boolean;
   className?: string;
 }) {
-  const tongues = (vendor.languages ?? []).filter((l) => l !== "English");
+  const tongues = vendor.languages ?? [];
   return (
     <Link
       href={`/vendors/${vendor.slug}`}

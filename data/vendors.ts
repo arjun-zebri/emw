@@ -56,8 +56,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Cantonese",
-      "English"
+      "Cantonese"
     ],
     lede: "Candid photographs and nostalgic camcorder video, for couples who care about the in-between.",
     quote: "The grand gestures matter just as much as the in-between moments.",
@@ -90,8 +89,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Vietnamese",
-      "English"
+      "Vietnamese"
     ],
     lede: "A non-profit troupe with more than thirty years of performances, choreographed around your theme.",
     quote: "Blending tradition with vibrant energy.",
@@ -125,8 +123,7 @@ export const vendors: Vendor[] =
     languages: [
       "Cantonese",
       "Mandarin",
-      "Hakka",
-      "English"
+      "Hakka"
     ],
     lede: "Celebrant, tea ceremony and reception MC in English, Cantonese, Mandarin and Hakka.",
     quote: "Your ABC (Aus-born Chinese) certified hypewoman who can unite your love in different languages.",
@@ -303,8 +300,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Indonesian",
-      "English"
+      "Indonesian"
     ],
     lede: "A live band that moves easily from an intimate acoustic set to a full dance floor.",
     quote: "We create immersive musical experiences.",
@@ -408,8 +404,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Indonesian",
-      "English"
+      "Indonesian"
     ],
     lede: "Bespoke illustrations of your guests, made live and kept for good.",
     quote: "Capturing your precious memories in a way that is both unique and deeply personal.",
@@ -439,8 +434,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Vietnamese",
-      "English"
+      "Vietnamese"
     ],
     lede: "Customisable photobooths with themed backdrops and props, run start to finish by their own team.",
     quote: "A unique and engaging way to capture the joy and spontaneity of your celebrations.",
@@ -529,8 +523,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Vietnamese",
-      "English"
+      "Vietnamese"
     ],
     lede: "Handwritten place cards and marriage certificates, invitation design, envelope addressing and perfume engraving.",
     quote: "A true reflection of your love story.",
@@ -587,8 +580,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Teochew",
-      "English"
+      "Teochew"
     ],
     lede: "Soft, wispy, effortless styling that lasts the entire day and night.",
     quote: "Everything effortless.",
@@ -697,8 +689,7 @@ export const vendors: Vendor[] =
     ],
     languages: [
       "Cantonese",
-      "Mandarin",
-      "English"
+      "Mandarin"
     ],
     lede: "Ceremonies that bring your closest family and friends into the moment.",
     quote: "The wedding ceremony should be centred on the couple and your closest family and friends.",
@@ -726,8 +717,7 @@ export const vendors: Vendor[] =
       "VIC"
     ],
     languages: [
-      "Vietnamese",
-      "English"
+      "Vietnamese"
     ],
     lede: "A fashion and portrait photographer bringing an editorial eye to weddings.",
     quote: "Elegant, emotive images that feel timeless yet true to you.",

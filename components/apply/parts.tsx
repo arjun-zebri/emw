@@ -83,7 +83,7 @@ export function Field({ label, note, htmlFor, children }: { label: string; note?
 
 /** Their card as it will sit in the directory: cover, name, one line, their languages in their own scripts. */
 export function CardPreview({ cover, name, line, languages, className }: { cover?: string; name: string; line: string; languages: Language[]; className?: string }) {
-  const tongues = languages.filter((l) => l !== "English");
+  const tongues = languages;
   return (
     <div className={clsx("flex flex-col", className)}>
       <div className="relative aspect-[4/5] overflow-hidden bg-[#d3d2cf]">

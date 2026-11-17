@@ -3,6 +3,7 @@ import { getVendor, vendors } from "@/lib/static-vendors";
 import { locationLabel } from "@/lib/vendors";
 import type { TierId } from "./billing";
 import type { AdminState } from "./store";
+import { withoutEnglish } from "@/data/taxonomy";
 
 /** One shape for every vendor the admin manages: the 34 listed ones plus any added here. */
 export type AdminVendor = {
@@ -46,7 +47,7 @@ export function adminVendors(state: AdminState): AdminVendor[] {
       person: v.person ?? v.signoff,
       discipline: v.discipline,
       services: v.services,
-      languages: v.languages ?? [],
+      languages: withoutEnglish(v.languages ?? []),
       serviceArea: v.serviceArea ?? [],
       based: v.based,
       location: locationLabel(v),

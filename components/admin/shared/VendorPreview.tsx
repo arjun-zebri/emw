@@ -51,7 +51,6 @@ export function ListingPreview({ values: v, photos, story = [], view }: { values
 }
 
 function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValues; photos: string[]; story: string[]; ratios: Record<string, number>; location: string }) {
-  // Every language, English included, as the vendor page lists them (the card leaves English out).
   const tongues = v.languages;
   const ratio = (src: string) => ratios[src] ?? 0.8;
   const landscape = photos[0] ? ratio(photos[0]) >= 1.2 : false;
@@ -155,7 +154,7 @@ function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValu
 function DirectoryPreview({ v, cover }: { v: VendorFormValues; cover?: string }) {
   const alike = vendors.filter((x) => x.cover && x.services.some((s) => v.services.includes(s)));
   const neighbours = [...alike, ...vendors.filter((x) => x.cover && !alike.includes(x))].slice(0, 7);
-  const tongues = v.languages.filter((l) => l !== "English");
+  const tongues = v.languages;
 
   return (
     <div className="shell pt-6 pb-[clamp(4rem,8vw,6rem)]">
@@ -165,7 +164,7 @@ function DirectoryPreview({ v, cover }: { v: VendorFormValues; cover?: string })
           <Photo src={cover} brief={`${v.name || "The vendor"}. Signature image.`} sizes="25vw" />
         </Card>
         {neighbours.map((x) => (
-          <Card key={x.slug} name={x.name} line={x.discipline} tongues={(x.languages ?? []).filter((l) => l !== "English")} quiet>
+          <Card key={x.slug} name={x.name} line={x.discipline} tongues={x.languages ?? []} quiet>
             <Media {...vendorCover(x)} sizes="25vw" className="size-full" />
           </Card>
         ))}

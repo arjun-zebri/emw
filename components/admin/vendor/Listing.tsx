@@ -43,7 +43,7 @@ function splitWords(text: string): { lede: string; story: string[] } {
   return { lede: "", story: blocks };
 }
 
-// Languages in the taxonomy's order (native scripts first, English last), wherever they were picked.
+// Languages in the taxonomy's order (native scripts first), wherever they were picked.
 const languageOrder = Object.keys(languageNames) as Language[];
 const ordered = (list: Language[]) => languageOrder.filter((l) => list.includes(l));
 
@@ -173,7 +173,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   );
   const firstBad = (Object.keys(bad) as (keyof typeof bad)[]).find((k) => bad[k]);
   const newPhotos = photos.some((p) => p.upload);
-  const tongues = v.languages.filter((l) => l !== "English");
+  const tongues = v.languages;
   const words = useMemo(() => splitWords(v.story), [v.story]);
   // The text as written, untrimmed, so a limit is never enforced by quietly cutting words off.
   const [textLength, setTextLength] = useState(() => storyLength(splitStory(base.story).map(parseBlock)));

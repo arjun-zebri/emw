@@ -139,7 +139,7 @@ export function VendorForm({
   };
   const choose = () => fileInput.current?.click();
   const closePreview = useCallback(() => setPreviewing(false), []);
-  const tongues = v.languages.filter((l) => l !== "English");
+  const tongues = v.languages;
   const canAdd = !lockedPhotos && v.photos.length < 12;
 
   return (

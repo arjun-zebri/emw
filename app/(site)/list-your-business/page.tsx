@@ -77,7 +77,7 @@ const questions = [
 export default async function ListYourBusiness() {
   const vendors = await getListings();
   const withCover = vendors.filter((v) => v.cover);
-  const fits = (v: Vendor) => v.slug !== HERO_VENDOR && (v.gallery?.length ?? 0) >= 2 && (v.languages ?? []).some((l) => l !== "English");
+  const fits = (v: Vendor) => v.slug !== HERO_VENDOR && (v.gallery?.length ?? 0) >= 2 && (v.languages?.length ?? 0) > 0;
   const example = examplePicks.map((s) => withCover.find((v) => v.slug === s && fits(v))).find(Boolean) ?? withCover.find(fits);
   const others = withCover.filter((v) => v.slug !== example?.slug);
   const wall = others.slice(0, 12);
@@ -218,7 +218,7 @@ export default async function ListYourBusiness() {
  */
 function Example({ vendor }: { vendor: Vendor }) {
   const [a, b] = vendor.gallery ?? [];
-  const tongues = (vendor.languages ?? []).filter((l) => l !== "English");
+  const tongues = vendor.languages ?? [];
   return (
     <figure data-reveal suppressHydrationWarning>
       <Link href={`/vendors/${vendor.slug}`} className="group grid grid-cols-5 gap-[clamp(0.375rem,0.8vw,0.75rem)]" aria-label={`${vendor.name}’s page`}>

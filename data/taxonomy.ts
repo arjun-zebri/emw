@@ -128,7 +128,10 @@ export const serviceLabels: Record<Service, string> = {
   "Hire Items": "Hire",
 };
 
-/** Native names are set in the vendor's script; the directory leads with these. */
+/**
+ * Native names are set in the vendor's script; the directory leads with these. English isn't one: every vendor
+ * is taken to work in it, so it's never offered, filtered on or shown, even where a listing still stores it.
+ */
 export const languages: Record<Language, { native: string; lang: string }> = {
   Cantonese: { native: "廣東話", lang: "yue" },
   Mandarin: { native: "普通话", lang: "zh-Hans" },
@@ -140,7 +143,6 @@ export const languages: Record<Language, { native: string; lang: string }> = {
   Thai: { native: "ภาษาไทย", lang: "th" },
   Teochew: { native: "潮州話", lang: "zh-Hant" },
   Hakka: { native: "客家話", lang: "hak" },
-  English: { native: "English", lang: "en" },
 };
 
 export const states: Record<StateCode, string> = {
@@ -187,7 +189,12 @@ export const areaOptions = (short = false) => [
 ];
 
 /** Languages outside our list, as the vendor wrote them. English is everyone's, so it's never "other". */
-export const otherLanguagesOf = (values: readonly string[]) => values.filter((v) => !(v in languages));
+export const otherLanguagesOf = (values: readonly string[]) => values.filter((v) => !(v in languages) && !isEnglish(v));
+
+const isEnglish = (v: string) => v.trim().toLowerCase() === "english";
+
+/** A stored list of languages without English, which older listings and applications still hold. */
+export const withoutEnglish = <T extends string>(values: readonly T[]) => values.filter((v) => !isEnglish(v));
 
 /**
  * Cultures a couple can choose when they enquire, in alphabetical order. Anything else they write

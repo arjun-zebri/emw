@@ -4,6 +4,7 @@ import { notifyApproved } from "@/lib/email/actions";
 import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
 import { imageUrl } from "@/lib/supabase/storage";
+import { withoutEnglish } from "@/data/taxonomy";
 
 /*
  * The approval queue: draft vendors waiting for the team, read from Supabase as the signed-in team
@@ -238,7 +239,7 @@ export async function loadDraft(id: string) {
     ...toRow(row.data),
     person: opt(v.person),
     services: v.services as Service[],
-    languages: v.languages as Language[],
+    languages: withoutEnglish(v.languages) as Language[],
     serviceArea: v.service_area as AreaCode[],
     story: v.story,
     largeTile: v.large_tile,

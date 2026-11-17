@@ -52,7 +52,6 @@ export type Service =
 
 export type Language =
   | "Cantonese"
-  | "English"
   | "Filipino"
   | "Hakka"
   | "Indonesian"

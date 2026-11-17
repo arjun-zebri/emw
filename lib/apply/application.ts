@@ -120,8 +120,7 @@ export function problems(a: Application): string[] {
   const other = typeof a.otherCraft === "string" ? a.otherCraft.trim() : "";
   if (!(Array.isArray(a.services) && a.services.every((s) => offeredServices.includes(s))) || (a.services.length === 0 && !other)) out.push("Choose what you offer.");
   if (other.length > LIMITS.otherCraft) out.push("Keep what you do short.");
-  const others = typeof a.otherLanguages === "string" ? otherLanguageList(a.otherLanguages) : [];
-  if (!known(a.languages, languages) || (a.languages.length === 0 && others.length === 0)) out.push("Choose at least one language.");
+  if (!known(a.languages, languages)) out.push("Choose your languages from the list.");
   if (!known(a.serviceArea, areas) || a.serviceArea.length === 0) out.push("Choose where you'll work.");
   const text = (s: unknown, max: number) => typeof s === "string" && s.trim().length <= max;
   if (!text(a.name, LIMITS.name) || !a.name.trim()) out.push("Add your business name.");

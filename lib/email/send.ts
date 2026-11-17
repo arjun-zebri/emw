@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { areaLabel, languages, serviceLabels } from "@/data/taxonomy";
+import { areaLabel, languages, serviceLabels, withoutEnglish } from "@/data/taxonomy";
 import type { Language, Service } from "@/data/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { imageUrl, variantPath } from "@/lib/supabase/storage";
@@ -76,13 +76,13 @@ export async function load(vendorId: string) {
     return null;
   }
   const photos = [...data.vendor_photos].sort((a, b) => a.position - b.position).map((p) => ({ src: imageUrl("vendor-photos", variantPath(p.path, 1200)), width: p.width, height: p.height }));
-  const tongue = (l: string) => (l in languages ? (l === "English" ? "English" : `${languages[l as Language].native} (${l})`) : l);
+  const tongue = (l: string) => (l in languages ? `${languages[l as Language].native} (${l})` : l);
   return {
     vendor: data,
     photos,
     first: (data.person ?? "").trim().split(/\s+/)[0] ?? "",
     services: data.services.map((s) => serviceLabels[s as Service] ?? s),
-    languages: data.languages.map(tongue),
+    languages: withoutEnglish(data.languages).map(tongue),
     travels: areaLabel(data.service_area, "Not given").replace("Australia-wide", "Anywhere in Australia"),
     notes: (data.vendor_review_notes?.notes ?? "").split("\n").map((l) => l.trim()).filter(Boolean),
   };
