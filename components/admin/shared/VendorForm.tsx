@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Button } from "@/components/ui/Button";
-import { areaOptions, languages as languageNames, serviceLabels } from "@/data/taxonomy";
+import { areaOptions, languages as languageNames, serviceOptions } from "@/data/taxonomy";
 import type { AreaCode, Language, Service } from "@/data/types";
 import { tierOrder, tiers, type TierId } from "@/lib/admin/billing";
 import { aud } from "@/lib/admin/format";
@@ -55,7 +55,6 @@ export const emptyVendor: VendorFormValues = {
   billing: "annual",
 };
 
-const serviceOptions = (Object.keys(serviceLabels) as Service[]).map((s) => ({ value: s, label: serviceLabels[s] }));
 // States by code, overseas regions by name.
 const stateOptions = areaOptions(true);
 const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
@@ -272,7 +271,7 @@ export function VendorForm({
 
         <dl className="mt-8 border-t hairline">
           <DetailRow label="Services" htmlFor="vf-services">
-            <Dropdown id="vf-services" multiple options={serviceOptions} value={v.services} onChange={(x) => set("services", x)} placeholder="What couples can book them for" />
+            <Dropdown id="vf-services" multiple options={serviceOptions(v.services)} value={v.services} onChange={(x) => set("services", x)} placeholder="What couples can book them for" />
           </DetailRow>
           <DetailRow label="Languages" htmlFor="vf-languages">
             <Dropdown id="vf-languages" multiple options={languageOptions} value={v.languages} onChange={(x) => set("languages", x)} placeholder="The languages they work in" />

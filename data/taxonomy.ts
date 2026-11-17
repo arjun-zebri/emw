@@ -6,94 +6,126 @@ export const crafts: Craft[] = [
     name: "Ceremony & Hosting",
     short: "Ceremony",
     blurb: "Celebrants, MCs and tea ceremony hosts who can switch languages mid-sentence.",
-    services: ["Celebrant", "MC"],
+    services: ["Celebrant", "MC", "Tea Ceremony Host"],
   },
   {
     id: "photo-film",
     name: "Photography & Film",
     short: "Photo & Film",
-    blurb: "Documentary photographers, filmmakers and booths that catch both sides of the family.",
-    services: ["Photographer", "Videographer", "Content Creator", "Photobooth"],
+    blurb: "Documentary photographers and filmmakers who catch both sides of the family.",
+    services: ["Photographer", "Videographer", "Content Creator"],
   },
   {
     id: "beauty-attire",
     name: "Beauty & Attire",
     short: "Beauty & Attire",
     blurb: "Hair, makeup and traditional dress, for every outfit change of the day.",
-    services: ["Hair & Makeup", "Attire", "Jewellery"],
+    services: ["Makeup", "Hair", "Attire", "Jewellery"],
   },
   {
     id: "flowers-paper",
-    name: "Flowers & Paper",
-    short: "Flowers & Paper",
-    blurb: "Florists, calligraphers and illustrators: the details guests take home.",
-    services: ["Florist", "Stationery and Signage", "Favours and Gifts", "Live Art", "Bouquet Preservation"],
+    name: "Styling, Florals & Stationery",
+    short: "Styling & Florals",
+    blurb: "Stylists, florists and stationers: the room, the flowers and the details guests take home.",
+    services: ["Event Stylist", "Florist", "Stationery and Signage", "Favours and Gifts", "Bouquet Preservation"],
   },
   {
     id: "music-performance",
-    name: "Music & Performance",
-    short: "Music",
-    blurb: "String quartets, live bands, harpists and a lion dance troupe.",
-    services: ["Music", "Entertainment", "Dance Instructor"],
+    name: "Entertainment",
+    short: "Entertainment",
+    blurb: "String quartets, DJs, live artists, photobooths and a lion dance troupe.",
+    services: ["Live Music", "DJ", "Performers", "Lion Dance", "Dance Instructor", "Photobooth", "Live Portrait Studio", "Live Art"],
   },
   {
     id: "planning-styling",
-    name: "Planning & Styling",
+    name: "Planning & Coordination",
     short: "Planning",
-    blurb: "Planners, coordinators and stylists who keep both families' traditions on one run sheet.",
-    services: ["Wedding Planner", "Wedding Coordinator", "Event Planner", "Event Stylist"],
+    blurb: "Planners and coordinators who keep both families' traditions on one run sheet.",
+    services: ["Wedding Planner", "Wedding Coordinator", "Event Planner"],
   },
   {
     id: "food-cake",
-    name: "Food & Cake",
-    short: "Food & Cake",
-    blurb: "Caterers, cake makers and food trucks, from the banquet to the late-night snack.",
-    services: ["Catering", "Cakes and Desserts", "Mobile Food Trucks and Carts"],
+    name: "Food & Drinks",
+    short: "Food & Drinks",
+    blurb: "Caterers, cake makers, food trucks and bars, from the banquet to the late-night snack.",
+    services: ["Catering", "Cakes and Desserts", "Mobile Food Trucks and Carts", "Drink Trucks and Carts", "Mobile Bar"],
   },
   {
     id: "venues-hire",
-    name: "Venues & Hire",
-    short: "Venues & Hire",
+    name: "Venue & Hire",
+    short: "Venue & Hire",
     blurb: "Venues, cars and everything else that has to be booked and brought in.",
-    services: ["Venue", "Hire Items", "Car Hire", "Fireworks and Effects"],
+    services: ["Venue", "Furniture Hire", "Decor Hire", "Tea Ceremony Setup Hire", "Car Hire", "Fireworks and Effects"],
   },
 ];
 
 export const craftById = Object.fromEntries(crafts.map((c) => [c.id, c])) as Record<CraftId, Craft>;
 
+/**
+ * Services no longer offered (the 17 Nov 2026 category list split or renamed them). Listings that have them
+ * keep them, under their old craft, until the team retags each vendor; nobody can choose them again.
+ */
+export const retiredServices: Partial<Record<Service, CraftId>> = {
+  "Hair & Makeup": "beauty-attire",
+  Music: "music-performance",
+  Entertainment: "music-performance",
+  "Hire Items": "venues-hire",
+};
+
 export function craftOf(service: Service): Craft {
-  return crafts.find((c) => c.services.includes(service)) ?? crafts[0];
+  const retired = retiredServices[service];
+  return crafts.find((c) => c.services.includes(service)) ?? (retired ? craftById[retired] : crafts[0]);
 }
+
+/** Every service a vendor can choose, in category order. */
+export const offeredServices: Service[] = crafts.flatMap((c) => c.services);
+
+/** Options for a services picker: what's offered, plus any retired service the listing already has. */
+export const serviceOptions = (current: readonly Service[] = []) =>
+  [...offeredServices, ...current.filter((s) => s in retiredServices)].map((s) => ({ value: s, label: serviceLabels[s] }));
 
 export const serviceLabels: Record<Service, string> = {
   Celebrant: "Celebrant",
   MC: "MC",
+  "Tea Ceremony Host": "Tea ceremony host",
   Photographer: "Photography",
   Videographer: "Videography",
   "Content Creator": "Content creation",
   Photobooth: "Photobooth",
-  "Hair & Makeup": "Hair & makeup",
+  Makeup: "Makeup",
+  Hair: "Hair",
   Attire: "Attire",
+  Jewellery: "Jewellery",
+  "Event Stylist": "Styling",
   Florist: "Florals",
   "Stationery and Signage": "Stationery & signage",
   "Favours and Gifts": "Favours & gifts",
-  Music: "Music",
-  Entertainment: "Entertainment",
-  "Dance Instructor": "Dance lessons",
-  "Live Art": "Live art",
   "Bouquet Preservation": "Bouquet preservation",
-  Jewellery: "Jewellery",
+  "Live Music": "Live music",
+  DJ: "DJ",
+  Performers: "Performers",
+  "Lion Dance": "Lion dance",
+  "Dance Instructor": "Dance lessons",
+  "Live Portrait Studio": "Live portrait studio",
+  "Live Art": "Live art",
   "Wedding Planner": "Wedding planning",
   "Wedding Coordinator": "Wedding coordination",
-  "Event Planner": "Event planning",
-  "Event Stylist": "Styling",
+  "Event Planner": "Event planning and coordination",
   Catering: "Catering",
   "Cakes and Desserts": "Cakes & desserts",
   "Mobile Food Trucks and Carts": "Food trucks & carts",
-  Venue: "Venues",
-  "Hire Items": "Hire",
+  "Drink Trucks and Carts": "Drink trucks & carts",
+  "Mobile Bar": "Bar / mobile bar",
+  Venue: "Venue",
+  "Furniture Hire": "Furniture & setup hire",
+  "Decor Hire": "Décor & prop hire",
+  "Tea Ceremony Setup Hire": "Tea ceremony setup hire",
   "Car Hire": "Car hire",
   "Fireworks and Effects": "Fireworks & effects",
+  "Hair & Makeup": "Hair & makeup",
+  Music: "Music",
+  Entertainment: "Entertainment",
+  "Hire Items": "Hire",
 };
 
 /** Native names are set in the vendor's script; the directory leads with these. */

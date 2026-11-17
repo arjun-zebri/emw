@@ -1,4 +1,4 @@
-import { areas, languages, serviceLabels } from "@/data/taxonomy";
+import { areas, languages, offeredServices, serviceLabels } from "@/data/taxonomy";
 import type { AreaCode, CraftId, Language, Service } from "@/data/types";
 import { normaliseBlocks, parseBlock, splitStory, storyLength } from "@/lib/story";
 import { countryByCode, formatPhone } from "./countries";
@@ -118,7 +118,7 @@ export function problems(a: Application): string[] {
   const out: string[] = [];
   const known = <T extends string>(values: unknown, map: Record<T, unknown>) => Array.isArray(values) && values.every((v) => typeof v === "string" && v in map);
   const other = typeof a.otherCraft === "string" ? a.otherCraft.trim() : "";
-  if (!known(a.services, serviceLabels) || (a.services.length === 0 && !other)) out.push("Choose what you offer.");
+  if (!(Array.isArray(a.services) && a.services.every((s) => offeredServices.includes(s))) || (a.services.length === 0 && !other)) out.push("Choose what you offer.");
   if (other.length > LIMITS.otherCraft) out.push("Keep what you do short.");
   const others = typeof a.otherLanguages === "string" ? otherLanguageList(a.otherLanguages) : [];
   if (!known(a.languages, languages) || (a.languages.length === 0 && others.length === 0)) out.push("Choose at least one language.");

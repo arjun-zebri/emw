@@ -197,10 +197,10 @@ const craftPeople: Record<CraftId, string> = {
   ceremony: "celebrants and MCs",
   "photo-film": "photographers and videographers",
   "beauty-attire": "hair, makeup and attire",
-  "flowers-paper": "florists and stationers",
-  "music-performance": "musicians and performers",
-  "planning-styling": "planners and stylists",
-  "food-cake": "caterers and cake makers",
+  "flowers-paper": "stylists, florists and stationers",
+  "music-performance": "musicians and entertainers",
+  "planning-styling": "planners and coordinators",
+  "food-cake": "caterers, cake makers and bars",
   "venues-hire": "venues and hire",
 };
 

@@ -664,7 +664,7 @@ function Crafts({ a, set, flip, headingId, uid }: { a: Application; set: Setter;
                           <Icon name={c.id} className="mt-0.5 size-5 shrink-0 text-ink-soft" />
                           <span>
                             <span className="block text-ink">{c.name}</span>
-                            <span className={clsx("t-small mt-1 block", none && "text-warn")}>{none ? "Choose at least one" : "Choose all that apply"}</span>
+                            <span className={clsx("t-small mt-1 block", none && "text-warn")}>Select all that apply</span>
                           </span>
                         </span>
                         <div className="flex flex-wrap gap-2">
@@ -694,7 +694,7 @@ function Crafts({ a, set, flip, headingId, uid }: { a: Application; set: Setter;
                     value={a.otherCraft.trimStart()}
                     maxLength={LIMITS.otherCraft}
                     onChange={(e) => set("otherCraft", e.target.value || " ")}
-                    placeholder="For example, tea ceremony sets or henna"
+                    placeholder="For example, henna or calligraphy"
                     className={clsx(inputClass, "-mt-3")}
                   />
                 </div>

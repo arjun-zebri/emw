@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
-import { areaOptions as allAreas, languages as languageNames, serviceLabels } from "@/data/taxonomy";
+import { areaOptions as allAreas, languages as languageNames, serviceLabels, serviceOptions } from "@/data/taxonomy";
 import type { Language, Service } from "@/data/types";
 import { editPhotos, LINE_MAX, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
@@ -62,7 +62,6 @@ const valuesOf = (l: OwnListing): Values => ({
   facebook: l.facebook,
 });
 
-const serviceOptions = (Object.keys(serviceLabels) as Service[]).map((s) => ({ value: s, label: serviceLabels[s] }));
 // The states, then the overseas regions, by name.
 const areaOptions = allAreas();
 const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
@@ -401,7 +400,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
             {/* One rule between each section, none between rows. */}
             <dl className="mt-8 border-t hairline pt-4">
               <DetailRow plain label="Services" htmlFor="le-services">
-                <Dropdown id="le-services" quiet multiple options={serviceOptions} value={v.services} onChange={chooseServices} placeholder={ask("Choose what couples can book you for")} />
+                <Dropdown id="le-services" quiet multiple options={serviceOptions(v.services)} value={v.services} onChange={chooseServices} placeholder={ask("Choose what couples can book you for")} />
               </DetailRow>
               <DetailRow plain label="Languages" htmlFor="le-languages">
                 <Dropdown id="le-languages" quiet multiple options={languageOptions} value={v.languages} onChange={(x) => set("languages", x)} placeholder={ask("Choose the languages you work in")} />
