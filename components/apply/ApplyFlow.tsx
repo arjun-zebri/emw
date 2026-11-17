@@ -721,9 +721,33 @@ function WithCard({ a, cover, children }: { a: Application; cover?: string; chil
   );
 }
 
+type Reach = "states" | "australia" | "world";
+const allOverseas = Object.keys(overseas) as OverseasCode[];
+const reachOf = (area: readonly string[]): Reach => (area.some((s) => s in overseas) ? "world" : australiaWide(area) ? "australia" : "states");
+
+/**
+ * How far they travel, as three plain choices, with the places opening beneath only the choice that
+ * needs them. Stored as the same list of states and regions; "Worldwide" starts with every region on.
+ */
 function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; flip: Flip; headingId: string; uid: string }) {
-  const everywhere = australiaWide(a.serviceArea);
-  const abroad = a.serviceArea.filter((s) => s in overseas);
+  const [reach, setReach] = useState<Reach>(() => reachOf(a.serviceArea));
+  const choose = (r: Reach) => {
+    if (r === reach) return;
+    setReach(r);
+    // Narrowing back to some states starts from none, so they choose rather than untick eight.
+    set("serviceArea", r === "states" ? [] : r === "australia" ? [...allStates] : [...allStates, ...allOverseas]);
+  };
+  const options: { id: Reach; title: string; note: string; places?: { code: string; label: string }[] }[] = [
+    { id: "states", title: "Selected states", note: "Choose the states you’ll work in.", places: allStates.map((s) => ({ code: s, label: states[s] })) },
+    { id: "australia", title: "Anywhere in Australia", note: "Couples in every state will find you." },
+    {
+      id: "world",
+      title: "Worldwide",
+      note: "Anywhere in Australia, and overseas. Untick any region you won’t travel to.",
+      places: allOverseas.map((o) => ({ code: o, label: overseas[o] })),
+    },
+  ];
+
   return (
     <>
       <StepHead id={headingId} title="Where do you work?" />
@@ -732,29 +756,48 @@ function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; 
           <input id={`${uid}-based`} value={a.based} maxLength={LIMITS.based} onChange={(e) => set("based", e.target.value)} placeholder="For example, Footscray" autoComplete="address-level2" className={inputClass} />
         </Field>
       </div>
-      <fieldset className="mt-12">
-        <legend className="t-small mb-3 text-ink">Where you’ll travel for a wedding</legend>
-        <div className="flex flex-wrap gap-2">
-          <Chip on={everywhere} onClick={() => set("serviceArea", everywhere ? abroad : [...allStates, ...abroad])}>
-            Anywhere in Australia
-          </Chip>
-          {allStates.map((s) => (
-            <Chip key={s} on={a.serviceArea.includes(s)} onClick={() => flip("serviceArea", s)}>
-              {states[s]}
-            </Chip>
-          ))}
+      <div className="mt-12 max-w-[40rem]">
+        <p id={`${uid}-reach`} className="t-small mb-3 text-ink">
+          How far you’ll travel for a wedding
+        </p>
+        <div role="radiogroup" aria-labelledby={`${uid}-reach`} className="grid grid-cols-1 gap-2">
+          {options.map((o) => {
+            const on = reach === o.id;
+            return (
+              <div key={o.id} className={clsx("border bg-surface transition-[border-color,box-shadow] duration-300", on ? "border-ink shadow-[inset_0_0_0_1px_var(--color-ink)]" : "hairline hover:border-ink/40")}>
+                <button type="button" role="radio" aria-checked={on} onClick={() => choose(o.id)} className="flex w-full items-start gap-4 p-4 text-left sm:p-5">
+                  <span aria-hidden className={clsx("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border transition-colors duration-300", on ? "border-ink" : "border-ink/35")}>
+                    <span className={clsx("size-2.5 rounded-full bg-ink transition-transform duration-300 ease-out-expo", on ? "scale-100" : "scale-0")} />
+                  </span>
+                  <span>
+                    <span className="block text-[1.0625rem] text-ink">{o.title}</span>
+                    <span className="t-small mt-1 block">{o.note}</span>
+                  </span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {on && o.places && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.45, ease }}
+                      className="overflow-hidden"
+                    >
+                      <div role="group" aria-label={o.title} className="flex flex-wrap gap-2 px-4 pb-4 sm:pr-5 sm:pb-5 sm:pl-14">
+                        {o.places.map((p) => (
+                          <Chip key={p.code} on={a.serviceArea.includes(p.code as StateCode | OverseasCode)} onClick={() => flip("serviceArea", p.code)}>
+                            {p.label}
+                          </Chip>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
         </div>
-      </fieldset>
-      <fieldset className="mt-10">
-        <legend className="t-small mb-3 text-ink">Overseas</legend>
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(overseas) as OverseasCode[]).map((s) => (
-            <Chip key={s} on={a.serviceArea.includes(s)} onClick={() => flip("serviceArea", s)}>
-              {overseas[s]}
-            </Chip>
-          ))}
-        </div>
-      </fieldset>
+      </div>
     </>
   );
 }
@@ -818,7 +861,7 @@ function Review({
   onPreview: () => void;
   onRights: (v: boolean) => void;
 }) {
-  const area = areaLabel(a.serviceArea, "").replace("Australia-wide", "anywhere in Australia");
+  const area = areaLabel(a.serviceArea, "").replace("Worldwide", "anywhere in the world").replace("Australia-wide", "anywhere in Australia");
   const blocks = normaliseStory(splitStory(a.story));
   const rows: { label: string; value: React.ReactNode; step: StepId }[] = [
     { label: "Business", value: [a.name, a.person].filter(Boolean).join(", "), step: "name" },

@@ -65,10 +65,12 @@ export async function preparePhoto(file: Blob, min: number = LIMITS.photoMin, sh
   try {
     const long = Math.max(bitmap.width, bitmap.height);
     if (long < min) {
-      throw new PhotoError(`This one is too small (${bitmap.width} × ${bitmap.height}). Photos need to be at least ${min}px on the long side.`);
+      throw new PhotoError(
+        shape ? "This one is too small to look sharp at full size. Use the original file, not a screenshot or a photo saved from Instagram." : `This one is too small (${bitmap.width} × ${bitmap.height}). Photos need to be at least ${min}px on the long side.`,
+      );
     }
     if (shape && long / Math.min(bitmap.width, bitmap.height) > shape) {
-      throw new PhotoError("This one is too long and narrow to show well. Choose a photo closer to a standard shape.");
+      throw new PhotoError("This looks like a screenshot or a panorama. Choose a photo in a standard shape.");
     }
     const full = await encode(bitmap, 2000, 0.86);
     const w1200 = await encode(bitmap, 1200, 0.8);

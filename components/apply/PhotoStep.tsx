@@ -210,7 +210,7 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
           <span className="t-title">Drag your photos here</span>
           <span className="t-small link-line text-ink">or choose them from your device</span>
           <span className="t-small mt-2">
-            Up to {LIMITS.photosMax}, each at least {LIMITS.photoMin}px on the long side
+            Original files from your camera or photographer, not screenshots or Instagram saves
           </span>
         </button>
       ) : (
@@ -306,7 +306,7 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
       <div className="mt-5 space-y-1.5" aria-live="polite">
         {photos.length > 0 && (
           <p className="t-small">
-            {photos.length} of {LIMITS.photosMax} photos. Each at least {LIMITS.photoMin}px on the long side.
+            {photos.length} of {LIMITS.photosMax} photos
           </p>
         )}
         {errors.map((e) => (

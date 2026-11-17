@@ -1,7 +1,7 @@
 export type StateCode = "ACT" | "NSW" | "NT" | "QLD" | "SA" | "TAS" | "VIC" | "WA";
 
 /** Overseas regions, as big groups until there are enough vendors to split them by country. */
-export type OverseasCode = "CAN" | "USA" | "EUR" | "ASIA";
+export type OverseasCode = "NZ" | "ASIA" | "EUR" | "USA" | "CAN";
 
 /** Where a vendor works: an Australian state or an overseas region. */
 export type AreaCode = StateCode | OverseasCode;

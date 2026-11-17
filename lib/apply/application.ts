@@ -66,8 +66,11 @@ export const LIMITS = {
   photosMax: 12,
   /** Below this on the long edge a photo is refused, so every listing looks sharp on a large screen. */
   photoMin: 2000,
-  /** Longer than this to one (a banner, a screenshot strip) is refused: it can't be shown well uncropped. */
-  photoShape: 2.5,
+  /**
+   * Longer than this to one is refused: phone screenshots (about 2.2) and panoramas can't be shown well
+   * uncropped. Every camera shape, 16:9 included, is under it.
+   */
+  photoShape: 2,
 } as const;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;

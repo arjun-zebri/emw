@@ -156,11 +156,13 @@ export const states: Record<StateCode, string> = {
   NT: "Northern Territory",
 };
 
+/** Nearest first. */
 export const overseas: Record<OverseasCode, string> = {
-  CAN: "Canada",
-  USA: "USA",
-  EUR: "Europe",
+  NZ: "New Zealand",
   ASIA: "Asia",
+  EUR: "Europe",
+  USA: "USA",
+  CAN: "Canada",
 };
 
 /** Every place a vendor can work, states first. */
@@ -169,8 +171,12 @@ export const areas: Record<AreaCode, string> = { ...states, ...overseas };
 /** A service area that covers every state reads as "Australia-wide". */
 export const australiaWide = (area: readonly string[]) => (Object.keys(states) as string[]).every((s) => area.includes(s));
 
-/** "Australia-wide" or the states by name, then any overseas regions. */
+/** Every state and every overseas region reads as "Worldwide". */
+export const worldwide = (area: readonly string[]) => australiaWide(area) && (Object.keys(overseas) as string[]).every((o) => area.includes(o));
+
+/** "Worldwide", "Australia-wide" or the states by name, then any overseas regions. */
 export function areaLabel(area: readonly string[], none = "On request") {
+  if (worldwide(area)) return "Worldwide";
   const { home, abroad } = areaParts(area);
   return [home, abroad].filter(Boolean).join(", ") || none;
 }

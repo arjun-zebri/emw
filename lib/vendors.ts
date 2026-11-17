@@ -1,4 +1,4 @@
-import { areas, australiaWide, craftById, craftOf, crafts, languages as languageNames, serviceLabels } from "@/data/taxonomy";
+import { areas, australiaWide, craftById, craftOf, crafts, languages as languageNames, overseas, serviceLabels, worldwide } from "@/data/taxonomy";
 import type { AreaCode, Craft, CraftId, Language, Service, Vendor } from "@/data/types";
 
 /*
@@ -16,6 +16,7 @@ export function vendorCrafts(vendor: Vendor): CraftId[] {
 
 export function locationLabel(vendor: Vendor): string {
   const area = vendor.serviceArea ?? [];
+  if (worldwide(area)) return vendor.based ? `${vendor.based} · Worldwide` : "Worldwide";
   if (australiaWide(area)) return vendor.based ? `${vendor.based} · Australia-wide` : "Australia-wide";
   const region = area.length === 1 ? areas[area[0]] : area.join(", ");
   if (vendor.based && vendor.based !== "Melbourne") return `${vendor.based}, Melbourne`;
@@ -72,7 +73,7 @@ export function areaCounts(vendors: Vendor[]): [AreaFilter, number][] {
   return [["AUS", home], ...(Object.keys(areas) as AreaCode[]).filter(isOverseas).map((a): [AreaFilter, number] => [a, counts.get(a) ?? 0]), ...states];
 }
 
-export const isOverseas = (a: AreaFilter) => a === "CAN" || a === "USA" || a === "EUR" || a === "ASIA";
+export const isOverseas = (a: AreaFilter) => a in overseas;
 export const isState = (a: AreaFilter) => a !== "AUS" && !isOverseas(a);
 
 /** Turning Australia off clears its states; choosing a state keeps Australia on. */
