@@ -114,13 +114,15 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
                 <h1 {...intro(0)} className="t-display text-[clamp(2.5rem,4.4vw,4.75rem)] text-balance">
                   {vendor.name}
                 </h1>
-                <p {...intro(0.06)} className="t-body mt-4 text-ink">
-                  {vendor.discipline}, {locationLabel(vendor)}
+                {/* What they do, then where, each on its own line, so the last service never reads into the place. */}
+                <p {...intro(0.06)} className="t-body mt-4">
+                  <span className="block text-ink">{vendor.discipline}</span>
+                  <span className="block">{locationLabel(vendor)}</span>
                 </p>
                 {tongues.length + otherTongues.length > 0 && (
                   <p {...intro(0.1)} className="t-title mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-ink-soft">
                     {tongues.map((l) => (
-                      <LanguageName key={l} name={l} english="font-sans t-small tracking-normal" />
+                      <LanguageName key={l} name={l} serif english="font-sans t-small tracking-normal" />
                     ))}
                     {otherTongues.map((l) => (
                       <span key={l}>{l}</span>

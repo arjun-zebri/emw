@@ -87,11 +87,14 @@ function PagePreview({ v, photos, story, ratios, location }: { v: VendorFormValu
         <div className={clsx("min-w-0 [overflow-wrap:anywhere] lg:col-span-5 lg:col-start-8 lg:row-start-1", gallery.length > 0 && "lg:row-span-2")}>
           <div className={clsx("flex flex-col lg:pt-1", gallery.length > 0 ? "lg:sticky lg:top-6" : "lg:h-full")}>
             <h1 className={clsx("t-display text-[clamp(2.5rem,4.4vw,4.75rem)] text-balance", !v.name && "text-ink-mute/35")}>{v.name || "Business name"}</h1>
-            <p className="t-body mt-4 text-ink">{[v.discipline || "What they do", location].join(", ")}</p>
+            <p className="t-body mt-4">
+              <span className="block text-ink">{v.discipline || "What they do"}</span>
+              <span className="block">{location}</span>
+            </p>
             {tongues.length > 0 && (
               <p className="t-title mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-ink-soft">
                 {tongues.map((l) => (
-                  <LanguageName key={l} name={l} english="font-sans t-small tracking-normal" />
+                  <LanguageName key={l} name={l} serif english="font-sans t-small tracking-normal" />
                 ))}
               </p>
             )}

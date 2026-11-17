@@ -242,7 +242,7 @@ function Example({ vendor }: { vendor: Vendor }) {
           {tongues.length > 0 && (
             <p className="mt-1.5 flex flex-wrap items-baseline gap-x-4 font-display text-[1.0625rem] text-ink-soft">
               {tongues.map((l) => (
-                <LanguageName key={l} name={l} english="font-sans t-small tracking-normal" />
+                <LanguageName key={l} name={l} serif english="font-sans t-small tracking-normal" />
               ))}
             </p>
           )}

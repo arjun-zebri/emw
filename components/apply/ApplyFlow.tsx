@@ -22,7 +22,7 @@ import { CardPreview, Check, Chip, Field, inputClass, StepHead, Tile } from "./p
 import { PhoneField } from "./PhoneField";
 import { PhotoStep } from "./PhotoStep";
 import { StoryEditor } from "./StoryEditor";
-import { LanguageName } from "@/components/ui/LanguageName";
+import { LanguageName, NativeName } from "@/components/ui/LanguageName";
 import { reportClient } from "@/lib/observe/client";
 
 /*
@@ -349,7 +349,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
                     {languageOrder.map((l) => (
                       <Tile key={l} on={a.languages.includes(l)} onClick={() => flip("languages", l)} className="min-h-[7rem] justify-between">
                         <span lang={languageNames[l].lang} className="font-display text-[clamp(1.375rem,2.2vw,1.75rem)] leading-tight">
-                          {languageNames[l].native}
+                          <NativeName name={l} />
                         </span>
                         <span className="t-small">{l}</span>
                       </Tile>

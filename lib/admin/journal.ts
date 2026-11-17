@@ -508,7 +508,7 @@ async function clearUnused(id: string) {
 }
 
 /** A photo made ready in the browser: its preview shows at once while it uploads. */
-export const prepareJournalPhoto = (file: Blob) => preparePhoto(file, MIN_PHOTO);
+export const prepareJournalPhoto = (file: Blob) => preparePhoto(file, MIN_PHOTO, null);
 
 /** Upload a prepared photo to the post's folder. Returns it as a block or cover holds it. */
 export async function uploadPrepared(postId: string, prepared: Awaited<ReturnType<typeof prepareJournalPhoto>>, alt = ""): Promise<Photo> {

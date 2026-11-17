@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Button } from "@/components/ui/Button";
+import { NativeName } from "@/components/ui/LanguageName";
 import { areaOptions, languages as languageNames, serviceOptions } from "@/data/taxonomy";
 import type { AreaCode, Language, Service } from "@/data/types";
 import { tierOrder, tiers, type TierId } from "@/lib/admin/billing";
@@ -251,7 +252,7 @@ export function VendorForm({
           <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
             {tongues.map((l) => (
               <span key={l} lang={languageNames[l]?.lang} title={l}>
-                {languageNames[l]?.native ?? l}
+                {languageNames[l] ? <NativeName name={l} /> : l}
               </span>
             ))}
           </p>

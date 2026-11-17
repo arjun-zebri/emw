@@ -8,7 +8,7 @@ import { countries, countryByCode, flag, formatPhone } from "@/lib/apply/countri
 
 /**
  * A phone number with its country: the flag and code on the left open a short list, and the number
- * sets itself in groups of four as it's typed. A leading 0 is dropped, since the code replaces it.
+ * spaces itself as it's typed (see `formatPhone`). A leading 0 is dropped, since the code replaces it.
  */
 export function PhoneField({ id, country, value, onCountry, onChange }: { id: string; country: string; value: string; onCountry: (code: string) => void; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -78,9 +78,9 @@ export function PhoneField({ id, country, value, onCountry, onChange }: { id: st
           type="tel"
           inputMode="tel"
           autoComplete="tel-national"
-          value={formatPhone(value)}
+          value={formatPhone(value, current.code)}
           onChange={(e) => onChange(e.target.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 14))}
-          placeholder="4123 4567 8"
+          placeholder={current.code === "AU" ? "412 345 678" : undefined}
           className="min-w-0 flex-1 bg-transparent py-3 pl-4 text-[1.0625rem] tracking-[0.02em] text-ink tabular-nums placeholder:text-ink-mute/50 focus:outline-none"
         />
       </div>

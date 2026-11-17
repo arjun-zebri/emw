@@ -36,5 +36,19 @@ export function countryByCode(code: string, fallback: Country | null = countries
 
 export const flag = (code: string) => String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)));
 
-/** Digits in groups of four: "412345678" → "4123 4567 8". */
-export const formatPhone = (digits: string) => digits.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1 ");
+/**
+ * The number after the country code, spaced the way people say it. Australian mobiles in threes
+ * ("412 345 678"), Australian landlines after the area digit ("3 9123 4567"); anywhere else in threes.
+ */
+export function formatPhone(digits: string, country = "AU") {
+  const d = digits.replace(/\D/g, "");
+  if (country === "AU") {
+    const groups = d.startsWith("4") || d.length < 2 ? [3, 3, 3] : [1, 4, 4];
+    const out: string[] = [];
+    let i = 0;
+    for (const g of groups) if (i < d.length) out.push(d.slice(i, (i += g)));
+    if (i < d.length) out.push(d.slice(i));
+    return out.join(" ");
+  }
+  return d.replace(/(\d{3})(?=\d)/g, "$1 ");
+}

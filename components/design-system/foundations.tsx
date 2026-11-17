@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { Logo, Monogram } from "@/components/brand/Logo";
 import { Icon, iconNames } from "@/components/icons/Icon";
+import { NativeName } from "@/components/ui/LanguageName";
 import { sectionTitle } from "@/components/ui/SectionHeading";
 import { languages } from "@/data/taxonomy";
 import type { Language } from "@/data/types";
@@ -98,7 +99,7 @@ export function Type() {
           {scriptOrder.map((l) => (
             <li key={l} className="flex flex-col">
               <span lang={languages[l].lang} className="font-display text-[clamp(1.75rem,3vw,2.5rem)] leading-tight tracking-[-0.01em]">
-                {languages[l].native}
+                <NativeName name={l} />
               </span>
               <span className="t-small mt-1">{l}</span>
             </li>

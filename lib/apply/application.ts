@@ -65,9 +65,9 @@ export const LIMITS = {
   otherCraft: 80,
   photosMax: 12,
   /** Below this on the long edge a photo is refused, so every listing looks sharp on a large screen. */
-  photoMin: 1600,
-  /** Below this it's accepted with a note that a larger copy would look sharper. */
-  photoSoft: 2000,
+  photoMin: 2000,
+  /** Longer than this to one (a banner, a screenshot strip) is refused: it can't be shown well uncropped. */
+  photoShape: 2.5,
 } as const;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -94,7 +94,7 @@ export const storyChars = (story: string) => storyLength(normaliseBlocks(splitSt
 export function fullPhone(a: Pick<Application, "phone" | "phoneCountry">) {
   const digits = a.phone.replace(/\D/g, "").replace(/^0+/, "");
   if (!digits) return "";
-  return `${countryByCode(a.phoneCountry).dial} ${formatPhone(digits)}`;
+  return `${countryByCode(a.phoneCountry).dial} ${formatPhone(digits, a.phoneCountry)}`;
 }
 
 export const withScheme = (url: string) => {

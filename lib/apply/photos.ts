@@ -56,12 +56,19 @@ function encode(bitmap: ImageBitmap, long: number, quality: number): Promise<{ b
   );
 }
 
-/** `min`: the shortest long side accepted (the journal takes smaller photos than a listing). */
-export async function preparePhoto(file: Blob, min: number = LIMITS.photoMin): Promise<ApplyPhoto> {
+/**
+ * `min`: the shortest long side accepted; `shape`: the longest ratio accepted, or none. A listing photo has
+ * to meet both, since it's shown large and never cropped; the journal takes smaller photos of any shape.
+ */
+export async function preparePhoto(file: Blob, min: number = LIMITS.photoMin, shape: number | null = LIMITS.photoShape): Promise<ApplyPhoto> {
   const bitmap = await decode(file);
   try {
-    if (Math.max(bitmap.width, bitmap.height) < min) {
+    const long = Math.max(bitmap.width, bitmap.height);
+    if (long < min) {
       throw new PhotoError(`This one is too small (${bitmap.width} × ${bitmap.height}). Photos need to be at least ${min}px on the long side.`);
+    }
+    if (shape && long / Math.min(bitmap.width, bitmap.height) > shape) {
+      throw new PhotoError("This one is too long and narrow to show well. Choose a photo closer to a standard shape.");
     }
     const full = await encode(bitmap, 2000, 0.86);
     const w1200 = await encode(bitmap, 1200, 0.8);
@@ -71,8 +78,6 @@ export async function preparePhoto(file: Blob, min: number = LIMITS.photoMin): P
     bitmap.close();
   }
 }
-
-export const isSoft = (p: Pick<ApplyPhoto, "width" | "height">) => Math.max(p.width, p.height) < LIMITS.photoSoft;
 
 // ── Keeping the photos between visits ───────────────────────────────────
 // IndexedDB, because photos are too big for localStorage. Best effort: in a private window or with

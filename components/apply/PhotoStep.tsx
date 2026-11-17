@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
 import { LIMITS } from "@/lib/apply/application";
-import { type ApplyPhoto, isSoft, PhotoError, preparePhoto } from "@/lib/apply/photos";
+import { type ApplyPhoto, PhotoError, preparePhoto } from "@/lib/apply/photos";
 import { StepHead } from "./parts";
 
 // Slots are measured in page coordinates, so scrolling mid-drag doesn't throw the target off.
@@ -182,7 +182,6 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
   };
 
   const empty = photos.length === 0 && pending === 0;
-  const soft = photos.filter(isSoft).length;
   const dragged = drag && photos.find((p) => p.id === drag.id);
   // While dragging, the grid shows the order the drop will make.
   const shown = drag ? reorder(photos, drag.from, drag.to) : photos;
@@ -210,6 +209,9 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
           <Icon name="image" className="size-9 text-ink-soft" />
           <span className="t-title">Drag your photos here</span>
           <span className="t-small link-line text-ink">or choose them from your device</span>
+          <span className="t-small mt-2">
+            Up to {LIMITS.photosMax}, each at least {LIMITS.photoMin}px on the long side
+          </span>
         </button>
       ) : (
         <ul ref={grid} className={clsx("grid grid-cols-2 gap-2 select-none sm:grid-cols-3 sm:gap-3", over && "outline outline-1 outline-offset-8 outline-ink")}>
@@ -238,12 +240,6 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
                 <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2.5">
                   <span className="flex gap-1.5">
                     {i === 0 && <span className="bg-paper px-2.5 py-1 text-[0.75rem] font-medium text-ink">Cover</span>}
-                    {isSoft(p) && (
-                      <span title={`Under ${LIMITS.photoSoft}px on the long side, so it may look soft on large screens`} className="grid size-7 place-items-center bg-paper text-warn">
-                        <Icon name="alert" className="size-3.5" />
-                        <span className="sr-only">May look soft on large screens</span>
-                      </span>
-                    )}
                   </span>
                   <span
                     className={clsx(
@@ -310,12 +306,7 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
       <div className="mt-5 space-y-1.5" aria-live="polite">
         {photos.length > 0 && (
           <p className="t-small">
-            {photos.length} of {LIMITS.photosMax} photos
-            {soft > 0 && (
-              <>
-                . <Icon name="alert" className="inline size-3.5 -translate-y-px text-warn" /> {soft === 1 ? "One is" : `${soft} are`} under {LIMITS.photoSoft}px on the long side; a larger copy will look sharper.
-              </>
-            )}
+            {photos.length} of {LIMITS.photosMax} photos. Each at least {LIMITS.photoMin}px on the long side.
           </p>
         )}
         {errors.map((e) => (

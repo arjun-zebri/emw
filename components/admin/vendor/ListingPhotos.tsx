@@ -11,7 +11,7 @@ import type { EditPhoto } from "@/lib/account/listing";
 import { LIMITS } from "@/lib/apply/application";
 
 const ratioOf = (p: { width: number | null; height: number | null }) => (p.width && p.height ? p.width / p.height : 0.8);
-const isSoft = (p: { width: number | null; height: number | null }) => !!p.width && !!p.height && Math.max(p.width, p.height) < LIMITS.photoSoft;
+const isSoft = (p: { width: number | null; height: number | null }) => !!p.width && !!p.height && Math.max(p.width, p.height) < LIMITS.photoMin;
 const GAP = "gap-[clamp(0.5rem,1vw,1rem)]";
 
 type Tile = { kind: "photo"; photo: EditPhoto; index: number } | { kind: "pending"; key: string } | { kind: "add" };
@@ -211,7 +211,7 @@ export function ListingPhotos({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b hairline pb-3">
         <p className="text-[0.875rem] text-ink">
           {i === 0 ? "The cover" : `Photo ${i + 1}`}
-          {isSoft(p) && <span className="text-ink-soft"> · Under {LIMITS.photoSoft}px, so it may look soft on a large screen</span>}
+          {isSoft(p) && <span className="text-ink-soft"> · Under {LIMITS.photoMin}px, so it may look soft on a large screen</span>}
         </p>
         <div className="flex flex-wrap gap-1.5">
           <Action onClick={() => setViewing(p)} icon="eye" label="View large" />

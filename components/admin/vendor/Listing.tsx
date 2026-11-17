@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StoryEditor } from "@/components/apply/StoryEditor";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
+import { NativeName } from "@/components/ui/LanguageName";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
@@ -354,7 +355,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
               <p className="t-title mt-3 flex flex-wrap gap-x-4 text-ink-soft">
                 {tongues.map((l) => (
                   <span key={l} lang={languageNames[l].lang} title={l}>
-                    {languageNames[l].native}
+                    <NativeName name={l} />
                   </span>
                 ))}
               </p>
