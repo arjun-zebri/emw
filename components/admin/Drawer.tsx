@@ -47,6 +47,8 @@ export function Drawer({
     addEventListener("keydown", onKey);
     return () => {
       removeEventListener("keydown", onKey);
+      // Also when the page goes away with the panel still open (a link inside it), or the next page can't scroll.
+      lockScroll(false);
       prev?.focus();
     };
   }, [open]);

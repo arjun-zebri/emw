@@ -2,7 +2,6 @@
 
 import clsx from "clsx";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
@@ -12,7 +11,7 @@ import { type PlacedVendor, type Switch, usePlacement } from "@/lib/admin/placem
 import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { Drawer } from "../Drawer";
-import { Badge, Btn, Empty, PageHeader, Tabs, Toggle } from "../ui";
+import { Badge, Empty, PageHeader, Tabs, Toggle } from "../ui";
 
 type Tab = "all" | "featured" | "largeTile" | "statsOff";
 
@@ -43,7 +42,6 @@ export function Vendors() {
   const { vendors, error, toggle } = usePlacement();
   const [tab, setTab] = useState<Tab>("all");
   const [openId, setOpenId] = useState<string>();
-  const router = useRouter();
   const open = vendors?.find((v) => v.id === openId);
 
   const pinned = vendors?.filter((v) => v.featured) ?? [];
@@ -134,18 +132,20 @@ export function Vendors() {
             <div className="px-6 py-6">
               <p className="font-display text-[1.75rem] leading-[1.05] tracking-[-0.015em]">{open.name}</p>
               <p className="mt-1 text-[0.875rem] text-ink-soft">{open.discipline}</p>
-              <Btn
-                variant="primary"
-                icon="pen"
-                className="mt-5"
+              <Link
+                href={`/admin/vendors/${open.slug}`}
+                prefetch
                 onClick={() => {
-                  // Starts from what's saved now, not a copy read earlier in this visit.
+                  // Starts from what's saved now, not a copy read earlier in this visit, and closes
+                  // the sheet so it isn't still open on the way back.
                   reloadListing(open.slug);
-                  router.push(`/admin/vendors/${open.slug}`);
+                  setOpenId(undefined);
                 }}
+                className="mt-5 inline-flex h-9 items-center gap-2 bg-ink px-4 text-[0.8125rem] font-medium text-paper transition-colors duration-200 hover:bg-ink/85"
               >
+                <Icon name="pen" className="size-4" strokeWidth={1.5} />
                 Edit listing
-              </Btn>
+              </Link>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[0.875rem]">
                 <span className="text-ink">
                   <span className="tabular-nums">{open.views.toLocaleString("en-AU")}</span> page {open.views === 1 ? "view" : "views"} in the last 30 days
