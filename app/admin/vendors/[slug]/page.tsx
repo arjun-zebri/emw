@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { VendorDetail } from "@/components/admin/owner/VendorDetail";
+import { ListingSkeleton } from "@/components/admin/vendor/Listing";
+import { BackToVendors, VendorListing } from "@/components/admin/owner/VendorListing";
 
-export const metadata: Metadata = { title: "Vendor" };
+export const metadata: Metadata = { title: "Edit listing" };
 
-// Vendors added in the demo only exist in the browser, so the slug is read on the client.
+// The listing loads in the browser as the signed-in team member, so the slug is read there too.
 export default function VendorAdminPage() {
   return (
-    <Suspense>
-      <VendorDetail />
+    <Suspense
+      fallback={
+        <>
+          <BackToVendors />
+          <ListingSkeleton />
+        </>
+      }
+    >
+      <VendorListing />
     </Suspense>
   );
 }

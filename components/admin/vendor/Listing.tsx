@@ -95,13 +95,17 @@ function savedLabel(iso: string) {
 }
 
 /**
- * The vendor's own listing, edited on a copy of their page. Nothing goes live until they save: then
- * the photos, words and details are written together and the public page updates. The team can open
- * this page to see what a vendor sees, but only reads it, since the listing shown is a real one.
+ * A listing, edited on a copy of its page. Nothing goes live until it's saved: then the photos, words
+ * and details are written together and the public page updates.
+ *
+ * In /account it's the vendor's own; the team can open that page to see what a vendor sees, but only
+ * reads it. In Admin → Vendors (`slug` given) the team edits any listing, with the same editor.
  */
-export function Listing() {
+export function Listing({ slug: chosen }: { slug?: string } = {}) {
   const session = useSession();
-  const slug = useVendorSlug();
+  const own = useVendorSlug();
+  const team = !!chosen;
+  const slug = chosen ?? own;
   const { status, error, listing } = useOwnListing(slug);
   // Starts the editor again from the database, after a save or a discard.
   const [version, setVersion] = useState(0);
@@ -109,11 +113,25 @@ export function Listing() {
   if (status === "error")
     return (
       <div className="border border-ink/[0.09] bg-surface">
-        <Empty title="Couldn’t load your listing">{error}</Empty>
+        <Empty title={team ? "Couldn’t load this listing" : "Couldn’t load your listing"}>{error}</Empty>
       </div>
     );
-  if (!slug || !listing)
-    return (
+  if (!slug || !listing) return <ListingSkeleton />;
+  return (
+    <Editor
+      key={`${listing.id}-${version}`}
+      slug={slug}
+      listing={listing}
+      team={team}
+      readOnly={!team && session?.role === "team"}
+      onReset={() => setVersion((v) => v + 1)}
+    />
+  );
+}
+
+/** The editor's shape while the listing loads: the cover, then the name, words and details. */
+export function ListingSkeleton() {
+  return (
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-12" aria-busy="true">
         <Skeleton className="aspect-[4/5] w-full lg:col-span-7 lg:max-h-[calc(100svh-12rem)]" />
         <div className="lg:col-span-5">
@@ -130,11 +148,10 @@ export function Listing() {
           </div>
         </div>
       </div>
-    );
-  return <Editor key={`${listing.id}-${version}`} slug={slug} listing={listing} readOnly={session?.role === "team"} onReset={() => setVersion((v) => v + 1)} />;
+  );
 }
 
-function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: OwnListing; readOnly: boolean; onReset: () => void }) {
+function Editor({ slug, listing, team, readOnly, onReset }: { slug: string; listing: OwnListing; team: boolean; readOnly: boolean; onReset: () => void }) {
   const [base, setBase] = useState(() => valuesOf(listing));
   const [v, setV] = useState(base);
   const [photos, setPhotos] = useState<EditPhoto[]>(() => editPhotos(listing));
@@ -160,7 +177,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const set = <K extends keyof Values>(key: K, value: Values[K]) => setV((s) => ({ ...s, [key]: value }));
   const photosChanged = photos.map((p) => p.key).join() !== listing.photos.map((p) => p.id).join();
   const dirty = !readOnly && (photosChanged || JSON.stringify(v) !== JSON.stringify(base));
-  const missing = !v.name.trim() ? "Add your business name before saving." : !v.discipline.trim() ? "Choose at least one service before saving." : null;
+  const missing = !v.name.trim() ? (team ? "Add the business name before saving." : "Add your business name before saving.") : !v.discipline.trim() ? "Choose at least one service before saving." : null;
   // Links are checked before they go on the page, so a typo never becomes a broken link.
   const bad = useMemo(
     () => ({
@@ -179,7 +196,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
   const [textLength, setTextLength] = useState(() => storyLength(splitStory(base.story).map(parseBlock)));
   const textProblem =
     textLength < TEXT_MIN
-      ? `Write at least ${TEXT_MIN} characters about your work (${textLength} so far).`
+      ? `Write at least ${TEXT_MIN} characters about ${team ? "their" : "your"} work (${textLength} so far).`
       : textLength > TEXT_MAX
         ? `That’s ${(textLength - TEXT_MAX).toLocaleString("en-AU")} characters over the ${TEXT_MAX.toLocaleString("en-AU")} limit. Shorten it to save.`
         : null;
@@ -250,18 +267,18 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
     try {
       await saveListing(slug, { ...v, ...splitWords(v.story) }, photos, setSaving, (key, state) => setUploads((u) => ({ ...u, [key]: state })));
       release();
-      toast(live ? "Saved. Your page is up to date." : "Saved");
+      toast(live ? (team ? "Saved. Their page is up to date." : "Saved. Your page is up to date.") : "Saved");
       onReset();
     } catch (e) {
       setSaving(null);
       setUploads({});
       if (e instanceof SaveError && e.stale) setStale(true);
       else if (e instanceof SaveError && e.partial) {
-        toast(`Only some of your changes were saved (${e.message}). Check your listing and try again.`);
+        toast(`Only some of the changes were saved (${e.message}). Check the listing and try again.`);
         onReset();
-      } else toast(`Couldn’t save your listing: ${(e as Error).message}`);
+      } else toast(`Couldn’t save the listing: ${(e as Error).message}`);
     }
-  }, [saving, dirty, preparing, stale, missing, textProblem, firstBad, bad, newPhotos, rights, slug, v, photos, release, live, onReset]);
+  }, [saving, dirty, preparing, stale, missing, textProblem, firstBad, bad, newPhotos, rights, slug, v, photos, release, live, team, onReset]);
 
   // Leaving with unsaved changes asks first; Cmd or Ctrl + S saves.
   useEffect(() => {
@@ -302,7 +319,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
           ) : (
             <>
               <span className={clsx("size-2 rounded-full", live ? "bg-good" : "bg-ink/25")} aria-hidden />
-              <span className="text-ink">{live ? "Live on East Meets Wed" : listing.status === "draft" ? "Waiting for the team to approve" : "Hidden from the directory"}</span>
+              <span className="text-ink">{live ? "Live on East Meets Wed" : listing.status === "draft" ? (team ? "Waiting for approval" : "Waiting for the team to approve") : "Hidden from the directory"}</span>
               {live && (
                 <a
                   href={`/vendors/${listing.slug}`}
@@ -310,7 +327,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 underline decoration-ink/25 underline-offset-[0.25em] transition-colors hover:text-ink hover:decoration-ink"
                 >
-                  View your page
+                  {team ? "View their page" : "View your page"}
                   <Icon name="arrow-up-right" className="size-3.5" strokeWidth={1.5} />
                 </a>
               )}
@@ -345,7 +362,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
               maxLength={LIMITS.name}
               onChange={(e) => set("name", e.target.value.replace(/\n/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-              placeholder="Your business name"
+              placeholder={team ? "Business name" : "Your business name"}
               autoComplete="off"
               className={clsx(bare, !readOnly && inPlace, "t-display resize-none text-[clamp(2.5rem,4.4vw,4.75rem)] text-balance [field-sizing:content] placeholder:text-ink-mute/40")}
             />
@@ -372,7 +389,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                 <StoryEditor
                   inline
                   lead
-                  label="About your work"
+                  label={team ? "About their work" : "About your work"}
                   value={v.story}
                   onLength={setTextLength}
                   onChange={(story) => {
@@ -427,11 +444,13 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
             </dl>
 
             <div className="mt-6 border-t hairline pt-6 pb-2">
-              <p className="text-[0.9375rem] text-ink">Your contact details</p>
-              <p className="t-small mt-1">Private: not shown on your page. We send couples&rsquo; enquiries to this email.</p>
+              <p className="text-[0.9375rem] text-ink">{team ? "Contact details" : "Your contact details"}</p>
+              <p className="t-small mt-1">
+                {team ? "Private: not shown on their page. Couples’ enquiries go to this email." : "Private: not shown on your page. We send couples’ enquiries to this email."}
+              </p>
             </div>
             <dl>
-              <DetailRow plain label="Your name" htmlFor="le-person">
+              <DetailRow plain label={team ? "Contact person" : "Your name"} htmlFor="le-person">
                 <input id="le-person" value={v.person} maxLength={LIMITS.person} onChange={(e) => set("person", e.target.value)} placeholder={ask("Who couples will hear from, e.g. Mai Nguyen")} className={row} />
               </DetailRow>
               <DetailRow plain label="Email" htmlFor="le-email">
@@ -459,7 +478,7 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
             <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-8 lg:px-[clamp(2rem,4vw,4.5rem)]">
               {stale ? (
                 <p className="min-w-0 text-[0.9375rem] text-ink">
-                  Your listing was changed somewhere else after you opened it, so this wasn&rsquo;t saved.
+                  {team ? "This listing" : "Your listing"} was changed somewhere else after you opened it, so this wasn&rsquo;t saved.
                   <span className="hidden text-ink-soft sm:inline"> Load the latest, then make your change again.</span>
                 </p>
               ) : (
@@ -469,13 +488,15 @@ function Editor({ slug, listing, readOnly, onReset }: { slug: string; listing: O
                     {!saving && !preparing && textProblem ? (
                       <span className="text-bad">. {textProblem}</span>
                     ) : (
-                      !saving && !preparing && !newPhotos && <span className="hidden text-ink-soft sm:inline">. {live ? "They go live on your page when you save." : "Save to keep them."}</span>
+                      !saving && !preparing && !newPhotos && (
+                        <span className="hidden text-ink-soft sm:inline">. {live ? (team ? "They go live on their page when you save." : "They go live on your page when you save.") : "Save to keep them."}</span>
+                      )
                     )}
                   </p>
                   {newPhotos && !saving && (
                     <label className="mt-1 flex cursor-pointer items-start gap-2 text-[0.8125rem] text-ink-soft">
                       <input type="checkbox" checked={rights} onChange={(e) => setRights(e.target.checked)} className="mt-0.5 size-4 accent-ink" />
-                      The new photos are mine to share, or I have the photographer&rsquo;s permission.
+                      {team ? "The vendor gave us these photos to share, with the photographer’s permission." : "The new photos are mine to share, or I have the photographer’s permission."}
                     </label>
                   )}
                 </div>

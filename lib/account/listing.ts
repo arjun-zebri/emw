@@ -157,6 +157,18 @@ export function useOwnListing(slug: string | null) {
   );
 }
 
+/**
+ * Read a listing again before the team opens it, so the editor never starts from a copy that's gone
+ * out of date (a vendor's own save, or a switch the team flipped since). Only before the editor shows:
+ * an open editor keeps what it started from, and a save checks nobody changed it since.
+ */
+export function reloadListing(slug: string) {
+  const s = stores.get(slug);
+  if (!s?.started) return;
+  set(slug, { status: "loading", error: undefined, listing: undefined });
+  void load(slug);
+}
+
 const publish = () => refreshListings().catch(() => undefined);
 
 /** The saved photos, as the editor starts with them. */

@@ -2,15 +2,17 @@
 
 import clsx from "clsx";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
+import { reloadListing } from "@/lib/account/listing";
 import { plural } from "@/lib/admin/format";
 import { type PlacedVendor, type Switch, usePlacement } from "@/lib/admin/placement";
 import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { Drawer } from "../Drawer";
-import { Badge, Empty, PageHeader, Tabs, Toggle } from "../ui";
+import { Badge, Btn, Empty, PageHeader, Tabs, Toggle } from "../ui";
 
 type Tab = "all" | "featured" | "largeTile" | "statsOff";
 
@@ -36,11 +38,12 @@ const switches: { key: Switch; title: string; detail: string; needsPhoto?: true 
   },
 ];
 
-/** Every published vendor as its photo, with the team's switches for it in a sheet. */
+/** Every published vendor as its photo, with the team's switches and a way into their listing in a sheet. */
 export function Vendors() {
   const { vendors, error, toggle } = usePlacement();
   const [tab, setTab] = useState<Tab>("all");
   const [openId, setOpenId] = useState<string>();
+  const router = useRouter();
   const open = vendors?.find((v) => v.id === openId);
 
   const pinned = vendors?.filter((v) => v.featured) ?? [];
@@ -131,6 +134,18 @@ export function Vendors() {
             <div className="px-6 py-6">
               <p className="font-display text-[1.75rem] leading-[1.05] tracking-[-0.015em]">{open.name}</p>
               <p className="mt-1 text-[0.875rem] text-ink-soft">{open.discipline}</p>
+              <Btn
+                variant="primary"
+                icon="pen"
+                className="mt-5"
+                onClick={() => {
+                  // Starts from what's saved now, not a copy read earlier in this visit.
+                  reloadListing(open.slug);
+                  router.push(`/admin/vendors/${open.slug}`);
+                }}
+              >
+                Edit listing
+              </Btn>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[0.875rem]">
                 <span className="text-ink">
                   <span className="tabular-nums">{open.views.toLocaleString("en-AU")}</span> page {open.views === 1 ? "view" : "views"} in the last 30 days
