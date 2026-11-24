@@ -166,7 +166,9 @@ export function Vendors() {
               <p className="mt-1 text-[0.875rem] text-ink-soft">{sheet.discipline}</p>
               <Link
                 href={`/admin/vendors/${sheet.slug}`}
-                prefetch
+                // No prefetch={true}: that renders each vendor's page on the server ahead, seconds for one not
+                // opened lately, and a click waits on it. The page reads the listing in the browser, so the
+                // shared shell every link loads by default opens it at once.
                 onClick={() => {
                   // Starts from what's saved now, not a copy read earlier in this visit, and closes
                   // the sheet so it isn't still open on the way back.
