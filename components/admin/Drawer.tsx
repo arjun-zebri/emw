@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Portal } from "@/components/ui/Portal";
 import { lockScroll } from "@/lib/lenis";
@@ -37,6 +37,13 @@ export function Drawer({
     close.current = onClose;
   });
 
+  // Pages stay alive, hidden, after they're left (<Activity>). A sheet that was sliding away when its
+  // page was hidden can be left half-gone and impossible to close; starting the sheet afresh when its
+  // page shows again (effects run again then) clears it.
+  const [shown, setShown] = useState(0);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- runs each time the page is shown again, which is the point
+  useEffect(() => setShown((n) => n + 1), []);
+
   useEffect(() => {
     lockScroll(open);
     if (!open) return;
@@ -55,7 +62,7 @@ export function Drawer({
 
   return (
     <Portal>
-      <AnimatePresence>
+      <AnimatePresence key={shown}>
         {open && (
           <div className="fixed inset-0 z-[70]">
             <motion.div

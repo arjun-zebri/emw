@@ -134,7 +134,8 @@ export function Vendors() {
                   <span className="absolute top-2 left-2 flex flex-wrap gap-1">
                     {v.hidden && <Badge tone="ink">Hidden</Badge>}
                     {v.changes && (
-                      <Badge tone="warn" className="bg-surface/95">
+                      // Solid, so it reads on any photo.
+                      <Badge tone="warn" className="bg-surface!">
                         Changed
                       </Badge>
                     )}

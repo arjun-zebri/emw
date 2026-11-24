@@ -733,7 +733,7 @@ function DraftActions({ row, draft, busy, onApprove, onDecline }: { row: QueueRo
       </p>
       {draft && <HomePin draft={draft} />}
       {draft && <LargeTile draft={draft} />}
-      <Btn href={edit} icon="pen" onClick={() => reloadListing(row.slug)}>
+      <Btn href={edit} prefetch icon="pen" onClick={() => reloadListing(row.slug)}>
         Edit
       </Btn>
       <Btn onClick={() => setDeclining(true)} disabled={busy}>

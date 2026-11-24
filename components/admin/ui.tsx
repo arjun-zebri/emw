@@ -209,6 +209,7 @@ export function Btn({
   icon,
   href,
   external,
+  prefetch,
   className,
   children,
   ...props
@@ -218,6 +219,8 @@ export function Btn({
   icon?: IconName;
   href?: string;
   external?: boolean;
+  /** Load the page ahead, so it opens the moment it's clicked. */
+  prefetch?: boolean;
   className?: string;
   children?: React.ReactNode;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children">) {
@@ -240,7 +243,7 @@ export function Btn({
         {content}
       </a>
     ) : (
-      <Link href={href} className={cls} onClick={props.onClick as React.MouseEventHandler<HTMLAnchorElement> | undefined}>
+      <Link href={href} prefetch={prefetch} className={cls} onClick={props.onClick as React.MouseEventHandler<HTMLAnchorElement> | undefined}>
         {content}
       </Link>
     );

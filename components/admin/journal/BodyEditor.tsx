@@ -609,8 +609,20 @@ export function BodyEditor({
   const placeMoved = (row: string, index: number, photo: Photo, to: MoveTarget) => {
     const el = root.current;
     if (!el) return;
+    const source = body.find((b): b is ImgBlock => b.id === row && b.type === "img");
+    // A row the move leaves empty goes, even one that began as a box to fill.
+    const emptied = () => {
+      if (source?.images.length !== 1 || (to.kind === "photo" && to.row === row)) return;
+      setHolders((h) => {
+        if (!h.has(row)) return h;
+        const next = new Set(h);
+        next.delete(row);
+        return next;
+      });
+    };
     if (to.kind === "photo") {
       if (to.row === row && (to.index === index || to.index === index + 1)) return;
+      emptied();
       setBody((bs) => {
         const out = bs.map((b) => (b.id === row && b.type === "img" ? { ...b, images: b.images.filter((_, j) => j !== index) } : b));
         const at = to.row === row && to.index > index ? to.index - 1 : to.index;
@@ -624,7 +636,6 @@ export function BodyEditor({
       return;
     }
     // Already alone in its row and dropped right beside itself: nothing to do.
-    const source = body.find((b): b is ImgBlock => b.id === row && b.type === "img");
     const fig = el.querySelector<HTMLElement>(`:scope > figure[data-photos="${row}"]`);
     if (source?.images.length === 1 && to.node && fig && (to.node === fig || (to.before ? to.node.previousElementSibling === fig : to.node.nextElementSibling === fig))) return;
     const id = blockId();
@@ -636,6 +647,7 @@ export function BodyEditor({
     else if (anchor) anchor.after(made);
     else el.append(made);
     seen.current.set(id, { id, type: "img", images: [photo], caption: "" });
+    emptied();
     emit();
     setBody((bs) => bs.map((b) => (b.id === row && b.type === "img" ? { ...b, images: b.images.filter((_, j) => j !== index) } : b)));
   };
@@ -867,7 +879,7 @@ export function BodyEditor({
             <img
               src={photoUrl(moving.photo.src)}
               alt=""
-              className="absolute w-28 -translate-x-1/2 -translate-y-1/2 shadow-[0_18px_40px_-12px_rgb(22_20_18/0.45)] ring-1 ring-paper"
+              className="absolute w-28 -translate-x-1/2 -translate-y-1/2 bg-paper-soft object-cover shadow-[0_18px_40px_-12px_rgb(22_20_18/0.45)] ring-1 ring-paper"
               style={{ left: moving.x, top: moving.y, aspectRatio: ratioOf(moving.photo) ?? 3 / 2 }}
             />
             {moving.bar && <span className="absolute w-0.5 bg-ink" style={{ left: moving.bar.x, top: moving.bar.y, height: moving.bar.h }} />}
