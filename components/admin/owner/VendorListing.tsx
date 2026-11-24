@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { refreshDraft } from "@/lib/admin/drafts";
 import { Listing } from "../vendor/Listing";
@@ -30,11 +30,23 @@ function useFrom() {
   return from?.startsWith("/admin/approvals") ? from : undefined;
 }
 
+/**
+ * The editor always opens at its top. Coming from far down the vendor grid, the browser otherwise
+ * keeps whatever of the old scroll fits the shorter loading outline, leaving the top under the bar.
+ */
+function OpenAtTop() {
+  useLayoutEffect(() => scrollTo(0, 0), []);
+  return null;
+}
+
 export function BackToVendors({ from }: { from?: string }) {
   return (
-    <Link href={from ?? "/admin/vendors"} className="t-small mb-5 inline-flex items-center gap-1.5 text-ink-mute transition-colors hover:text-ink">
-      <Icon name="chevron-left" className="size-3.5" strokeWidth={1.5} />
-      {from ? "Approvals" : "Vendors"}
-    </Link>
+    <>
+      <OpenAtTop />
+      <Link href={from ?? "/admin/vendors"} className="t-small mb-5 inline-flex items-center gap-1.5 text-ink-mute transition-colors hover:text-ink">
+        <Icon name="chevron-left" className="size-3.5" strokeWidth={1.5} />
+        {from ? "Approvals" : "Vendors"}
+      </Link>
+    </>
   );
 }
