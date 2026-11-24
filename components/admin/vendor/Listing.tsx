@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StoryEditor } from "@/components/apply/StoryEditor";
 import { Icon } from "@/components/icons/Icon";
@@ -13,6 +14,7 @@ import { Story } from "@/components/vendor/Story";
 import { areaOptions as allAreas, languages as languageNames, serviceLabels, serviceOptions } from "@/data/taxonomy";
 import type { Language, Service } from "@/data/types";
 import { editPhotos, LINE_MAX, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
+import { approveDraft, draftMissing, MissingError, missingLabels, reopen, type Missing } from "@/lib/admin/drafts";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
 import { isEmail, isWebsite, LIMITS, socialUrl } from "@/lib/apply/application";
@@ -22,7 +24,7 @@ import { DetailRow, bare } from "../shared/DetailRow";
 import { Dropdown } from "../shared/Dropdown";
 import { emptyVendor } from "../shared/VendorForm";
 import { VendorPreview } from "../shared/VendorPreview";
-import { Empty } from "../ui";
+import { Btn, Empty } from "../ui";
 import { ListingPhotos } from "./ListingPhotos";
 
 /**
@@ -99,9 +101,10 @@ function savedLabel(iso: string) {
  * and details are written together and the public page updates.
  *
  * In /account it's the vendor's own; the team can open that page to see what a vendor sees, but only
- * reads it. In Admin → Vendors (`slug` given) the team edits any listing, with the same editor.
+ * reads it. In Admin → Vendors (`slug` given) the team edits any listing, with the same editor, and
+ * can approve a draft from it (`approvedTo`: where to go once it's live).
  */
-export function Listing({ slug: chosen }: { slug?: string } = {}) {
+export function Listing({ slug: chosen, approvedTo }: { slug?: string; approvedTo?: string } = {}) {
   const session = useSession();
   const own = useVendorSlug();
   const team = !!chosen;
@@ -124,6 +127,7 @@ export function Listing({ slug: chosen }: { slug?: string } = {}) {
       listing={listing}
       team={team}
       readOnly={!team && session?.role === "team"}
+      approvedTo={team ? approvedTo : undefined}
       onReset={() => setVersion((v) => v + 1)}
     />
   );
@@ -151,7 +155,21 @@ export function ListingSkeleton() {
   );
 }
 
-function Editor({ slug, listing, team, readOnly, onReset }: { slug: string; listing: OwnListing; team: boolean; readOnly: boolean; onReset: () => void }) {
+function Editor({
+  slug,
+  listing,
+  team,
+  readOnly,
+  approvedTo,
+  onReset,
+}: {
+  slug: string;
+  listing: OwnListing;
+  team: boolean;
+  readOnly: boolean;
+  approvedTo?: string;
+  onReset: () => void;
+}) {
   const [base, setBase] = useState(() => valuesOf(listing));
   const [v, setV] = useState(base);
   const [photos, setPhotos] = useState<EditPhoto[]>(() => editPhotos(listing));
@@ -241,34 +259,36 @@ function Editor({ slug, listing, team, readOnly, onReset }: { slug: string; list
 
   const release = useCallback(() => photos.forEach((p) => p.upload && URL.revokeObjectURL(p.src)), [photos]);
 
-  const save = useCallback(async () => {
-    if (saving || !dirty || preparing || stale) return;
+  /** Save what's changed. Resolves true once it's all written; `quiet` leaves the "Saved" note out. */
+  const save = useCallback(async (quiet = false): Promise<boolean> => {
+    if (saving || !dirty || preparing || stale) return false;
     setTried(true);
     if (missing) {
       document.getElementById(!v.name.trim() ? "le-name" : "le-services")?.focus();
       toast(missing);
-      return;
+      return false;
     }
     if (textProblem) {
       document.querySelector<HTMLElement>("[contenteditable=true]")?.focus();
       toast(textProblem);
-      return;
+      return false;
     }
     if (firstBad) {
       document.getElementById(`le-${firstBad === "website" ? "web" : firstBad === "instagram" ? "ig" : firstBad === "facebook" ? "fb" : "email"}`)?.focus();
       toast(bad[firstBad]!);
-      return;
+      return false;
     }
     if (newPhotos && !rights) {
       toast("Confirm the new photos are yours to share, then save.");
-      return;
+      return false;
     }
     setSaving("Saving");
     try {
       await saveListing(slug, { ...v, ...splitWords(v.story) }, photos, setSaving, (key, state) => setUploads((u) => ({ ...u, [key]: state })));
       release();
-      toast(live ? (team ? "Saved. Their page is up to date." : "Saved. Your page is up to date.") : "Saved");
+      if (!quiet) toast(live ? (team ? "Saved. Their page is up to date." : "Saved. Your page is up to date.") : "Saved");
       onReset();
+      return true;
     } catch (e) {
       setSaving(null);
       setUploads({});
@@ -277,8 +297,47 @@ function Editor({ slug, listing, team, readOnly, onReset }: { slug: string; list
         toast(`Only some of the changes were saved (${e.message}). Check the listing and try again.`);
         onReset();
       } else toast(`Couldn’t save the listing: ${(e as Error).message}`);
+      return false;
     }
   }, [saving, dirty, preparing, stale, missing, textProblem, firstBad, bad, newPhotos, rights, slug, v, photos, release, live, team, onReset]);
+
+  // ── Approving a draft (the team, opened from Approvals) ──
+  const router = useRouter();
+  const approvable = !!approvedTo && listing.status === "draft";
+  // What the database says is still missing, read when the editor opens and again after each save
+  // (a save starts the editor afresh). Undefined while it's being read.
+  const [lacking, setLacking] = useState<Missing[] | null>();
+  useEffect(() => {
+    if (!approvable) return;
+    let live = true;
+    draftMissing(listing.id).then(
+      (m) => live && setLacking(m),
+      () => live && setLacking(null),
+    );
+    return () => {
+      live = false;
+    };
+  }, [approvable, listing.id]);
+  const [approving, setApproving] = useState(false);
+  // Unsaved changes are saved first, then what was saved is what goes live: never the copy from before.
+  const approve = async () => {
+    if (!approvedTo || approving || saving) return;
+    setApproving(true);
+    if (dirty && !(await save(true))) return setApproving(false);
+    try {
+      const row = await approveDraft(listing.id);
+      toast(`${row.name} approved`, {
+        label: "Undo",
+        run: () => void reopen(row.id).catch((e: Error) => toast(`Couldn’t undo that: ${e.message}`)),
+      });
+      router.push(approvedTo);
+    } catch (e) {
+      setApproving(false);
+      const what = dirty ? "Saved, but it" : "It";
+      toast(e instanceof MissingError ? `${what} can’t be published yet: ${e.message}.` : `${what} couldn’t be approved: ${(e as Error).message}`);
+    }
+  };
+  const blocked = !dirty && !!lacking?.length;
 
   // Leaving with unsaved changes asks first; Cmd or Ctrl + S saves.
   useEffect(() => {
@@ -340,6 +399,14 @@ function Editor({ slug, listing, team, readOnly, onReset }: { slug: string; list
           <button type="button" onClick={() => setPreviewing(true)} className="t-nav inline-flex h-9 items-center border border-ink/20 px-4 text-ink transition-colors hover:border-ink">
             Preview
           </button>
+          {approvable && (
+            <>
+              {blocked && <span className="text-warn">Can&rsquo;t be published yet: {lacking!.map((m) => missingLabels[m].toLowerCase()).join(", ")}</span>}
+              <Btn variant="primary" icon="check" onClick={() => void approve()} disabled={approving || !!saving || stale || blocked || lacking === undefined}>
+                {approving ? "Approving" : dirty ? "Save and approve" : "Approve and publish"}
+              </Btn>
+            </>
+          )}
         </div>
       </div>
 

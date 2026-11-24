@@ -13,7 +13,11 @@ export function isTopLayer(el: HTMLElement | null) {
   return !!el && modals[modals.length - 1] === el;
 }
 
-/** A slide-over panel from the right, the same motion as the public site's filters and enquiry form. */
+/**
+ * A slide-over panel from the right, the same motion as the public site's filters and enquiry form.
+ * `inPage`: it fills the page instead of covering the whole screen, under the top bar and beside the
+ * sidebar, which both stay in reach (search, notifications, the other pages). For the team's admin only.
+ */
 export function Drawer({
   open,
   onClose,
@@ -21,6 +25,7 @@ export function Drawer({
   children,
   footer,
   width = "max-w-xl",
+  inPage = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,6 +33,7 @@ export function Drawer({
   children: React.ReactNode;
   footer?: React.ReactNode;
   width?: string;
+  inPage?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   // The latest onClose, so a parent passing a new function each render doesn't re-run the effect
@@ -64,7 +70,9 @@ export function Drawer({
     <Portal>
       <AnimatePresence key={shown}>
         {open && (
-          <div className="fixed inset-0 z-[70]">
+          // In the page: below the bar (4rem and its hairline) and the sidebar (15rem, large screens), and
+          // under both, so the bar's notifications open over it.
+          <div className={inPage ? "fixed inset-x-0 top-[calc(4rem+1px)] bottom-0 z-[15] lg:left-[15rem]" : "fixed inset-0 z-[70]"}>
             <motion.div
               className="absolute inset-0 bg-night/25"
               onClick={onClose}

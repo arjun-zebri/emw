@@ -64,7 +64,7 @@ export function routeOf(path: string) {
   return p
     .replace(/^\/vendors\/[^/]+$/, "/vendors/[slug]")
     .replace(/^\/(blog|journal)\/[^/]+$/, "/$1/[slug]")
-    .replace(/^\/admin\/vendors\/(?!new$)[^/]+$/, "/admin/vendors/[slug]")
+    .replace(/^\/admin\/vendors\/(?!new$|edit$)[^/]+$/, "/admin/vendors/[slug]")
     .replace(/^\/admin\/journal\/[^/]+$/, "/admin/journal/[id]")
     .slice(0, 120);
 }

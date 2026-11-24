@@ -45,3 +45,10 @@ export function activeHref(groups: NavGroup[], pathname: string) {
   const all = groups.flatMap((g) => g.items.map((i) => i.href));
   return all.filter((h) => pathname === h || pathname.startsWith(`${h}/`)).sort((a, b) => b.length - a.length)[0];
 }
+
+/** The team's listing editor for a vendor; `from` is the Approvals view to go back to, for a draft. */
+export function editHref(slug: string, from?: string) {
+  const q = new URLSearchParams({ slug });
+  if (from) q.set("from", from);
+  return `/admin/vendors/edit?${q}`;
+}

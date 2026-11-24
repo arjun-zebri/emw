@@ -1,22 +1,16 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ListingSkeleton } from "@/components/admin/vendor/Listing";
-import { BackToVendors, VendorListing } from "@/components/admin/owner/VendorListing";
+import { BackToVendors, OldVendorLink } from "@/components/admin/owner/VendorListing";
 
-export const metadata: Metadata = { title: "Edit listing" };
-
-// The listing loads in the browser as the signed-in team member, so the slug is read there too.
-export default function VendorAdminPage() {
+// The editor's old address, kept so a saved link still opens it.
+export default function OldVendorAdminPage() {
   return (
-    <Suspense
-      fallback={
-        <>
-          <BackToVendors />
-          <ListingSkeleton />
-        </>
-      }
-    >
-      <VendorListing />
-    </Suspense>
+    <>
+      <BackToVendors />
+      <ListingSkeleton />
+      <Suspense>
+        <OldVendorLink />
+      </Suspense>
+    </>
   );
 }

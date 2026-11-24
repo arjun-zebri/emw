@@ -41,6 +41,7 @@ import { getVendor } from "@/lib/static-vendors";
 import type { VendorFormValues } from "../shared/VendorForm";
 import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
+import { editHref } from "../nav";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, Toggle, inputCls } from "../ui";
 import { LanguageName } from "@/components/ui/LanguageName";
 
@@ -319,13 +320,14 @@ export function Approvals() {
         </section>
       )}
 
-      {/* A business opens in a wide panel over the list: one scrollbar at a time, and the list stays where it was. */}
+      {/* A business opens in a panel over the list, filling the page under the top bar: one scrollbar at a time, and the list stays where it was. */}
       {onQueue && (
         <Drawer
           open={!!row}
           onClose={() => go({ item: null })}
           footer={row && <DraftActions key={row.id} row={row} draft={draft} busy={busy} onApprove={() => void decideRow(row, "approved")} onDecline={(note) => void decideRow(row, "declined", note)} />}
-          width="max-w-[min(96rem,calc(100vw-3rem))]"
+          width="max-w-none"
+          inPage
           title={
             row && (
               <span className="flex items-center gap-4">
@@ -703,7 +705,7 @@ function DraftActions({ row, draft, busy, onApprove, onDecline }: { row: QueueRo
   const params = useSearchParams();
   const blocked = row.missing.length > 0;
   // A typo or a missing detail is fixed in the listing editor, then it's back here to approve.
-  const edit = `/admin/vendors/${row.slug}?from=${encodeURIComponent(`/admin/approvals?${params}`)}`;
+  const edit = editHref(row.slug, `/admin/approvals?${params}`);
 
   if (declining) {
     return (
@@ -1107,7 +1109,7 @@ function SubmissionDetail({ s }: { s: Submission }) {
             "Vendors credited",
             <span key="v" className="flex flex-wrap gap-x-3 gap-y-1">
               {s.vendors.map((slug) => (
-                <Link key={slug} href={`/admin/vendors/${slug}`} className="link-line">
+                <Link key={slug} href={editHref(slug)} className="link-line">
                   {vendorName(slug)}
                 </Link>
               ))}
@@ -1136,7 +1138,7 @@ function ReviewDetail({ r }: { r: Review }) {
           ["Wedding", day(r.weddingDate, { year: true })],
           [
             "For",
-            <Link key="v" href={`/admin/vendors/${r.vendor}`} className="flex items-center gap-2">
+            <Link key="v" href={editHref(r.vendor)} className="flex items-center gap-2">
               <Avatar name={v?.name ?? r.vendor} src={v?.cover} size={22} />
               <span className="link-line">{vendorName(r.vendor)}</span>
             </Link>,

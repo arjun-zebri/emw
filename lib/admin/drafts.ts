@@ -297,6 +297,37 @@ export async function decide(row: QueueRow, verdict: "approved" | "declined", no
   void loadDecisions();
 }
 
+/**
+ * What a draft still lacks before it can go live, as the database sees it now (after a save, too).
+ * Null when it isn't waiting for approval.
+ */
+export async function draftMissing(id: string): Promise<Missing[] | null> {
+  const { data, error } = await db().from("vendor_queue").select("missing").eq("id", id).eq("status", "draft").maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? (data.missing as Missing[]) : null;
+}
+
+/** A draft that can't be approved yet: what's missing, in words for the team. */
+export class MissingError extends Error {
+  constructor(readonly missing: Missing[]) {
+    super(missing.map((m) => missingLabels[m].toLowerCase()).join(", "));
+  }
+}
+
+/**
+ * Approve a draft from the listing editor. Reads it again first, so what's checked is what was just
+ * saved: anything still missing refuses, as the Approve button in the queue does.
+ */
+export async function approveDraft(id: string) {
+  const { data, error } = await db().from("vendor_queue").select(ROW).eq("id", id).eq("status", "draft").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("it isn’t waiting for approval any more");
+  const row = toRow(data);
+  if (row.missing.length) throw new MissingError(row.missing);
+  await decide(row, "approved");
+  return row;
+}
+
 /** Undo a decision: the vendor goes back in the queue as a draft. */
 export async function reopen(vendorId: string) {
   await rpc(vendorId, "reopened");

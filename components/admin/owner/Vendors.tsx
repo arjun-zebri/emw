@@ -11,6 +11,7 @@ import { changeLabels, type PlacedVendor, type Switch, usePlacement } from "@/li
 import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { Drawer } from "../Drawer";
+import { editHref } from "../nav";
 import { Badge, Btn, Empty, PageHeader, Tabs, Toggle } from "../ui";
 
 type Tab = "all" | "changed" | "featured" | "largeTile" | "statsOff" | "hidden";
@@ -165,10 +166,7 @@ export function Vendors() {
               <p className="font-display text-[1.75rem] leading-[1.05] tracking-[-0.015em]">{sheet.name}</p>
               <p className="mt-1 text-[0.875rem] text-ink-soft">{sheet.discipline}</p>
               <Link
-                href={`/admin/vendors/${sheet.slug}`}
-                // No prefetch={true}: that renders each vendor's page on the server ahead, seconds for one not
-                // opened lately, and a click waits on it. The page reads the listing in the browser, so the
-                // shared shell every link loads by default opens it at once.
+                href={editHref(sheet.slug)}
                 onClick={() => {
                   // Starts from what's saved now, not a copy read earlier in this visit, and closes
                   // the sheet so it isn't still open on the way back.
