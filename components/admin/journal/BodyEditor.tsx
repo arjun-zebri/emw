@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Portal } from "@/components/ui/Portal";
-import { type Block, blockId, PHOTOS_PER_ROW, photoUrl, ratioOf, type Run, runsText, safeHref } from "@/lib/journal/blocks";
+import { type Block, blockId, type Photo, PHOTOS_PER_ROW, photoUrl, ratioOf, type Run, runsText, safeHref } from "@/lib/journal/blocks";
 import type { PhotoTarget } from "./ops";
 
 /*
@@ -24,6 +24,9 @@ import type { PhotoTarget } from "./ops";
  */
 
 type ImgBlock = Extract<Block, { type: "img" }>;
+type MoveTarget =
+  | { kind: "photo"; row: string; index: number; bar: { x: number; y: number; h: number } }
+  | { kind: "line"; node: HTMLElement | null; before: boolean; y: number };
 export type Kind = "p" | "h2" | "h3" | "ul" | "ol";
 
 export type BodyHandle = { focus: (at: "start" | "end") => void };
@@ -380,6 +383,7 @@ export function BodyEditor({
   const [slash, setSlash] = useState<Slash | null>(null);
   const slashOpening = useRef(false);
   const [drop, setDrop] = useState<{ node: HTMLElement | null; before: boolean; y: number } | null>(null);
+  const [moving, setMoving] = useState<{ photo: Photo; x: number; y: number; bar?: { x: number; y: number; h: number } } | null>(null);
 
   const syncFigures = useCallback(() => {
     const nodes = [...(root.current?.querySelectorAll<HTMLElement>(":scope > figure[data-photos]") ?? [])];
@@ -550,6 +554,91 @@ export function BodyEditor({
   };
 
   const updateRow = (id: string, fn: (b: ImgBlock) => ImgBlock) => setBody((bs) => bs.map((b) => (b.id === id && b.type === "img" ? fn(b) : b)));
+
+  // ── Moving a photo ────────────────────────────────────────────────────
+
+  /**
+   * Drag a photo by itself: onto another photo to sit beside it (in its row, or another with room),
+   * or between paragraphs to become a row of its own there. A row left empty leaves the page.
+   */
+  const startMove = (row: string, index: number, e: React.PointerEvent) => {
+    if (e.button !== 0 || e.pointerType === "touch" || (e.target as HTMLElement).closest("button")) return;
+    const block = body.find((b): b is ImgBlock => b.id === row && b.type === "img");
+    const photo = block?.images[index];
+    const el = root.current;
+    if (!photo || !el) return;
+    e.preventDefault();
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    let started = false;
+    let over: MoveTarget | null = null;
+
+    const targetAt = (x: number, y: number): MoveTarget | null => {
+      const hit = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-photo]");
+      if (hit && el.contains(hit)) {
+        const to = hit.dataset.row!;
+        const target = body.find((b): b is ImgBlock => b.id === to && b.type === "img");
+        if (to !== row && (target?.images.length ?? PHOTOS_PER_ROW) >= PHOTOS_PER_ROW) return null;
+        const r = hit.getBoundingClientRect();
+        const after = x > r.left + r.width / 2;
+        return { kind: "photo", row: to, index: Number(hit.dataset.index) + (after ? 1 : 0), bar: { x: after ? r.right + 5 : r.left - 7, y: r.top, h: r.height } };
+      }
+      const box = el.getBoundingClientRect();
+      if (x < box.left - 40 || x > box.right + 40 || y < box.top - 40 || y > box.bottom + 40) return null;
+      const at = dropTarget(y);
+      return { kind: "line", node: at.node, before: at.before, y: at.y };
+    };
+
+    const move = (ev: PointerEvent) => {
+      if (!started && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+      started = true;
+      over = targetAt(ev.clientX, ev.clientY);
+      setDrop(over?.kind === "line" ? { node: over.node, before: over.before, y: over.y } : null);
+      setMoving({ photo, x: ev.clientX, y: ev.clientY, bar: over?.kind === "photo" ? over.bar : undefined });
+    };
+    const up = () => {
+      removeEventListener("pointermove", move);
+      setMoving(null);
+      setDrop(null);
+      if (started && over) placeMoved(row, index, photo, over);
+    };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up, { once: true });
+  };
+
+  const placeMoved = (row: string, index: number, photo: Photo, to: MoveTarget) => {
+    const el = root.current;
+    if (!el) return;
+    if (to.kind === "photo") {
+      if (to.row === row && (to.index === index || to.index === index + 1)) return;
+      setBody((bs) => {
+        const out = bs.map((b) => (b.id === row && b.type === "img" ? { ...b, images: b.images.filter((_, j) => j !== index) } : b));
+        const at = to.row === row && to.index > index ? to.index - 1 : to.index;
+        return out.map((b) => {
+          if (b.id !== to.row || b.type !== "img") return b;
+          const images = [...b.images];
+          images.splice(at, 0, photo);
+          return { ...b, images };
+        });
+      });
+      return;
+    }
+    // Already alone in its row and dropped right beside itself: nothing to do.
+    const source = body.find((b): b is ImgBlock => b.id === row && b.type === "img");
+    const fig = el.querySelector<HTMLElement>(`:scope > figure[data-photos="${row}"]`);
+    if (source?.images.length === 1 && to.node && fig && (to.node === fig || (to.before ? to.node.previousElementSibling === fig : to.node.nextElementSibling === fig))) return;
+    const id = blockId();
+    const tpl = document.createElement("template");
+    tpl.innerHTML = figureHtml(id);
+    const made = tpl.content.firstElementChild as HTMLElement;
+    const anchor = to.node && to.node.parentNode === el ? to.node : null;
+    if (anchor && to.before) anchor.before(made);
+    else if (anchor) anchor.after(made);
+    else el.append(made);
+    seen.current.set(id, { id, type: "img", images: [photo], caption: "" });
+    emit();
+    setBody((bs) => bs.map((b) => (b.id === row && b.type === "img" ? { ...b, images: b.images.filter((_, j) => j !== index) } : b)));
+  };
 
   // ── The "/" menu ──────────────────────────────────────────────────────
 
@@ -729,9 +818,11 @@ export function BodyEditor({
         onBlur={() => setSlash(null)}
         className={clsx(
           "t-body min-h-[40vh] text-[1.0625rem] leading-[1.8] whitespace-pre-wrap outline-none [overflow-wrap:anywhere]",
-          // Set as the article sets it, but flush with the cover: a column of text, headings in Boska, photos wider.
-          "[&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:w-full [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:max-w-[42rem]",
+          // Set as the article sets it: a centred column of text, photos wider and centred on it.
+          "[&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:mx-auto [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:w-full [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:max-w-[42rem]",
           "[&>*+*]:mt-4 [&>:is(h1,h2)]:mt-12 [&>:is(h3,h4,h5,h6)]:mt-10 [&>:is(h1,h2,h3,h4,h5,h6)+*]:mt-4 [&>figure]:my-12 [&>:first-child]:mt-0",
+          // Rows of photos one after another sit together as one slab, a caption giving a little more room.
+          "[&>figure:has(+figure)]:mb-0 [&>figure+figure]:mt-3 [&>figure:has(input)+figure]:mt-8",
           // The article's HEADING_2 and HEADING_3, written out so Tailwind sees them.
           "[&>:is(h1,h2,h3,h4,h5,h6)]:text-ink [&>:is(h1,h2)]:t-heading [&>:is(h1,h2)]:text-[clamp(1.625rem,2.2vw,2.125rem)] [&>:is(h1,h2)]:text-balance",
           "[&>:is(h3,h4,h5,h6)]:t-title [&>:is(h3,h4,h5,h6)]:text-[clamp(1.25rem,1.6vw,1.5rem)] [&>:is(h3,h4,h5,h6)]:text-balance",
@@ -757,14 +848,32 @@ export function BodyEditor({
             block={b ?? { id: f.id, type: "img", images: [], caption: "" }}
             uploading={uploading}
             waiting={!b?.images.length}
+            moving={moving?.photo.src}
             onChange={(fn) => updateRow(f.id, fn)}
             onAdd={(files) => void onFiles(files, { kind: "row", blockId: f.id })}
             onReplace={(index, files) => void onFiles(files.slice(0, 1), { kind: "replace", blockId: f.id, index })}
+            onMoveStart={(index, e) => startMove(f.id, index, e)}
           />,
           f.node,
           f.id,
         );
       })}
+
+      {moving && (
+        <Portal>
+          {/* The photo under the pointer, and where it would go. */}
+          <div aria-hidden className="pointer-events-none fixed inset-0 z-[95] cursor-grabbing">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a small copy of a photo already on the page */}
+            <img
+              src={photoUrl(moving.photo.src)}
+              alt=""
+              className="absolute w-28 -translate-x-1/2 -translate-y-1/2 shadow-[0_18px_40px_-12px_rgb(22_20_18/0.45)] ring-1 ring-paper"
+              style={{ left: moving.x, top: moving.y, aspectRatio: ratioOf(moving.photo) ?? 3 / 2 }}
+            />
+            {moving.bar && <span className="absolute w-0.5 bg-ink" style={{ left: moving.bar.x, top: moving.bar.y, height: moving.bar.h }} />}
+          </div>
+        </Portal>
+      )}
 
       <Portal>
         <AnimatePresence>
@@ -848,34 +957,49 @@ function PhotoPlaceholder({ busy, onFiles, onRemove }: { busy: boolean; onFiles:
 
 // ── A row of photos ─────────────────────────────────────────────────────
 
+/** How wide a row comes out, as the article sets it: the full measure, unless its height holds it narrower. */
+function rowWidth(ratios: number[], height: number | undefined) {
+  const sum = ratios.reduce((a, b) => a + b, 0);
+  if (ratios.length > 1) return height ? `min(100%, ${height * sum + GAP * (ratios.length - 1)}px)` : "100%";
+  return `min(100%, calc(${height ? `min(80vh, ${height}px)` : "80vh"} * ${ratios[0] ?? 3 / 2}))`;
+}
+
 function PhotoRow({
   block,
   uploading,
   waiting,
+  moving,
   onChange,
   onAdd,
   onReplace,
+  onMoveStart,
 }: {
   block: ImgBlock;
   uploading: Set<string>;
   /** Made a moment ago; its photos are still being read. */
   waiting: boolean;
+  /** The photo being dragged somewhere else, by its src. */
+  moving?: string;
   onChange: (fn: (b: ImgBlock) => ImgBlock) => void;
   onAdd: (files: File[]) => void;
   onReplace: (index: number, files: File[]) => void;
+  onMoveStart: (index: number, e: React.PointerEvent) => void;
 }) {
   const many = block.images.length > 1;
   const room = block.images.length < PHOTOS_PER_ROW;
   const strip = useRef<HTMLDivElement>(null);
   // The height while the bottom edge is being dragged; saved to the block when let go.
   const [dragged, setDragged] = useState<number | null>(null);
+  // The caption line shows once it has words, or once "Caption" is chosen, so rows of photos can sit together as one slab.
+  const [captioning, setCaptioning] = useState(false);
   const height = dragged ?? block.height;
   const ratios = block.images.map((p) => ratioOf(p) ?? 3 / 2);
   const sum = ratios.reduce((a, b) => a + b, 0);
+  const w = rowWidth(ratios, height ?? undefined);
 
   const resize = (e: React.PointerEvent) => {
     const el = strip.current;
-    const room = el?.parentElement?.getBoundingClientRect().width;
+    const room = el?.closest("figure")?.getBoundingClientRect().width;
     if (!el || !room) return;
     e.preventDefault();
     e.stopPropagation();
@@ -911,30 +1035,42 @@ function PhotoRow({
     );
   }
 
+  const showCaption = captioning || !!block.caption;
   return (
-    <div className="group/row w-full select-none">
-      <div
-        ref={strip}
-        className="relative flex gap-3 max-sm:w-full! max-sm:flex-col"
-        style={many && height ? { width: `min(100%, ${height * sum + GAP * (block.images.length - 1)}px)` } : undefined}
-      >
-        {block.images.map((p, n) => {
-          const ratio = ratios[n];
-          const tall = height ? `min(80vh, ${height}px)` : "80vh";
-          return (
-            <div key={`${p.src}-${n}`} className="group/photo relative min-w-0 max-sm:w-full max-sm:flex-none!"
-              // One photo shows whole on screen, however tall; several share the width at one height.
-              style={many ? { flex: `${ratio} 1 0%`, aspectRatio: ratio } : { aspectRatio: ratio, width: `min(100%, calc(${tall} * ${ratio}))` }}
-            >
-              <Media src={photoUrl(p.src)} alt={p.alt} brief="" quiet sizes={many ? "400px" : "900px"} className="size-full" />
-              {uploading.has(p.src) && <span aria-hidden className="skeleton absolute inset-0 opacity-60 mix-blend-multiply" />}
-              <div className="absolute right-2 bottom-4 flex gap-1.5 opacity-0 transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100">
-                <OnPhoto onClick={() => pickFiles((files) => onReplace(n, files), false)}>Replace</OnPhoto>
-                <OnPhoto onClick={() => onChange((b) => ({ ...b, images: b.images.filter((_, j) => j !== n) }))}>Remove</OnPhoto>
-              </div>
+    // Narrower than the text, a row lines up with the text's left edge; wider, it sits centred on the page, as in the article.
+    <div className="group/row select-none max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - 42rem) / 2, (100% - ${w}) / 2))` }}>
+      <div ref={strip} className="relative flex gap-3 max-sm:flex-col">
+        {block.images.map((p, n) => (
+          <div
+            key={`${p.src}-${n}`}
+            data-photo
+            data-row={block.id}
+            data-index={n}
+            title="Drag to move it"
+            onPointerDown={(e) => onMoveStart(n, e)}
+            onDragStart={(e) => e.preventDefault()}
+            className={clsx(
+              "group/photo relative min-w-0 cursor-grab transition-opacity duration-200 max-sm:w-full max-sm:flex-none!",
+              moving === p.src && "opacity-30",
+            )}
+            // Several share the width at one height; one fills the row.
+            style={many ? { flex: `${ratios[n]} 1 0%`, aspectRatio: ratios[n] } : { aspectRatio: ratios[n], width: "100%" }}
+          >
+            <Media src={photoUrl(p.src)} alt={p.alt} brief="" quiet sizes={many ? "400px" : "900px"} className="pointer-events-none size-full" />
+            {uploading.has(p.src) && <span aria-hidden className="skeleton absolute inset-0 opacity-60 mix-blend-multiply" />}
+            <div className="absolute right-2 bottom-4 flex gap-1.5 opacity-0 transition-opacity group-focus-within/photo:opacity-100 group-hover/photo:opacity-100">
+              <OnPhoto onClick={() => pickFiles((files) => onReplace(n, files), false)}>Replace</OnPhoto>
+              <OnPhoto onClick={() => onChange((b) => ({ ...b, images: b.images.filter((_, j) => j !== n) }))}>Remove</OnPhoto>
             </div>
-          );
-        })}
+          </div>
+        ))}
+        {/* What the row can take: another photo, a caption. */}
+        {(room || !showCaption) && (
+          <div className="absolute top-2 left-2 flex gap-1.5 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
+            {room && <OnPhoto onClick={() => pickFiles(onAdd)}>Add a photo</OnPhoto>}
+            {!showCaption && <OnPhoto onClick={() => setCaptioning(true)}>Caption</OnPhoto>}
+          </div>
+        )}
         {/* Drag the bottom edge to make the photos shorter or taller; they keep their shape. */}
         <div
           role="separator"
@@ -950,18 +1086,17 @@ function PhotoRow({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-2">
+      {showCaption && (
         <input
           value={block.caption}
+          autoFocus={captioning && !block.caption}
           onChange={(e) => onChange((b) => ({ ...b, caption: e.target.value }))}
-          placeholder="Caption, if it needs one"
+          onBlur={() => setCaptioning(false)}
+          placeholder="Caption"
           aria-label="Caption"
-          className="t-small min-w-0 flex-1 bg-transparent placeholder:text-ink-mute/50 focus:outline-none"
+          className="t-small mt-3 block w-full bg-transparent placeholder:text-ink-mute/50 focus:outline-none"
         />
-        <span className="flex shrink-0 gap-1 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
-          {room && <RowButton onClick={() => pickFiles(onAdd)}>Add a photo</RowButton>}
-        </span>
-      </div>
+      )}
     </div>
   );
 }
@@ -973,14 +1108,6 @@ const MIN_HEIGHT = 160;
 export function OnPhoto({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} className="bg-paper/92 px-3 py-1.5 text-[0.8125rem] text-ink backdrop-blur transition-colors hover:bg-paper">
-      {children}
-    </button>
-  );
-}
-
-function RowButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button type="button" onClick={onClick} className="h-7 px-2 text-[0.8125rem] text-ink-soft transition-colors hover:bg-ink/[0.04] hover:text-ink">
       {children}
     </button>
   );

@@ -84,7 +84,7 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
 
       <div className="shell mt-[clamp(2.5rem,5vw,4rem)]">
         {body.map((b, i) => (
-          <BodyBlock key={b.id} b={b} prev={body[i - 1]} />
+          <BodyBlock key={b.id} b={b} prev={body[i - 1]} next={body[i + 1]} />
         ))}
       </div>
 
@@ -129,9 +129,15 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
   );
 }
 
-function BodyBlock({ b, prev }: { b: Block; prev?: Block }) {
+function BodyBlock({ b, prev, next }: { b: Block; prev?: Block; next?: Block }) {
   const gap = !prev ? "" : b.type === "h" ? (b.level === 3 ? "mt-10" : "mt-12") : "mt-4";
-  if (b.type === "img") return <Photos block={b} className={prev ? "my-[clamp(2.5rem,4vw,3.5rem)]" : "mb-[clamp(2.5rem,4vw,3.5rem)]"} />;
+  if (b.type === "img") {
+    // Rows of photos one after another sit together as one slab, with the same gap as within a row
+    // (a little more under a caption); text around them keeps its distance.
+    const top = !prev ? "mt-0" : prev.type === "img" ? (prev.caption ? "mt-8" : "mt-[clamp(0.5rem,1vw,1rem)]") : "mt-[clamp(2.5rem,4vw,3.5rem)]";
+    const bottom = next?.type === "img" ? "mb-0" : "mb-[clamp(2.5rem,4vw,3.5rem)]";
+    return <Photos block={b} className={clsx(top, bottom)} />;
+  }
   if (b.type === "h")
     return b.level === 3 ? (
       <h3 className={clsx(TEXT, HEADING_3, gap)}>{b.text}</h3>
@@ -205,8 +211,8 @@ export function Photos({ block, className }: { block: Extract<Block, { type: "im
       : "100%";
   return (
     <figure data-reveal-media suppressHydrationWarning className={clsx("mx-auto w-full max-w-[64rem]", className)}>
-      {/* Narrower than the measure, they line up with the text's left edge, as far as they fit. */}
-      <div className="max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - 42rem) / 2, 100% - ${w}))` }}>
+      {/* Narrower than the text, they line up with its left edge; wider, they sit centred on it. */}
+      <div className="max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - 42rem) / 2, (100% - ${w}) / 2))` }}>
         <div className="flex gap-[clamp(0.5rem,1vw,1rem)] max-sm:flex-col">
           {block.images.map((p, i) => (
             <Frame
