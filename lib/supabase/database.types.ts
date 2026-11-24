@@ -341,6 +341,35 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_changes: {
+        Row: {
+          first_at: string
+          last_at: string
+          parts: string[]
+          vendor_id: string
+        }
+        Insert: {
+          first_at?: string
+          last_at?: string
+          parts?: string[]
+          vendor_id: string
+        }
+        Update: {
+          first_at?: string
+          last_at?: string
+          parts?: string[]
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_changes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: true
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_decisions: {
         Row: {
           created_at: string
@@ -696,7 +725,7 @@ export type Database = {
       post_status: "draft" | "scheduled" | "published"
       review_confidence: "High" | "Medium" | "Low"
       team_role: "owner" | "editor"
-      vendor_verdict: "approved" | "declined" | "reopened"
+      vendor_verdict: "approved" | "declined" | "reopened" | "hidden" | "shown"
       vendor_status: "draft" | "published" | "hidden"
     }
     CompositeTypes: {
@@ -828,7 +857,7 @@ export const Constants = {
       post_status: ["draft", "scheduled", "published"],
       review_confidence: ["High", "Medium", "Low"],
       team_role: ["owner", "editor"],
-      vendor_verdict: ["approved", "declined", "reopened"],
+      vendor_verdict: ["approved", "declined", "reopened", "hidden", "shown"],
       vendor_status: ["draft", "published", "hidden"],
     },
   },

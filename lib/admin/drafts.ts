@@ -174,10 +174,12 @@ async function loadDecisions() {
   if (error) return;
   const seen = new Set<string>();
   set({
-    decisions: data.map((d) => {
+    decisions: data.flatMap((d) => {
       const latest = !seen.has(d.vendor_id);
       seen.add(d.vendor_id);
-      return { id: d.id, vendorId: d.vendor_id, vendorName: d.vendors?.name ?? "A vendor", verdict: d.verdict, note: d.note, by: opt(d.team_members?.name ?? null), at: d.created_at, latest };
+      // Hiding a live listing and putting it back happen in Admin → Vendors, and stay there.
+      if (d.verdict === "hidden" || d.verdict === "shown") return [];
+      return [{ id: d.id, vendorId: d.vendor_id, vendorName: d.vendors?.name ?? "A vendor", verdict: d.verdict, note: d.note, by: opt(d.team_members?.name ?? null), at: d.created_at, latest }];
     }),
   });
 }
@@ -214,6 +216,22 @@ export function retry() {
   set({ list: emptyList });
   void loadCounts();
   void loadPage();
+}
+
+/**
+ * Read a draft again after the team edited it in the listing editor, so the queue and the open
+ * panel show the words and photos as they now are (and whether anything is still missing).
+ */
+export async function refreshDraft(slug: string) {
+  const row = state.list.rows.find((r) => r.slug === slug);
+  if (!row) return;
+  const { [row.id]: _gone, ...details } = state.details;
+  void _gone;
+  set({ details });
+  const { data } = await db().from("vendor_queue").select(ROW).eq("id", row.id).maybeSingle();
+  if (data) set({ list: { ...state.list, rows: state.list.rows.map((r) => (r.id === row.id ? toRow(data) : r)) } });
+  void loadCounts();
+  await loadDraft(row.id);
 }
 
 const detailLoading = new Set<string>();

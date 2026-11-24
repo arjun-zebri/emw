@@ -35,6 +35,7 @@ import { blankContent, createPost, deletePost, peekPost, reloadPost } from "@/li
 import { decide, undecide, useAdmin } from "@/lib/admin/store";
 import { blockId } from "@/lib/journal/blocks";
 import { toast } from "@/lib/admin/toast";
+import { reloadListing } from "@/lib/account/listing";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { getVendor } from "@/lib/static-vendors";
 import type { VendorFormValues } from "../shared/VendorForm";
@@ -699,7 +700,10 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
 function DraftActions({ row, draft, busy, onApprove, onDecline }: { row: QueueRow; draft?: Draft; busy: boolean; onApprove: () => void; onDecline: (note?: string) => void }) {
   const [declining, setDeclining] = useState(false);
   const [note, setNote] = useState("");
+  const params = useSearchParams();
   const blocked = row.missing.length > 0;
+  // A typo or a missing detail is fixed in the listing editor, then it's back here to approve.
+  const edit = `/admin/vendors/${row.slug}?from=${encodeURIComponent(`/admin/approvals?${params}`)}`;
 
   if (declining) {
     return (
@@ -729,6 +733,9 @@ function DraftActions({ row, draft, busy, onApprove, onDecline }: { row: QueueRo
       </p>
       {draft && <HomePin draft={draft} />}
       {draft && <LargeTile draft={draft} />}
+      <Btn href={edit} icon="pen" onClick={() => reloadListing(row.slug)}>
+        Edit
+      </Btn>
       <Btn onClick={() => setDeclining(true)} disabled={busy}>
         Decline
       </Btn>

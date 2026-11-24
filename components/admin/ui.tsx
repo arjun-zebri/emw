@@ -240,7 +240,7 @@ export function Btn({
         {content}
       </a>
     ) : (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} onClick={props.onClick as React.MouseEventHandler<HTMLAnchorElement> | undefined}>
         {content}
       </Link>
     );
