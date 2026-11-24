@@ -19,7 +19,7 @@ import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
 import { isEmail, isWebsite, LIMITS, socialUrl } from "@/lib/apply/application";
 import { PhotoError, preparePhoto } from "@/lib/apply/photos";
-import { inlineText, normaliseStory, parseBlock, serialiseBlock, splitStory, STORY_RULES, storyLength } from "@/lib/story";
+import { normaliseStory, parseBlock, serialiseBlock, splitLede, splitStory, STORY_RULES, storyLength } from "@/lib/story";
 import { DetailRow, bare } from "../shared/DetailRow";
 import { Dropdown } from "../shared/Dropdown";
 import { emptyVendor } from "../shared/VendorForm";
@@ -36,13 +36,7 @@ type Values = Omit<ListingDetails, "story" | "lede"> & { story: string };
 
 /** Split the one text back into the introduction and the story. A long first paragraph stays in the story. */
 function splitWords(text: string): { lede: string; story: string[] } {
-  const blocks = normaliseStory(splitStory(text));
-  const first = blocks[0] ? parseBlock(blocks[0]) : null;
-  if (first?.type === "p") {
-    const lede = inlineText(first.content).trim();
-    if (lede.length <= 400) return { lede, story: blocks.slice(1) };
-  }
-  return { lede: "", story: blocks };
+  return splitLede(normaliseStory(splitStory(text)));
 }
 
 // Languages in the taxonomy's order (native scripts first), wherever they were picked.

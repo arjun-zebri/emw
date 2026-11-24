@@ -41,6 +41,7 @@ import { getVendor } from "@/lib/static-vendors";
 import type { VendorFormValues } from "../shared/VendorForm";
 import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
+import { splitLede } from "@/lib/story";
 import { editHref } from "../nav";
 import { usePreloadEditor } from "./VendorListing";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, Toggle, inputCls } from "../ui";
@@ -599,7 +600,8 @@ const previewValues = (d: Draft): VendorFormValues => ({
   name: d.name,
   person: d.person ?? "",
   discipline: d.discipline,
-  lede: "",
+  // As the public page will show it: the opening paragraph large, wherever it's stored.
+  lede: splitLede(d.story, d.lede).lede,
   story: "",
   services: d.services,
   based: "",
@@ -665,7 +667,7 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
       ) : view === "listing" ? (
         // Exactly the public markup; nothing in it links anywhere.
         <div className="pointer-events-none pt-2 select-none [&_.shell]:max-w-none">
-          <ListingPreview values={previewValues(draft)} photos={draft.photos.map((p) => p.src)} story={draft.story} view="page" />
+          <ListingPreview values={previewValues(draft)} photos={draft.photos.map((p) => p.src)} story={splitLede(draft.story, draft.lede).story} view="page" />
         </div>
       ) : view === "photos" ? (
         <div className="p-6">

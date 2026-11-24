@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
 import { areas, languages, otherLanguagesOf, serviceLabels } from "@/data/taxonomy";
 import type { AreaCode, Language, Service, Vendor } from "@/data/types";
+import { splitLede } from "@/lib/story";
 import type { Database } from "./supabase/database.types";
 import { imageUrl } from "./supabase/storage";
 
@@ -56,9 +57,9 @@ async function load(): Promise<Vendor[]> {
       languages: known<Language>(v.languages, languages),
       // Languages we don't list are kept as the vendor wrote them, and found under "Other".
       otherLanguages: otherLanguagesOf(v.languages),
-      lede: v.lede,
+      // A listing approved straight from the queue keeps its opening in the story: it shows as the lede.
+      ...splitLede(v.story, v.lede ?? ""),
       quote: orUndefined(v.quote),
-      story: v.story,
       signoff: orUndefined(v.signoff),
       contact,
       socials,

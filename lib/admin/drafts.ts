@@ -70,6 +70,8 @@ export type Draft = QueueRow & {
   services: Service[];
   languages: Language[];
   serviceArea: AreaCode[];
+  /** Empty until the listing is saved in the editor: an imported draft keeps its opening in the story. */
+  lede: string;
   story: string[];
   /** A double-width tile in the directory, chosen by the team. */
   largeTile: boolean;
@@ -243,7 +245,7 @@ export async function loadDraft(id: string) {
   const [vendor, row, notes] = await Promise.all([
     db()
       .from("vendors")
-      .select("id, person, services, languages, service_area, story, large_tile, featured, email, phone, website, instagram, facebook, vendor_photos(id, path, width, height, position)")
+      .select("id, person, services, languages, service_area, lede, story, large_tile, featured, email, phone, website, instagram, facebook, vendor_photos(id, path, width, height, position)")
       .eq("id", id)
       .single(),
     db().from("vendor_queue").select(ROW).eq("id", id).single(),
@@ -259,6 +261,7 @@ export async function loadDraft(id: string) {
     services: v.services as Service[],
     languages: withoutEnglish(v.languages) as Language[],
     serviceArea: v.service_area as AreaCode[],
+    lede: v.lede ?? "",
     story: v.story,
     largeTile: v.large_tile,
     featured: v.featured,

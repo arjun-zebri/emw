@@ -172,3 +172,18 @@ export const normaliseStory = (blocks: string[]): string[] => normaliseBlocks(bl
 
 /** A story written as one string, blocks separated by blank lines (how the apply flow keeps it). */
 export const splitStory = (story: string): string[] => story.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+
+/**
+ * The short opening paragraph shown large under a vendor's name (`lede`), and the rest. A listing
+ * saved in the editor stores them apart; a draft as imported keeps the opening in the story, so
+ * this finds it the same way wherever a listing is shown, and approving one never changes its look.
+ */
+export function splitLede(blocks: string[], lede = ""): { lede: string; story: string[] } {
+  if (lede.trim()) return { lede, story: blocks };
+  const first = blocks[0] ? parseBlock(blocks[0]) : null;
+  if (first?.type === "p") {
+    const text = inlineText(first.content).trim();
+    if (text.length <= 400) return { lede: text, story: blocks.slice(1) };
+  }
+  return { lede: "", story: blocks };
+}
