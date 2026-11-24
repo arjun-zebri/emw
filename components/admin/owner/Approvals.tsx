@@ -42,6 +42,7 @@ import type { VendorFormValues } from "../shared/VendorForm";
 import { ListingPreview } from "../shared/VendorPreview";
 import { Drawer } from "../Drawer";
 import { editHref } from "../nav";
+import { usePreloadEditor } from "./VendorListing";
 import { Avatar, Badge, Btn, Empty, PageHeader, Panel, Tabs, Toggle, inputCls } from "../ui";
 import { LanguageName } from "@/components/ui/LanguageName";
 
@@ -82,6 +83,7 @@ const draftFor = new Map<string, string>();
 
 export function Approvals() {
   const router = useRouter();
+  usePreloadEditor();
   const pathname = usePathname();
   const params = useSearchParams();
   const state = useAdmin();

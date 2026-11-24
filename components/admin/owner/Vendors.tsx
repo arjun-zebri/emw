@@ -12,6 +12,7 @@ import { toast } from "@/lib/admin/toast";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { Drawer } from "../Drawer";
 import { editHref } from "../nav";
+import { usePreloadEditor } from "./VendorListing";
 import { Badge, Btn, Empty, PageHeader, Tabs, Toggle } from "../ui";
 
 type Tab = "all" | "changed" | "featured" | "largeTile" | "statsOff" | "hidden";
@@ -52,6 +53,7 @@ const listed = (parts: string[]) => (parts.length < 2 ? parts.join("") : `${part
 
 /** Every vendor on the site (and any the team has hidden) as its photo, with the team's switches and a way into their listing in a sheet. */
 export function Vendors() {
+  usePreloadEditor();
   const { vendors: all, error, toggle, setShown, markChecked } = usePlacement();
   const [tab, setTab] = useState<Tab>("all");
   const [openId, setOpenId] = useState<string>();

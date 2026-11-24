@@ -32,6 +32,16 @@ export function VendorListing() {
   );
 }
 
+/**
+ * Load the editor ahead, as soon as a page that opens it loads. One load serves every vendor (the
+ * vendor is in the query), so "Edit" opens at once even straight after a fresh page load; a link only
+ * starts loading once it's on screen, too late for a quick click.
+ */
+export function usePreloadEditor() {
+  const router = useRouter();
+  useEffect(() => router.prefetch("/admin/vendors/edit"), [router]);
+}
+
 /** Where the editor was opened from: Approvals, or (by default) Admin → Vendors. */
 function useFrom() {
   const from = useSearchParams().get("from");
