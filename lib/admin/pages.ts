@@ -8,7 +8,7 @@ import type { Json } from "@/lib/supabase/database.types";
 import { VARIANT_WIDTHS, variantPath } from "@/lib/supabase/storage";
 
 /*
- * About, Shared commitment and the Privacy policy, for Admin → Pages: read and written in
+ * About, Shared commitment, the Privacy policy and the Terms, for Admin → Pages: read and written in
  * site_pages as the signed-in team member, so row level security decides. A page has no drafts:
  * "Publish" writes it and the site shows it on the next visit. A save names the version it was
  * made against and is refused if the page changed elsewhere since, as the journal's are.
@@ -49,11 +49,10 @@ const pageOf = (r: Row): SitePage => ({
   },
 });
 
-// ── Reading: one shared copy of the three pages ─────────────────────────
+// ── Reading: one shared copy of the pages ─────────────────────────
 
 type State = { status: "loading" | "ready" | "error"; pages?: SitePage[]; error?: string };
 let state: State = { status: "loading" };
-let started = false;
 const listeners = new Set<() => void>();
 const set = (s: State) => {
   state = s;
@@ -77,10 +76,8 @@ export const useSitePages = () =>
   useSyncExternalStore(
     (l) => {
       listeners.add(l);
-      if (!started) {
-        started = true;
-        void loadPages();
-      }
+      // Read afresh each time Pages or a page opens, so it shows what's on the site now.
+      if (listeners.size === 1) void loadPages();
       return () => listeners.delete(l);
     },
     () => state,

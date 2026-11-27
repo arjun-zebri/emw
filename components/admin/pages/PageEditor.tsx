@@ -29,7 +29,8 @@ export function PageEditor() {
   if (!isPageSlug(slug)) return <Empty title="There’s no such page" action={<Btn href="/admin/pages">Back to the pages</Btn>} />;
   if (status === "loading" && !pages) return <EditorSkeleton />;
   if (!page) return <Empty title="The page didn’t load" action={<Btn href="/admin/pages">Back to the pages</Btn>}>{error}</Empty>;
-  return <Editing key={page.slug} page={page} />;
+  // Keyed on the version, so a fresher copy read on opening replaces the one held from before.
+  return <Editing key={`${page.slug}:${page.updatedAt}`} page={page} />;
 }
 
 function Editing({ page: initial }: { page: SitePage }) {
@@ -165,7 +166,7 @@ function Editing({ page: initial }: { page: SitePage }) {
         {!live && !dirty && <p className="border-t hairline py-3 text-[0.875rem] text-ink-soft">{meta.empty}</p>}
       </div>
 
-      <div className="mx-auto max-w-[64rem]">
+      <div style={{ "--measure": "100%" } as React.CSSProperties}>
         <Canvas
           content={content}
           update={update}
@@ -191,12 +192,8 @@ function EditorSkeleton() {
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-9 w-28" />
       </div>
-      <div className="mx-auto max-w-[42rem]">
-        <Skeleton className="h-[clamp(2.5rem,4.4vw,4.25rem)] w-3/5" />
-        <SkeletonLines lines={2} className="mt-7 max-w-[40ch] text-[1.25rem]" />
-      </div>
-      <Skeleton className="mx-auto mt-10 aspect-[3/2] w-full max-w-[64rem]" />
-      <SkeletonLines lines={4} className="mx-auto mt-12 max-w-[42rem] text-[1.0625rem] leading-[1.8]" />
+      <Skeleton className="h-[clamp(2.5rem,4.4vw,4.25rem)] w-2/5" />
+      <SkeletonLines lines={6} className="mt-12 text-[1.0625rem] leading-[1.8]" />
     </div>
   );
 }

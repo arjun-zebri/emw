@@ -32,7 +32,8 @@ const dateFmt = new Intl.DateTimeFormat("en-AU", {
 });
 export const postDate = (iso: string) => dateFmt.format(new Date(iso));
 
-const TEXT = "mx-auto w-full max-w-[42rem]";
+/** The text column: 42rem for a story; a page of the site sets --measure to run full width. */
+const TEXT = "mx-auto w-full max-w-[var(--measure,42rem)]";
 /** The two heading sizes in a post, shared with the editor so it writes as it reads. */
 export const HEADING_2 = "t-heading text-[clamp(1.625rem,2.2vw,2.125rem)] text-balance";
 export const HEADING_3 = "t-title text-[clamp(1.25rem,1.6vw,1.5rem)] text-balance";
@@ -48,7 +49,7 @@ export function coverBox(ratio: number): React.CSSProperties {
   return { aspectRatio: ratio, width, marginLeft: `max(0px, min((100% - 42rem) / 2, (100% - ${width}) / 2))` };
 }
 
-/** `plain`: a page of the site rather than a story (About, the privacy policy): no line of category, date and reading time. */
+/** `plain`: a page of the site rather than a story (About, the privacy policy): full width, no line of category, date and reading time. */
 export function Article({ post, vendors, more, plain }: { post: ArticlePost; vendors: Credit[]; more?: React.ReactNode; plain?: boolean }) {
   // Posts from WordPress carry their cover photo in the body as well; it's already at the top.
   const coverSrc = post.cover?.src;
@@ -56,7 +57,7 @@ export function Article({ post, vendors, more, plain }: { post: ArticlePost; ven
   const by = post.author.trim();
 
   return (
-    <article className="pt-[clamp(2rem,5vw,4.5rem)]">
+    <article className="pt-[clamp(2rem,5vw,4.5rem)]" style={plain ? ({ "--measure": "100%" } as React.CSSProperties) : undefined}>
       <div className="shell">
         <header className={TEXT}>
           <h1 data-reveal suppressHydrationWarning className="t-display text-[clamp(2.5rem,5.2vw,5rem)] text-balance">
@@ -234,7 +235,7 @@ export function Photos({ block, className }: { block: Extract<Block, { type: "im
   return (
     <figure data-reveal-media suppressHydrationWarning className={clsx("mx-auto w-full max-w-[64rem]", className)}>
       {/* Narrower than the text, they line up with its left edge; wider, they sit centred on it. */}
-      <div className="max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - 42rem) / 2, (100% - ${w}) / 2))` }}>
+      <div className="max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - var(--measure, 42rem)) / 2, (100% - ${w}) / 2))` }}>
         <div className="flex gap-[clamp(0.5rem,1vw,1rem)] max-sm:flex-col">
           {block.images.map((p, i) => (
             <Frame

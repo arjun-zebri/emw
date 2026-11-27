@@ -33,12 +33,12 @@ type Props = {
   minutes: number;
   focus: Focus | null;
   setFocus: (f: Focus) => void;
-  /** A page of the site rather than a story: no category, date or author line, and no cover. */
+  /** A page of the site rather than a story: full width, no line under the title, no category, date or author line, and no cover. */
   plain?: boolean;
 };
 
 // Centred, as the article sets it.
-const TEXT = "mx-auto w-full max-w-[42rem]";
+const TEXT = "mx-auto w-full max-w-[var(--measure,42rem)]";
 
 export function Canvas({ content, update, version, uploading, onFiles, date, minutes, focus, setFocus, plain }: Props) {
   const body = useRef<BodyHandle>(null);
@@ -57,10 +57,11 @@ export function Canvas({ content, update, version, uploading, onFiles, date, min
           onChange={(title) => update((c) => ({ ...c, title }))}
           placeholder="Title"
           focus={focus}
-          onEnter={() => setFocus(focusOn("standfirst", "end"))}
-          onDown={() => setFocus(focusOn("standfirst", "start"))}
+          onEnter={() => setFocus(plain ? focusOn("body", "start") : focusOn("standfirst", "end"))}
+          onDown={() => setFocus(plain ? focusOn("body", "start") : focusOn("standfirst", "start"))}
           className="t-display text-[clamp(2.5rem,4.4vw,4.25rem)] text-balance"
         />
+        {!plain && (
         <Plain
           id="standfirst"
           value={content.standfirst}
@@ -72,6 +73,7 @@ export function Canvas({ content, update, version, uploading, onFiles, date, min
           onDown={() => setFocus(focusOn("body", "start"))}
           className="t-body mt-6 max-w-[40ch] text-[clamp(1.125rem,1.5vw,1.3125rem)] leading-[1.5] text-pretty"
         />
+        )}
         {!plain && (
           <p className="t-small mt-6 flex flex-wrap gap-x-2">
             <span>{content.category}</span>

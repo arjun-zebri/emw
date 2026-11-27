@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Article } from "@/components/journal/Article";
-import { PostSkeleton } from "@/components/journal/Skeletons";
+import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { PageTransition } from "@/components/motion/PageTransition";
 import type { LivePage } from "@/lib/pages/live";
 
@@ -11,9 +11,19 @@ export function SitePageFrame({ children }: { children: React.ReactNode }) {
   return (
     <PageTransition>
       <div className="pt-[var(--header-h)] pb-[clamp(6rem,12vw,10rem)]">
-        <Suspense fallback={<PostSkeleton />}>{children}</Suspense>
+        <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
       </div>
     </PageTransition>
+  );
+}
+
+/** The page's shape while it loads: the title, then the words, full width. */
+function PageSkeleton() {
+  return (
+    <div aria-busy="true" className="shell pt-[clamp(2rem,5vw,4.5rem)]">
+      <Skeleton className="h-[clamp(2.5rem,5.2vw,5rem)] w-2/5" />
+      <SkeletonLines lines={6} className="mt-[clamp(2.5rem,5vw,4rem)] text-[1.0625rem] leading-[1.8]" />
+    </div>
   );
 }
 
@@ -21,7 +31,7 @@ export function SitePageArticle({ page, more }: { page: LivePage; more?: React.R
   return (
     <Article
       plain
-      post={{ title: page.title, standfirst: page.standfirst, category: "", body: page.body, author: "", minutes: 0 }}
+      post={{ title: page.title, standfirst: "", category: "", body: page.body, author: "", minutes: 0 }}
       vendors={[]}
       more={more}
     />
@@ -32,7 +42,7 @@ export function SitePageArticle({ page, more }: { page: LivePage; more?: React.R
 export function NextPage({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <div className="shell mt-[clamp(4rem,7vw,6rem)]">
-      <div className="mx-auto w-full max-w-[42rem] border-t hairline">
+      <div className="w-full border-t hairline">
         <Link href={href} prefetch className="group flex items-center justify-between gap-5 py-5">
           <span className="t-title">{children}</span>
           <Icon
