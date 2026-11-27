@@ -12,6 +12,7 @@ import { reloadListing } from "@/lib/account/listing";
 import { ago, plural } from "@/lib/admin/format";
 import { changeLabels, type PlacedVendor, type Switch, usePlacement } from "@/lib/admin/placement";
 import { toast } from "@/lib/admin/toast";
+import { cropStyle } from "@/lib/crop";
 import { thumbUrl } from "@/lib/supabase/storage";
 import { Drawer } from "../Drawer";
 import { editHref } from "../nav";
@@ -196,14 +197,7 @@ export function Vendors() {
 
   return (
     <>
-      <PageHeader
-        title="Vendors"
-        description={
-          vendors
-            ? `${plural(vendors.length, "vendor")} on the site · ${pinned.length} pinned to the home page · ${plural(wide.length, "large tile")}${hidden.length ? ` · ${hidden.length} hidden` : ""}`
-            : "Every vendor on the site"
-        }
-      >
+      <PageHeader title="Vendors">
         <Tabs
           className="mt-8"
           value={tab}
@@ -213,51 +207,48 @@ export function Vendors() {
           }}
           tabs={[
             { id: "all", label: "All", count: vendors?.length },
-            { id: "changed", label: "Changed", count: all && changed.length },
-            { id: "featured", label: "Home page", count: vendors && pinned.length },
-            { id: "largeTile", label: "Large tile", count: vendors && wide.length },
-            { id: "statsOff", label: "Stats off", count: vendors && statsOff.length },
-            { id: "hidden", label: "Hidden", count: all && hidden.length },
+            // A count only where there's something to count.
+            { id: "changed", label: "Changed", count: (all && changed.length) || undefined },
+            { id: "featured", label: "Home page", count: (vendors && pinned.length) || undefined },
+            { id: "largeTile", label: "Large tile", count: (vendors && wide.length) || undefined },
+            { id: "statsOff", label: "Stats off", count: (vendors && statsOff.length) || undefined },
+            { id: "hidden", label: "Hidden", count: (all && hidden.length) || undefined },
           ]}
         />
       </PageHeader>
 
-      {/* Search, the categories, and tiles or a list. */}
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <label className="relative block lg:w-72">
+      {/* Search, one category, and tiles or a list: one quiet line. */}
+      <div className="mb-6 flex items-center gap-x-6 gap-y-3 max-sm:flex-wrap">
+        <label className="relative block min-w-0 flex-1 sm:max-w-80">
           <span className="sr-only">Search vendors</span>
           <Icon name="search" className="pointer-events-none absolute top-1/2 left-0 size-4 -translate-y-1/2 text-ink-mute" strokeWidth={1.4} />
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or service" className={clsx(inputCls, "pl-6")} />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className={clsx(inputCls, "pl-6")} />
         </label>
-        <div className="flex flex-wrap gap-1.5 lg:flex-1" role="group" aria-label="Category">
-          {[{ id: "all" as const, short: "All categories" }, ...present].map((c) => {
-            const on = craft === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setCraft(on && c.id !== "all" ? "all" : c.id)}
-                className={clsx(
-                  "border px-2.5 py-1 text-[0.75rem] transition-colors duration-200",
-                  on ? "border-ink bg-ink text-paper" : "border-ink/15 bg-surface text-ink-soft hover:border-ink/40 hover:text-ink",
-                )}
-              >
+        <label className="relative ml-auto flex items-center">
+          <span className="sr-only">Category</span>
+          <select
+            value={craft}
+            onChange={(e) => setCraft(e.target.value as typeof craft)}
+            className="h-9 cursor-pointer appearance-none bg-transparent pr-6 text-[0.875rem] text-ink outline-none"
+          >
+            <option value="all">All categories</option>
+            {present.map((c) => (
+              <option key={c.id} value={c.id}>
                 {c.short}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-1" role="group" aria-label="Show as">
+              </option>
+            ))}
+          </select>
+          <Icon name="chevron-down" className="pointer-events-none absolute right-0 size-3.5 text-ink-soft" strokeWidth={1.5} />
+        </label>
+        <div className="flex items-center" role="group" aria-label="Show as">
           {(["tiles", "list"] as const).map((v) => (
             <button
               key={v}
               type="button"
               aria-pressed={view === v}
               aria-label={v === "tiles" ? "Photos" : "List"}
-              title={v === "tiles" ? "Photos" : "List"}
               onClick={() => chooseView(v)}
-              className={clsx("flex size-8 items-center justify-center transition-colors", view === v ? "bg-ink text-paper" : "text-ink-soft hover:bg-ink/[0.05] hover:text-ink")}
+              className={clsx("flex size-8 items-center justify-center transition-colors", view === v ? "text-ink" : "text-ink-mute/70 hover:text-ink")}
             >
               <Icon name={v === "tiles" ? "grid" : "list"} className="size-4" strokeWidth={1.5} />
             </button>
@@ -312,7 +303,7 @@ export function Vendors() {
                   <span className={clsx("relative size-14 shrink-0 overflow-hidden bg-paper-soft", v.hidden && "opacity-60")}>
                     {v.cover && (
                       // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage thumbnails, no image optimisation
-                      <img src={thumbUrl(v.cover.src)} alt="" loading="lazy" decoding="async" className="size-full object-cover" style={{ objectPosition: v.cover.focus }} />
+                      <img src={thumbUrl(v.cover.src)} alt="" loading="lazy" decoding="async" className="size-full object-cover" style={cropStyle(v.cover.focus, v.cover.zoom)} />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -340,7 +331,7 @@ export function Vendors() {
                   <span className={clsx("relative block aspect-[4/5] overflow-hidden bg-paper-soft outline-2 outline-offset-[3px] transition-[outline-color] duration-300", on ? "outline-ink" : "outline-transparent", v.hidden && tab !== "hidden" && "opacity-60")}>
                     {v.cover ? (
                       // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage thumbnails, no image optimisation
-                      <img src={thumbUrl(v.cover.src)} alt="" loading="lazy" className="size-full object-cover transition-transform duration-[1200ms] ease-out-expo group-hover:scale-[1.03]" style={{ objectPosition: v.cover.focus }} />
+                      <img src={thumbUrl(v.cover.src)} alt="" loading="lazy" className="size-full object-cover" style={cropStyle(v.cover.focus, v.cover.zoom)} />
                     ) : (
                       <span className="flex size-full items-center justify-center text-[0.8125rem] text-ink-mute">No photo yet</span>
                     )}
@@ -398,7 +389,7 @@ export function Vendors() {
           <div>
             {sheet.cover && (
               // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage photo, no image optimisation
-              <img src={sheet.cover.src} alt="" className="max-h-[52vh] w-full bg-paper-soft object-cover" style={{ aspectRatio: Math.max(sheet.cover.ratio, 0.8), objectPosition: sheet.cover.focus }} />
+              <img src={sheet.cover.src} alt="" className="max-h-[52vh] w-full bg-paper-soft object-cover" style={{ aspectRatio: Math.max(sheet.cover.ratio, 0.8), ...cropStyle(sheet.cover.focus, sheet.cover.zoom) }} />
             )}
             <div className="px-6 py-6">
               <p className="font-display text-[1.75rem] leading-[1.05] tracking-[-0.015em]">{sheet.name}</p>
