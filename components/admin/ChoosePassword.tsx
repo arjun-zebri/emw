@@ -46,7 +46,7 @@ export function ChoosePassword() {
       return;
     }
     setBusy(false);
-    setError(r.status === "invalid" ? r.message : r.status === "signed-out" ? "This link has run out. Ask for a new one from the sign-in page." : "Something went wrong. Try again in a minute.");
+    setError(r.status === "invalid" ? r.message : r.status === "signed-out" ? "This link has run out. Ask for a new one from the sign-in page." : "We couldn’t save your password just now, and we’ve been told about it. Try again in a few minutes.");
   };
 
   return (

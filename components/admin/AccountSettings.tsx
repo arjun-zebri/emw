@@ -40,7 +40,7 @@ export function AccountSettings({ vendor }: { vendor?: boolean }) {
     if (r.status === "ok") {
       setPassword("");
       toast("Password changed");
-    } else setError(r.status === "invalid" ? r.message : r.status === "signed-out" ? "You’ve been signed out. Sign in again to change it." : "Something went wrong. Try again in a minute.");
+    } else setError(r.status === "invalid" ? r.message : r.status === "signed-out" ? "You’ve been signed out. Sign in again to change it." : "We couldn’t save your password just now, and we’ve been told about it. Try again in a few minutes.");
   };
 
   return (

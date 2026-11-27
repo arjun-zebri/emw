@@ -207,7 +207,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
           ? res.problems
           : res.status === "busy"
             ? ["We’re getting a lot of applications right now. Your answers are saved here; please try again in an hour."]
-            : ["Something went wrong on our side. Your answers are saved here; please try again in a minute."],
+            : ["We couldn’t send your application just now, and we’ve been told about it. Your answers are saved on this device: try again in a few minutes."],
       );
       return;
     }

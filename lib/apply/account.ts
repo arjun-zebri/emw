@@ -36,6 +36,25 @@ const TRIES_PER_HOUR = 20;
 const LINKS_PER_HOUR = 3;
 const LINKS_PER_DAY = 6;
 
+/**
+ * A refusal from Supabase, as something the person can act on. Anything we don't expect is reported,
+ * with Supabase's code (never the address), and answered as "error".
+ */
+function refused(error: { code?: string; status?: number; message: string }, step: string): AccountResult {
+  switch (error.code) {
+    case "weak_password":
+      return { status: "invalid", message: "Choose a stronger password: a longer one, or one you haven’t used elsewhere." };
+    case "email_address_invalid":
+    case "email_address_not_authorized":
+      return { status: "invalid", message: "We can’t use that email address. Check it, or continue with Google or Microsoft." };
+    case "over_request_rate_limit":
+    case "over_email_send_rate_limit":
+      return busy();
+  }
+  reportSoon(error, { area: "account", severity: "urgent", route: "/list-your-business/apply", context: { step, code: error.code ?? "none", status: error.status ?? 0 } });
+  return { status: "error" };
+}
+
 const busy = (): AccountResult => ({ status: "invalid", message: "There have been a lot of tries from here in the last hour. Try again a little later." });
 
 const admin = () =>
@@ -61,12 +80,13 @@ async function sendLink(email: string, password: string): Promise<AccountResult>
   if (!(await allow("confirm-email", [{ key: email, perHour: LINKS_PER_HOUR, perDay: LINKS_PER_DAY }])))
     return { status: "invalid", message: "We’ve sent a few links to this address already. Check your inbox and spam folder, or try again later." };
   const { data, error } = await admin().auth.admin.generateLink({ type: "signup", email, password });
-  if (error || !data.properties?.hashed_token) {
-    reportSoon(error ?? new Error("No confirmation token came back"), { area: "account", severity: "urgent", route: "/list-your-business/apply", context: { step: "making a confirmation link" } });
-    return { status: "error" };
-  }
+  if (error) return refused(error, "making a confirmation link");
+  if (!data.properties?.hashed_token) return refused(new Error("No confirmation token came back"), "making a confirmation link");
   const ok = await sendConfirmEmail(email, `${emailOrigin()}/list-your-business/confirm?token=${encodeURIComponent(data.properties.hashed_token)}`);
-  return ok ? sent() : { status: "error" };
+  // The account is made either way; trying again finds it and sends the link again.
+  return ok
+    ? sent()
+    : { status: "invalid", message: "Your account is made, but the email to confirm it didn’t go out. Press the button again in a minute and we’ll resend it." };
 }
 
 const sent = (): AccountResult => ({ status: "sent", canSkip: skipAllowed() });
@@ -81,10 +101,20 @@ async function signInOrResend(email: string, password: string): Promise<AccountR
   const { error } = await server.auth.signInWithPassword({ email, password });
   if (!error) return { status: "signed-in" };
   if (error.code === "email_not_confirmed") return sendLink(email, password);
-  return { status: "wrong" };
+  if (error.code === "invalid_credentials") return { status: "wrong" };
+  return refused(error, "signing in to apply");
 }
 
 export async function createAccount(input: { email: string; password: string }): Promise<AccountResult> {
+  try {
+    return await makeAccount(input);
+  } catch (e) {
+    reportSoon(e, { area: "account", severity: "urgent", route: "/list-your-business/apply", context: { step: "creating an account" } });
+    return { status: "error" };
+  }
+}
+
+async function makeAccount(input: { email: string; password: string }): Promise<AccountResult> {
   const email = String(input.email ?? "").trim().toLowerCase();
   const password = String(input.password ?? "");
   const bad = check(email, password);
@@ -93,10 +123,7 @@ export async function createAccount(input: { email: string; password: string }):
 
   const made = await admin().auth.admin.createUser({ email, password, email_confirm: false, app_metadata: { emw_via: "apply" } });
   if (made.error) {
-    if (made.error.code !== "email_exists") {
-      reportSoon(made.error, { area: "account", severity: "urgent", route: "/list-your-business/apply", context: { step: "creating an account" } });
-      return { status: "error" };
-    }
+    if (made.error.code !== "email_exists") return refused(made.error, "creating an account");
     // They've been here before: let the same password in, or tell them to sign in.
     const again = await signInOrResend(email, password);
     return again.status === "wrong" ? { status: "exists" } : again;
@@ -129,7 +156,12 @@ export async function signInToApply(input: { email: string; password: string }):
   const password = String(input.password ?? "");
   if (!isEmail(email) || !password) return { status: "invalid", message: "Enter your email and password." };
   if (!(await allow("account", [{ key: await senderIp(), perHour: TRIES_PER_HOUR }]))) return busy();
-  return signInOrResend(email, password);
+  try {
+    return await signInOrResend(email, password);
+  } catch (e) {
+    reportSoon(e, { area: "account", severity: "urgent", route: "/list-your-business/apply", context: { step: "signing in to apply" } });
+    return { status: "error" };
+  }
 }
 
 /** Opened from the email: confirms the address and signs them in on this browser. */

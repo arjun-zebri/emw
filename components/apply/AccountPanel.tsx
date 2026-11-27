@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useId, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
+import { reportClient } from "@/lib/observe/client";
 import { type AccountResult, createAccount, signInToApply, signOutOfApply, skipConfirmation } from "@/lib/apply/account";
 import { supabase } from "@/lib/supabase/browser";
 
@@ -77,7 +78,11 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
     setBusy("email");
     setError("");
     const run = mode === "create" && !again ? createAccount : signInToApply;
-    const res: AccountResult = await run({ email, password }).catch(() => ({ status: "error" as const }));
+    // Thrown only when the request never reached us (offline, or the site was mid-update).
+    const res: AccountResult | { status: "offline" } = await run({ email, password }).catch((e: unknown) => {
+      reportClient(e, "account");
+      return { status: "offline" as const };
+    });
     setBusy(null);
     if (res.status === "sent") {
       setSent(true);
@@ -96,7 +101,11 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
           ? "You already have an account with this email. Check your password, or sign in with Google or Microsoft if that’s how you made it."
           : res.status === "wrong"
             ? "That email and password don’t match."
-            : "Something went wrong on our side. Please try again in a minute.",
+            : res.status === "offline"
+              ? "We couldn’t reach East Meets Wed. Check your connection and try again."
+              : mode === "create" && !again
+                ? "We couldn’t make your account just now, and we’ve been told about it. Try again in a few minutes, or continue with Google or Microsoft above."
+                : "We couldn’t sign you in just now, and we’ve been told about it. Try again in a few minutes, or continue with Google or Microsoft above.",
     );
     if (res.status === "exists") setMode("signin");
   }
