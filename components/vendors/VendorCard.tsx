@@ -25,7 +25,7 @@ export function VendorCard({
   data: VendorCardData;
   aspect?: string;
   sizes?: string;
-  /** Crop focus for the image, e.g. "50% 20%". */
+  /** Crop focus for the image, e.g. "50% 20%", when the vendor hasn't chosen their own. */
   position?: string;
   /** At lg, let the image grow to fill a taller or wider grid cell instead of keeping its aspect. */
   fill?: boolean;
@@ -44,7 +44,7 @@ export function VendorCard({
       <div className={clsx("relative overflow-hidden", aspect, fill && "lg:aspect-auto lg:min-h-[20rem] lg:flex-1")}>
         <ViewTransition name={`vendor-${vendor.slug}`} share="morph" default="none">
           <div className="absolute inset-0 transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.03]">
-            <Media {...vendorCover(vendor)} sizes={sizes} position={position} priority={priority} className="size-full" />
+            <Media {...vendorCover(vendor)} sizes={sizes} position={vendor.focus ?? position} priority={priority} className="size-full" />
           </div>
         </ViewTransition>
       </div>

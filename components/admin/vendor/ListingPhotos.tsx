@@ -13,6 +13,8 @@ import { LIMITS } from "@/lib/apply/application";
 const ratioOf = (p: { width: number | null; height: number | null }) => (p.width && p.height ? p.width / p.height : 0.8);
 const isSoft = (p: { width: number | null; height: number | null }) => !!p.width && !!p.height && Math.max(p.width, p.height) < LIMITS.photoMin;
 const GAP = "gap-[clamp(0.5rem,1vw,1rem)]";
+/** The cover's crop as CSS object-position, once someone has chosen one. */
+const focusOf = (p: { focusX: number | null; focusY: number | null }) => (p.focusX != null && p.focusY != null ? `${p.focusX}% ${p.focusY}%` : undefined);
 
 type Tile = { kind: "photo"; photo: EditPhoto; index: number } | { kind: "pending"; key: string } | { kind: "add" };
 const tileRatio = (t: Tile) => (t.kind === "photo" ? ratioOf(t.photo) : 0.8);
@@ -73,6 +75,7 @@ export function ListingPhotos({
   const [ghost, setGhost] = useState<{ x: number; y: number; src: string } | null>(null);
   const [dropping, setDropping] = useState(false);
   const [viewing, setViewing] = useState<EditPhoto | null>(null);
+  const [framing, setFraming] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -215,6 +218,7 @@ export function ListingPhotos({
         </p>
         <div className="flex flex-wrap gap-1.5">
           <Action onClick={() => setViewing(p)} icon="eye" label="View large" />
+          {i === 0 && <Action onClick={() => setFraming(true)}>Move the crop</Action>}
           {i > 0 && <Action onClick={() => move(i, 0)}>Make cover</Action>}
           <Action icon="arrow-left" label="Move earlier" disabled={i === 0} onClick={() => move(i, i - 1)} />
           <Action icon="arrow" label="Move later" disabled={i === n - 1} onClick={() => move(i, i + 1)} />
@@ -276,7 +280,7 @@ export function ListingPhotos({
           aria-label={`Photo ${i + 1}${i === 0 ? ", the cover" : ""}`}
           className="absolute inset-0 overflow-hidden [&_img]:pointer-events-none"
         >
-          <Media src={photo.src} alt="" brief="" sizes={sizes} className="size-full" />
+          <Media src={photo.src} alt="" brief="" sizes={sizes} position={i === 0 ? focusOf(photo) : undefined} className="size-full" />
         </button>
         <span className="pointer-events-none absolute top-3 left-3 flex flex-wrap gap-1.5">
           {i === 0 && <span className="bg-ink px-2 py-1 text-[0.75rem] text-paper">Cover</span>}
@@ -380,7 +384,136 @@ export function ListingPhotos({
       )}
 
       <AnimatePresence>{viewing && <Large photo={viewing} onClose={() => setViewing(null)} />}</AnimatePresence>
+      <AnimatePresence>
+        {framing && photos[0] && (
+          <Framing
+            photo={photos[0]}
+            onClose={() => setFraming(false)}
+            onDone={(focusX, focusY) => {
+              onChange(photos.map((p, i) => (i === 0 ? { ...p, focusX, focusY } : p)));
+              setFraming(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * Where the cover is cropped. The whole photo, with the point that stays in view: click or drag to
+ * move it. Beside it, the cover in each frame it's shown in, following the point as it moves.
+ * Nothing changes until "Done", and the listing still has to be saved.
+ */
+function Framing({ photo, onClose, onDone }: { photo: EditPhoto; onClose: () => void; onDone: (x: number, y: number) => void }) {
+  const [x, setX] = useState(photo.focusX ?? 50);
+  const [y, setY] = useState(photo.focusY ?? 50);
+  const img = useRef<HTMLImageElement>(null);
+  const held = useRef<number | null>(null);
+  const ratio = ratioOf(photo);
+  const position = `${x}% ${y}%`;
+
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    addEventListener("keydown", esc);
+    return () => removeEventListener("keydown", esc);
+  }, [onClose]);
+
+  const point = (e: React.PointerEvent) => {
+    const r = img.current?.getBoundingClientRect();
+    if (!r) return;
+    const clamp = (v: number) => Math.round(Math.min(100, Math.max(0, v)));
+    setX(clamp(((e.clientX - r.left) / r.width) * 100));
+    setY(clamp(((e.clientY - r.top) / r.height) * 100));
+  };
+  const nudge = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 10 : 2;
+    const by = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (!by) return;
+    e.preventDefault();
+    setX((v) => Math.min(100, Math.max(0, v + by[0])));
+    setY((v) => Math.min(100, Math.max(0, v + by[1])));
+  };
+
+  // The frames the cover appears in: the directory tile, the directory on a phone, and the top of the page.
+  const frames = [
+    { label: "Directory", aspect: 0.8 },
+    { label: "Directory on phones", aspect: 1.5 },
+    { label: "Listing page", aspect: ratio >= 1.2 ? 4 / 3 : 0.8 },
+  ];
+
+  return (
+    <Portal>
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Move the crop"
+        className="fixed inset-0 z-[90] flex flex-col bg-paper"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b hairline px-5 py-4 sm:px-8">
+          <div>
+            <h2 className="t-title text-[1.5rem]">Move the crop</h2>
+            <p className="mt-0.5 text-[0.875rem] text-ink-soft">Click or drag on the photo to choose what stays in view when the cover is cropped.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Action onClick={() => (setX(50), setY(50))}>Centre</Action>
+            <Action onClick={onClose}>Cancel</Action>
+            <button type="button" onClick={() => onDone(x, y)} className="t-nav inline-flex h-9 items-center bg-ink px-5 text-paper transition-opacity hover:opacity-85">
+              Done
+            </button>
+          </div>
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto p-5 sm:p-8 lg:grid-cols-[1fr_20rem] lg:gap-10">
+          <div className="flex min-h-[50svh] items-center justify-center lg:min-h-0">
+            <div
+              role="slider"
+              tabIndex={0}
+              aria-label="Crop point"
+              aria-valuenow={x}
+              aria-valuetext={`${x}% across, ${y}% down`}
+              onKeyDown={nudge}
+              onPointerDown={(e) => {
+                held.current = e.pointerId;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                point(e);
+              }}
+              onPointerMove={(e) => held.current === e.pointerId && point(e)}
+              onPointerUp={() => (held.current = null)}
+              onPointerCancel={() => (held.current = null)}
+              className="relative cursor-crosshair touch-none outline-offset-4 select-none focus-visible:outline-2 focus-visible:outline-ink"
+              style={{ aspectRatio: ratio, maxWidth: "100%", maxHeight: "calc(100svh - 12rem)", width: `min(100%, calc((100svh - 12rem) * ${ratio}))` }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- the whole photo, straight from storage or the browser */}
+              <img ref={img} src={photo.src} alt="" draggable={false} className="size-full object-contain" />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute size-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper shadow-[0_0_0_1px_rgb(22_20_18/0.35),0_6px_18px_rgb(22_20_18/0.35)]"
+                style={{ left: `${x}%`, top: `${y}%` }}
+              >
+                <span className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-paper" />
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 content-start gap-4 lg:grid-cols-2 lg:gap-x-5 lg:gap-y-6">
+            {frames.map((f, i) => (
+              <figure key={f.label} className={clsx("min-w-0", i === 2 && "lg:col-span-2")}>
+                <div className="overflow-hidden bg-paper-soft" style={{ aspectRatio: f.aspect }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a preview of the crop */}
+                  <img src={photo.src} alt="" className="size-full object-cover" style={{ objectPosition: position }} />
+                </div>
+                <figcaption className="mt-2 text-[0.8125rem] text-ink-soft">{f.label}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    </Portal>
   );
 }
 

@@ -13,7 +13,7 @@ import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
 import { areaOptions as allAreas, languages as languageNames, serviceOptions, servicesLine } from "@/data/taxonomy";
 import type { Language, Service } from "@/data/types";
-import { editPhotos, LINE_MAX, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
+import { editPhotos, LINE_MAX, photosDiffer, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { approveDraft, draftMissing, MissingError, missingLabels, reopen, type Missing } from "@/lib/admin/drafts";
 import { useSession, useVendorSlug } from "@/lib/admin/session";
 import { toast } from "@/lib/admin/toast";
@@ -185,7 +185,7 @@ function Editor({
   const reduce = useReducedMotion();
 
   const set = <K extends keyof Values>(key: K, value: Values[K]) => setV((s) => ({ ...s, [key]: value }));
-  const photosChanged = photos.map((p) => p.key).join() !== listing.photos.map((p) => p.id).join();
+  const photosChanged = photosDiffer(photos, listing.photos);
   const dirty = !readOnly && (photosChanged || JSON.stringify(v) !== JSON.stringify(base));
   const missing = !v.name.trim() ? (team ? "Add the business name before saving." : "Add your business name before saving.") : !v.discipline.trim() ? "Choose at least one service before saving." : null;
   // Links are checked before they go on the page, so a typo never becomes a broken link.
@@ -231,7 +231,7 @@ function Editor({
     for (const file of take) {
       try {
         const p = await preparePhoto(file);
-        setPhotos((list) => [...list, { key: p.id, src: p.url, width: p.width, height: p.height, upload: p }]);
+        setPhotos((list) => [...list, { key: p.id, src: p.url, width: p.width, height: p.height, focusX: null, focusY: null, upload: p }]);
       } catch (e) {
         problems.push(`${file.name}: ${e instanceof PhotoError ? e.message : "we couldn’t open it."}`);
       } finally {

@@ -104,6 +104,8 @@ export type Vendor = {
   socials?: { instagram?: string; facebook?: string; youtube?: string };
   featured: boolean;
   cover?: string;
+  /** Where the cover is cropped around, as CSS object-position ("50% 30%"), when someone has set it. */
+  focus?: string;
   gallery?: string[];
   /** Width ÷ height of each photo, by src. Listings from the database carry their own; otherwise data/photo-ratios.ts. */
   ratios?: Record<string, number>;

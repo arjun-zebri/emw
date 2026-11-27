@@ -25,6 +25,9 @@ export type OwnPhoto = {
   src: string;
   width: number | null;
   height: number | null;
+  /** The point the cover is cropped around, as percentages across and down; null until someone sets it. */
+  focusX: number | null;
+  focusY: number | null;
 };
 
 export type OwnListing = {
@@ -59,6 +62,8 @@ export type EditPhoto = {
   src: string;
   width: number | null;
   height: number | null;
+  focusX: number | null;
+  focusY: number | null;
   id?: string;
   path?: string;
   upload?: ApplyPhoto;
@@ -89,19 +94,21 @@ const current = (slug: string) => storeFor(slug).state.listing;
 const db = () => supabase();
 const str = (s: string | null) => s ?? "";
 
-const toPhoto = (p: { id: string; path: string; width: number | null; height: number | null }): OwnPhoto => ({
+const toPhoto = (p: { id: string; path: string; width: number | null; height: number | null; focus_x: number | null; focus_y: number | null }): OwnPhoto => ({
   id: p.id,
   path: p.path,
   src: imageUrl("vendor-photos", p.path),
   width: p.width,
   height: p.height,
+  focusX: p.focus_x,
+  focusY: p.focus_y,
 });
 
 async function load(slug: string) {
   const { data: v, error } = await db()
     .from("vendors")
     .select(
-      "id, slug, status, name, person, discipline, lede, story, services, based, service_area, languages, email, phone, website, instagram, facebook, updated_at, vendor_photos(id, path, width, height, position, created_at)",
+      "id, slug, status, name, person, discipline, lede, story, services, based, service_area, languages, email, phone, website, instagram, facebook, updated_at, vendor_photos(id, path, width, height, focus_x, focus_y, position, created_at)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -178,9 +185,15 @@ export const editPhotos = (l: OwnListing): EditPhoto[] =>
     src: p.src,
     width: p.width,
     height: p.height,
+    focusX: p.focusX,
+    focusY: p.focusY,
     id: p.id,
     path: p.path,
   }));
+
+/** Have the photos changed from what's saved: which, their order, or where the cover is cropped? */
+export const photosDiffer = (photos: EditPhoto[], saved: OwnPhoto[]) =>
+  photos.length !== saved.length || photos.some((p, i) => p.id !== saved[i].id || p.focusX !== saved[i].focusX || p.focusY !== saved[i].focusY);
 
 const clip = (s: string, max: number) => s.replace(/\s+/g, " ").trim().slice(0, max);
 const orNull = (s: string) => s.trim() || null;
@@ -271,6 +284,8 @@ export async function saveListing(
                       path: paths.get(p.key)!,
                       width: p.width,
                       height: p.height,
+                      focus_x: p.focusX,
+                      focus_y: p.focusY,
                       position: i,
                       alt: alt(name, i),
                     },
@@ -288,14 +303,14 @@ export async function saveListing(
     }
 
     try {
-      // 2. The order of the photos already saved, and their descriptions, which carry the name.
-      const kept = photos.flatMap((p, i) => (p.id ? [{ id: p.id, i }] : []));
+      // 2. The order of the photos already saved, their crops, and their descriptions, which carry the name.
+      const kept = photos.flatMap((p, i) => (p.id ? [{ p, i }] : []));
       const order = await Promise.all(
-        kept.map(({ id, i }) =>
+        kept.map(({ p, i }) =>
           db()
             .from("vendor_photos")
-            .update({ position: i, alt: alt(name, i) })
-            .eq("id", id),
+            .update({ position: i, alt: alt(name, i), focus_x: p.focusX, focus_y: p.focusY })
+            .eq("id", p.id!),
         ),
       );
       const misordered = order.find((r) => r.error)?.error;
@@ -322,7 +337,7 @@ export async function saveListing(
           name,
           person: orNull(clip(d.person, LIMITS.person)),
           // Built from the services chosen, so it can be longer than a line someone types.
-        discipline: clip(d.discipline, LINE_MAX),
+          discipline: clip(d.discipline, LINE_MAX),
           lede: d.lede.trim().slice(0, 400),
           story: d.story,
           services: d.services,

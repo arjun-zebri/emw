@@ -442,6 +442,8 @@ export type Database = {
         Row: {
           alt: string
           created_at: string
+          focus_x: number | null
+          focus_y: number | null
           height: number | null
           id: string
           path: string
@@ -452,6 +454,8 @@ export type Database = {
         Insert: {
           alt?: string
           created_at?: string
+          focus_x?: number | null
+          focus_y?: number | null
           height?: number | null
           id?: string
           path: string
@@ -462,6 +466,8 @@ export type Database = {
         Update: {
           alt?: string
           created_at?: string
+          focus_x?: number | null
+          focus_y?: number | null
           height?: number | null
           id?: string
           path?: string

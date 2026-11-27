@@ -29,7 +29,7 @@ async function load(): Promise<Vendor[]> {
   });
   const { data, error } = await db
     .from("vendors")
-    .select("*, vendor_photos(path, width, height, position)")
+    .select("*, vendor_photos(path, width, height, focus_x, focus_y, position)")
     .eq("status", "published")
     .order("name");
   // Fail loudly rather than render an empty directory: a cached empty list would hide every vendor.
@@ -66,6 +66,7 @@ async function load(): Promise<Vendor[]> {
       featured: v.featured,
       largeTile: v.large_tile,
       cover: urls[0],
+      focus: photos[0]?.focus_x != null && photos[0].focus_y != null ? `${photos[0].focus_x}% ${photos[0].focus_y}%` : undefined,
       gallery: urls.slice(1),
       ratios,
     } satisfies Vendor;
