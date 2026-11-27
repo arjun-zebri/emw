@@ -59,7 +59,7 @@ export function Canvas({ content, update, version, uploading, onFiles, date, min
           focus={focus}
           onEnter={() => setFocus(plain ? focusOn("body", "start") : focusOn("standfirst", "end"))}
           onDown={() => setFocus(plain ? focusOn("body", "start") : focusOn("standfirst", "start"))}
-          className="t-display text-[clamp(2.5rem,4.4vw,4.25rem)] text-balance"
+          className={clsx("t-display text-balance", plain ? "text-[clamp(2.5rem,5.2vw,5rem)]" : "text-[clamp(2.5rem,4.4vw,4.25rem)]")}
         />
         {!plain && (
         <Plain

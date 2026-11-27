@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { PageTransition } from "@/components/motion/PageTransition";
+import { Article } from "@/components/journal/Article";
+import { SitePageFrame } from "@/components/pages/SitePage";
 import type { LegalPage as Page } from "@/data/legal";
+import type { Block } from "@/lib/journal/blocks";
 import { pageMeta } from "@/lib/seo";
 
 /** Kept out of search until the client's own text replaces the placeholder. */
@@ -8,36 +10,19 @@ export function legalMeta(page: Page, path: string): Metadata {
   return { ...pageMeta({ title: page.title, description: page.description, path }), ...(!page.final && { robots: { index: false } }) };
 }
 
-/** A plain reading page: the title, then each section's heading and paragraphs in one measure. */
+/**
+ * The old site's text, until the team writes the page in Admin → Pages: set exactly as a written
+ * page is (components/pages/SitePage.tsx), each section's heading on the left and its words on the right.
+ */
 export function LegalPage({ page }: { page: Page }) {
+  let n = 0;
+  const id = () => `legal-${n++}`;
+  const body: Block[] = page.sections.length
+    ? page.sections.flatMap((s): Block[] => [{ id: id(), type: "h", text: s.heading }, ...s.paragraphs.map((t): Block => ({ id: id(), type: "p", content: [{ text: t }] }))])
+    : [{ id: id(), type: "p", content: [{ text: `Our ${page.title.toLowerCase()} will be published here soon.` }] }];
   return (
-    <PageTransition>
-      <article className="shell pt-[calc(var(--header-h)+clamp(3rem,8vw,6rem))] pb-[clamp(6rem,12vw,10rem)]">
-        <h1 data-intro-in className="t-display">
-          {page.title}
-        </h1>
-        {/* Each section a row across the page: its heading on the left, its text on the right. */}
-        <div className="mt-[clamp(2.5rem,5vw,4rem)]">
-          {page.sections.length === 0 ? (
-            <div className="grid grid-cols-1 gap-4 border-t hairline pt-6 md:grid-cols-12 md:gap-8">
-              <p className="t-body md:col-span-8 md:col-start-5">Our terms and conditions will be published here soon.</p>
-            </div>
-          ) : (
-            page.sections.map((s) => (
-              <section key={s.heading} className="grid grid-cols-1 gap-4 border-t hairline py-8 md:grid-cols-12 md:gap-8 md:py-10">
-                <h2 className="t-title md:col-span-4">{s.heading}</h2>
-                <div className="space-y-3 md:col-span-8 lg:col-span-7">
-                  {s.paragraphs.map((p) => (
-                    <p key={p} className="t-body [overflow-wrap:anywhere]">
-                      {p}
-                    </p>
-                  ))}
-                </div>
-              </section>
-            ))
-          )}
-        </div>
-      </article>
-    </PageTransition>
+    <SitePageFrame>
+      <Article plain post={{ title: page.title, standfirst: "", category: "", body, author: "", minutes: 0 }} vendors={[]} />
+    </SitePageFrame>
   );
 }

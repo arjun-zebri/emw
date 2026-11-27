@@ -22,7 +22,9 @@ function PageSkeleton() {
   return (
     <div aria-busy="true" className="shell pt-[clamp(2rem,5vw,4.5rem)]">
       <Skeleton className="h-[clamp(2.5rem,5.2vw,5rem)] w-2/5" />
-      <SkeletonLines lines={6} className="mt-[clamp(2.5rem,5vw,4rem)] text-[1.0625rem] leading-[1.8]" />
+      <div className="mt-[clamp(2.5rem,5vw,4rem)] lg:grid lg:grid-cols-12 lg:gap-x-[clamp(2rem,3vw,3.5rem)]">
+        <SkeletonLines lines={5} className="max-w-[44rem] text-[1.0625rem] leading-[1.8] lg:col-span-7 lg:col-start-6" />
+      </div>
     </div>
   );
 }
@@ -41,8 +43,9 @@ export function SitePageArticle({ page, more }: { page: LivePage; more?: React.R
 /** One line at the foot of a page, leading on to another, in the article's column. */
 export function NextPage({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <div className="shell mt-[clamp(4rem,7vw,6rem)]">
-      <div className="w-full border-t hairline">
+    // In the page's right-hand column, under its words.
+    <div className="shell mt-[clamp(4rem,7vw,6rem)] lg:grid lg:grid-cols-12 lg:gap-x-[clamp(2rem,3vw,3.5rem)]">
+      <div className="w-full max-w-[44rem] border-t hairline lg:col-span-7 lg:col-start-6">
         <Link href={href} prefetch className="group flex items-center justify-between gap-5 py-5">
           <span className="t-title">{children}</span>
           <Icon

@@ -105,7 +105,7 @@ export function Article({ post, vendors, more, plain }: { post: ArticlePost; ven
         </figure>
       )}
 
-      <div className="shell mt-[clamp(2.5rem,5vw,4rem)]">
+      <div className={clsx("shell mt-[clamp(2.5rem,5vw,4rem)]", plain && "page-flow")}>
         {body.map((b, i) => (
           <BodyBlock key={b.id} b={b} prev={body[i - 1]} next={body[i + 1]} />
         ))}

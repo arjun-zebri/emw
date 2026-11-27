@@ -52,7 +52,9 @@ const pageOf = (r: Row): SitePage => ({
 // ── Reading: one shared copy of the pages ─────────────────────────
 
 type State = { status: "loading" | "ready" | "error"; pages?: SitePage[]; error?: string };
-let state: State = { status: "loading" };
+/** One object, so React sees the same snapshot every time before the pages arrive. */
+const LOADING: State = { status: "loading" };
+let state: State = LOADING;
 const listeners = new Set<() => void>();
 const set = (s: State) => {
   state = s;
@@ -81,7 +83,7 @@ export const useSitePages = () =>
       return () => listeners.delete(l);
     },
     () => state,
-    () => ({ status: "loading" }) as State,
+    () => LOADING,
   );
 
 // ── Writing ─────────────────────────────────────────────────────────────
