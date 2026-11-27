@@ -89,6 +89,8 @@ declare
   v public.error_issues;
   v_reason text;
   v_recent integer;
+  -- How long to wait before alerting again about an issue that's still happening: the gap grows.
+  v_gap interval;
 begin
   -- Housekeeping, once a day.
   update public.error_alert_state set pruned_on = current_date where pruned_on is distinct from current_date;
@@ -107,8 +109,11 @@ begin
     v_reason := 'new';
   elsif v.resolved_at is not null or v.last_seen < now() - interval '7 days' then
     v_reason := 'regressed';
-  elsif v.last_alerted_at < now() - case v.alerts_sent when 1 then interval '1 hour' when 2 then interval '6 hours' else interval '1 day' end then
-    v_reason := 'ongoing';
+  else
+    v_gap := case v.alerts_sent when 1 then interval '1 hour' when 2 then interval '6 hours' else interval '1 day' end;
+    if v.last_alerted_at < now() - v_gap then
+      v_reason := 'ongoing';
+    end if;
   end if;
 
   if v_reason is not null then
