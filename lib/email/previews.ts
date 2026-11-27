@@ -3,7 +3,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { emailAdmin, emailFrom, emailOrigin } from "./config";
 import { load } from "./send";
 import type { SwitchId } from "./switches";
-import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLive, passwordEmail } from "./templates";
+import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLive, passwordEmail, welcomeEmail } from "./templates";
 
 /*
  * Every email the platform sends, rendered exactly as it lands in an inbox, for Admin →
@@ -12,7 +12,7 @@ import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLi
  */
 
 export type EmailPreview = {
-  id: SwitchId | "confirm" | "password";
+  id: SwitchId | "confirm" | "password" | "welcome";
   audience: "team" | "vendor";
   title: string;
   when: string;
@@ -61,6 +61,7 @@ export async function emailPreviews(): Promise<EmailPreview[]> {
   const live = listingLive({ origin, first: d.first, card, url: `${origin}/vendors/${v.slug}` });
   const confirm = confirmEmail({ origin, url: `${origin}/list-your-business/apply` });
   const password = passwordEmail({ origin, url: `${origin}/login` });
+  const welcome = welcomeEmail({ origin, first: d.first, name: v.name, line: v.discipline, photos: d.photos, url: `${origin}/login`, days: 14 });
   // A made-up couple, clearly a sample: a preview never shows a real couple's enquiry.
   const asked = enquiry({
     origin,
@@ -82,6 +83,7 @@ export async function emailPreviews(): Promise<EmailPreview[]> {
     { id: "confirm", audience: "vendor", title: "Confirm your email", when: "When someone makes an account to apply", from, to: applicant, ...pick(confirm) },
     { id: "application-received", audience: "vendor", title: "Application received", when: "As soon as they apply", from, to: applicant, ...pick(received) },
     { id: "listing-live", audience: "vendor", title: "Your listing is live", when: "When you approve their listing", from, to: applicant, ...pick(live) },
+    { id: "welcome", audience: "vendor", title: "Welcome", when: "When you send it from Admin → Vendors, to give a listing's owner their way in", from, to: v.email ?? "The listing's email", ...pick(welcome) },
     { id: "enquiry-vendor", audience: "vendor", title: "New enquiry", when: "When a couple sends an enquiry from their listing. A listing with no email sends it to the team to pass on", from, to: v.email ?? "The listing's email", ...pick(asked) },
     { id: "password", audience: "vendor", title: "Choose your password", when: "When someone asks for a link to set or reset their password", from, to: "Their sign-in email", ...pick(password) },
   ];

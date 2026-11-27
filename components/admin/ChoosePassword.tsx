@@ -7,13 +7,17 @@ import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { choosePassword, openPasswordLink } from "@/lib/account/access";
+import { openWelcomeLink } from "@/lib/admin/welcome";
 
 const field =
   "w-full border-b border-ink/15 bg-transparent py-3 text-[0.9375rem] text-ink transition-colors duration-300 placeholder:text-ink-mute/50 hover:border-ink/35 focus:border-ink focus:outline-none";
 
 /** From the email: the link signs them in, they choose a password, and they go straight to their listing. */
 export function ChoosePassword() {
-  const token = useSearchParams().get("token") ?? "";
+  const params = useSearchParams();
+  const token = params.get("token") ?? "";
+  // From the welcome email the team sends (lib/admin/welcome.ts), rather than a password link.
+  const welcome = params.get("welcome") ?? "";
   const id = useId();
   const [state, setState] = useState<"opening" | "ready" | "expired">("opening");
   const [email, setEmail] = useState<string>();
@@ -26,13 +30,13 @@ export function ChoosePassword() {
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    openPasswordLink(token)
+    (welcome ? openWelcomeLink(welcome) : openPasswordLink(token))
       .catch(() => ({ status: "expired" as const, email: undefined }))
       .then((r) => {
         setEmail(r.email);
         setState(r.status === "ok" ? "ready" : "expired");
       });
-  }, [token]);
+  }, [token, welcome]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,17 +62,22 @@ export function ChoosePassword() {
       </header>
       <main className="shell flex flex-1 items-center pb-[var(--header-h)]">
         <div className="w-full max-w-[25rem]" aria-live="polite">
-          <h1 className="t-display text-[clamp(2.75rem,4.4vw,3.75rem)] text-balance">{state === "expired" ? "This link has run out" : "Choose your password"}</h1>
+          <h1 className="t-display text-[clamp(2.75rem,4.4vw,3.75rem)] text-balance">{state === "expired" ? "This link has run out" : welcome ? "Welcome to East Meets Wed" : "Choose your password"}</h1>
           {state === "expired" ? (
             <>
-              <p className="t-body mt-5">Links work once, for an hour. Ask for a new one and it will arrive in a minute or two.</p>
+              <p className="t-body mt-5">
+                {welcome ? "Welcome links work once, for 14 days." : "Links work once, for an hour."} Ask for a new one with the same email and it will arrive in a minute or two.
+              </p>
               <Button href="/login?password=1" className="mt-10 min-w-[12rem]">
                 Get a new link
               </Button>
             </>
           ) : (
             <form onSubmit={submit} className="mt-5">
-              <p className="t-body">{email ? <>For {email}. </> : null}At least 8 characters. You&rsquo;ll use it with this email to sign in.</p>
+              <p className="t-body">
+                {welcome ? "Choose a password and you’ll go straight to your listing. " : null}
+                {email ? <>For {email}. </> : null}At least 8 characters. You&rsquo;ll use it with this email to sign in.
+              </p>
               <div className="mt-10">
                 <div className="flex items-baseline justify-between">
                   <label htmlFor={`${id}-pw`} className="text-[0.75rem] text-ink-mute">

@@ -18,6 +18,7 @@ const icons: Record<EmailPreview["id"], IconName> = {
   password: "cog",
   "application-received": "check",
   "listing-live": "store",
+  welcome: "heart",
   "enquiry-vendor": "speech",
 };
 
@@ -43,7 +44,7 @@ export function Notifications({ data }: { data: NotificationsData }) {
     return <p className="border border-ink/[0.09] bg-surface px-6 py-5 text-[0.9375rem] text-ink-soft">There&apos;s no published vendor to show the emails with yet.</p>;
   }
 
-  const always = (e: EmailPreview) => e.id === "confirm" || e.id === "password";
+  const always = (e: EmailPreview) => e.id === "confirm" || e.id === "password" || e.id === "welcome";
   const isOn = (e: EmailPreview) => (always(e) ? true : (switches[e.id as SwitchId]?.enabled ?? false));
 
   const flip = async (id: SwitchId, enabled: boolean) => {
@@ -145,6 +146,7 @@ export function Notifications({ data }: { data: NotificationsData }) {
 function status(e: EmailPreview, s: Switch | undefined, canEdit: boolean) {
   if (e.id === "confirm") return "Always sent. Without it nobody could make an account to apply.";
   if (e.id === "password") return "Always sent. Without it nobody could get back in, or sign in for the first time.";
+  if (e.id === "welcome") return "Sent only when you choose to, from Admin → Vendors.";
   const state = s?.enabled ? "On" : "Off";
   const changed = s?.changed ? `${state} since ${day(s.changed.at, { year: true })}, set by ${s.changed.by}.` : `${state}.`;
   return canEdit ? changed : `${changed} Only an owner can change this.`;

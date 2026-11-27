@@ -427,6 +427,93 @@ export function passwordEmail(d: { origin: string; url: string }): Rendered {
   return { subject, html: shell({ origin: d.origin, title: subject, preheader: "Your link to sign in to East Meets Wed.", body }), text };
 }
 
+// ── To the vendor: welcome, and the way in ──────────────────────────────
+
+export type WelcomeData = {
+  origin: string;
+  first: string;
+  name: string;
+  line: string;
+  /** @1200 copies, cover first. */
+  photos: Photo[];
+  /** Signs them in and asks for a password on the way to their listing. */
+  url: string;
+  days: number;
+};
+
+/** The way in, as a wide ink bar: the words in the serif on the left, an arrow on the right. */
+function entrance(href: string, label: string) {
+  const a = `href="${attr(href)}" style="display:block;color:${PAPER};text-decoration:none;`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:36px;"><tr>
+  <td style="background:${INK};padding:0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="padding:24px 0 24px 30px;"><a ${a}font-family:${SERIF};font-size:24px;line-height:28px;letter-spacing:-0.3px;">${esc(label)}</a></td>
+      <td width="64" align="right" style="width:64px;padding:24px 30px 24px 0;"><a ${a}font-family:${SANS};font-size:22px;line-height:28px;">&#8594;</a></td>
+    </tr></table>
+  </td></tr></table>`;
+}
+
+/**
+ * The first email a vendor gets from us: their own work, large, and the way into their listing.
+ * Sent by the team from Admin → Vendors. Nothing in it about the business but its name, its line
+ * and its photos, so it never says anything the vendor didn't.
+ */
+export function welcomeEmail(d: WelcomeData): Rendered {
+  const subject = `${d.name}, welcome to East Meets Wed`;
+  const heading = d.first ? `Welcome, ${d.first}` : "Welcome";
+  const cta = "Step inside your listing";
+  const intro = `East Meets Wed is a home for wedding vendors who know how to bring two cultures together, and every one of them is chosen by hand. ${esc(d.name)} is one of them, and we’re proud to have you.`;
+  const second = "Your listing now has a place of its own, where you can keep it as you’d like couples to see it.";
+  const way = `You’ll choose a password on the way in. The button is yours for ${d.days} days; after that, choose “Set or reset your password” at ${link(`${d.origin}/login`)}.`;
+  const there = [
+    { title: "Your photos", body: "Add new work, put them in order and choose the one couples see first." },
+    { title: "Your words", body: "Your story, the languages you speak and where you’ll travel for a wedding." },
+    { title: "Your enquiries", body: "Every couple who writes to you from your page, kept in one place." },
+  ];
+  const [cover, ...rest] = d.photos;
+  const strip = rest.slice(0, 3);
+  const w = 600;
+
+  const body = [
+    cover
+      ? `<tr><td style="padding:0;"><img src="${attr(cover.src)}" width="${w}" height="${Math.round(w / ratio(cover))}" alt="${attr(d.name)}" style="width:100%;max-width:${w}px;height:auto;background:#e8e5e0;"></td></tr>
+<tr><td class="px" style="padding:12px 48px 0;font-family:${SANS};font-size:12px;line-height:18px;color:${MUTE};">${esc(d.name)}, ${esc(d.line)}</td></tr>`
+      : "",
+    row(`<h1 class="h1" style="margin:0;font-family:${SERIF};font-weight:400;font-size:52px;line-height:54px;letter-spacing:-1.2px;color:${INK};">${esc(heading)}</h1>`, `${cover ? 44 : 8}px 48px 0`),
+    row(p(intro, 22)),
+    row(p(second, 14)),
+    row(`${entrance(d.url, cta)}<p style="margin:14px 0 0;font-family:${SANS};font-size:13px;line-height:21px;color:${MUTE};">${way}</p>`),
+    strip.length ? row(justified(strip, 504, 8), "40px 48px 0") : "",
+    row(`<div style="font-family:${SERIF};font-size:21px;line-height:26px;color:${INK};padding-bottom:14px;">What you’ll find there</div>${steps(there.map((s) => ({ ...s, done: true })))}`, "44px 48px 0"),
+    row(p("If anything on your listing isn’t right, or you’d like a hand, reply to this email. It comes straight to us.", 28)),
+    row(p(`Warmly,<br><span style="color:${INK};">The East Meets Wed team</span>`, 22)),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const text = [
+    heading,
+    "",
+    `East Meets Wed is a home for wedding vendors who know how to bring two cultures together, and every one of them is chosen by hand. ${d.name} is one of them, and we’re proud to have you.`,
+    "",
+    second,
+    "",
+    `${cta}: ${d.url}`,
+    "",
+    `You’ll choose a password on the way in. The link is yours for ${d.days} days; after that, choose “Set or reset your password” at ${d.origin}/login.`,
+    "",
+    "What you’ll find there",
+    ...there.map((s) => `- ${s.title}. ${s.body}`),
+    "",
+    "If anything on your listing isn’t right, or you’d like a hand, reply to this email. It comes straight to us.",
+    "",
+    "Warmly,",
+    "The East Meets Wed team",
+  ].join("\n");
+
+  return { subject, html: shell({ origin: d.origin, title: subject, preheader: `Your listing for ${d.name} is ready for you.`, body }), text };
+}
+
 // ── To the vendor: an enquiry ───────────────────────────────────────────
 
 export type EnquiryData = {

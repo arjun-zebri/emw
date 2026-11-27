@@ -7,7 +7,7 @@ import { EMAILS, emailAdmin, emailFrom, emailOrigin } from "./config";
 import { guestsLabel, regionLabel, weddingLabel } from "@/lib/enquiry-fields";
 import { report } from "@/lib/observe/report";
 import { emailOn } from "./switches";
-import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLive, passwordEmail, type Rendered } from "./templates";
+import { applicationAdmin, applicationReceived, confirmEmail, enquiry, listingLive, passwordEmail, welcomeEmail, type Rendered, type WelcomeData } from "./templates";
 
 /*
  * Sending, through Resend's REST API (no SDK). Server only: it reads the secret Supabase key and
@@ -161,6 +161,15 @@ export async function sendPasswordEmail(to: string, url: string): Promise<boolea
     return true;
   }
   return deliver("password", to, passwordEmail({ origin: emailOrigin(), url }), emailAdmin());
+}
+
+/** The welcome to a vendor, with their way in. Returns whether it went. */
+export async function sendWelcomeEmail(to: string, d: Omit<WelcomeData, "origin">): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY && process.env.NODE_ENV === "development") {
+    console.info(`[email] Welcome link for ${to}: ${d.url}`);
+    return true;
+  }
+  return deliver("welcome", to, welcomeEmail({ origin: emailOrigin(), ...d }), emailAdmin());
 }
 
 /**

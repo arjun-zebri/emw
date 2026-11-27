@@ -16,6 +16,7 @@ import { thumbUrl } from "@/lib/supabase/storage";
 import { Drawer } from "../Drawer";
 import { editHref } from "../nav";
 import { usePreloadEditor } from "./VendorListing";
+import { WelcomeSheet } from "./WelcomeSheet";
 import { Badge, Btn, Empty, PageHeader, Panel, Tabs, Toggle, inputCls } from "../ui";
 
 type Tab = "all" | "changed" | "featured" | "largeTile" | "statsOff" | "hidden";
@@ -97,6 +98,7 @@ export function Vendors() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string>();
+  const [welcomeIds, setWelcomeIds] = useState<string[]>([]);
   // The vendor in the sheet, kept while it slides away so it doesn't empty as it goes.
   const [sheetId, setSheetId] = useState<string>();
   const open = all?.find((v) => v.id === openId);
@@ -380,6 +382,9 @@ export function Vendors() {
                   </Btn>
                 ))}
               </div>
+              <Btn icon="send" disabled={busy} onClick={() => setWelcomeIds(selection.map((v) => v.id))}>
+                Send welcome email
+              </Btn>
               <Btn variant="ghost" onClick={() => setPicked(new Set())} disabled={busy}>
                 Clear
               </Btn>
@@ -419,6 +424,10 @@ export function Vendors() {
                   View on the site
                   <Icon name="arrow-up-right" className="size-3.5" strokeWidth={1.5} />
                 </Link>
+                <button type="button" onClick={() => setWelcomeIds([sheet.id])} className="inline-flex items-center gap-1.5 text-ink-soft transition-colors hover:text-ink">
+                  <Icon name="send" className="size-3.5" strokeWidth={1.5} />
+                  Send welcome email
+                </button>
               </div>
             </div>
             {sheet.changes && (
@@ -464,6 +473,8 @@ export function Vendors() {
           </div>
         )}
       </Drawer>
+
+      <WelcomeSheet vendors={all?.filter((v) => welcomeIds.includes(v.id)) ?? []} onClose={() => setWelcomeIds([])} onSent={() => setPicked(new Set())} />
     </>
   );
 }
