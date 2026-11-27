@@ -8,6 +8,7 @@ import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { GoogleLogo, MicrosoftLogo, ProviderButton } from "@/components/apply/AccountPanel";
+import { SOCIAL_SIGN_IN } from "@/lib/config";
 import { requestPasswordLink } from "@/lib/account/access";
 import { decodeToken } from "@/lib/admin/session";
 import { supabase } from "@/lib/supabase/browser";
@@ -280,6 +281,7 @@ function SignInView({ next, startWithLink, access }: { next?: string; startWithL
                 </button>
               </motion.div>
 
+              {SOCIAL_SIGN_IN && (
               <motion.div {...rise(6)}>
                 <div className="t-small my-6 flex items-center gap-4" aria-hidden>
                   <span className="h-px flex-1 bg-line" />
@@ -303,6 +305,7 @@ function SignInView({ next, startWithLink, access }: { next?: string; startWithL
                   />
                 </div>
               </motion.div>
+              )}
             </form>
           )}
         </div>

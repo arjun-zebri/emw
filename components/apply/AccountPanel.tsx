@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { reportClient } from "@/lib/observe/client";
 import { type AccountResult, createAccount, signInToApply, signOutOfApply, skipConfirmation } from "@/lib/apply/account";
 import { supabase } from "@/lib/supabase/browser";
+import { SOCIAL_SIGN_IN } from "@/lib/config";
 
 /*
  * The first screen's account: Google, Microsoft, or an email and password (confirmed by a link we
@@ -98,14 +99,14 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
       res.status === "invalid"
         ? res.message
         : res.status === "exists"
-          ? "You already have an account with this email. Check your password, or sign in with Google or Microsoft if that’s how you made it."
+          ? `You already have an account with this email. Check your password${SOCIAL_SIGN_IN ? ", or sign in with Google or Microsoft if that’s how you made it" : ", or choose a new one from the sign-in page"}.`
           : res.status === "wrong"
             ? "That email and password don’t match."
             : res.status === "offline"
               ? "We couldn’t reach East Meets Wed. Check your connection and try again."
               : mode === "create" && !again
-                ? "We couldn’t make your account just now, and we’ve been told about it. Try again in a few minutes, or continue with Google or Microsoft above."
-                : "We couldn’t sign you in just now, and we’ve been told about it. Try again in a few minutes, or continue with Google or Microsoft above.",
+                ? `We couldn’t make your account just now, and we’ve been told about it. Try again in a few minutes${SOCIAL_SIGN_IN ? ", or continue with Google or Microsoft above" : ""}.`
+                : `We couldn’t sign you in just now, and we’ve been told about it. Try again in a few minutes${SOCIAL_SIGN_IN ? ", or continue with Google or Microsoft above" : ""}.`,
     );
     if (res.status === "exists") setMode("signin");
   }
@@ -162,7 +163,7 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
                   setSent(false);
                   return onChange();
                 }
-                setError("That didn’t work. Try again, or sign in with Google or Microsoft.");
+                setError(SOCIAL_SIGN_IN ? "That didn’t work. Try again, or sign in with Google or Microsoft." : "That didn’t work. Try again.");
               }}
             >
               Skip the email (staging)
@@ -194,16 +195,20 @@ export function AccountPanel({ account, onChange }: { account: Account | undefin
 
   return (
     <div className="max-w-[26rem]">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <ProviderButton label="Continue with Google" busy={busy === "google"} disabled={!!busy} onClick={() => oauth("google")} logo={<GoogleLogo />} />
-        <ProviderButton label="Continue with Microsoft" busy={busy === "azure"} disabled={!!busy} onClick={() => oauth("azure")} logo={<MicrosoftLogo />} />
-      </div>
+      {SOCIAL_SIGN_IN && (
+        <>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <ProviderButton label="Continue with Google" busy={busy === "google"} disabled={!!busy} onClick={() => oauth("google")} logo={<GoogleLogo />} />
+            <ProviderButton label="Continue with Microsoft" busy={busy === "azure"} disabled={!!busy} onClick={() => oauth("azure")} logo={<MicrosoftLogo />} />
+          </div>
 
-      <div className="t-small my-6 flex items-center gap-4" aria-hidden>
-        <span className="h-px flex-1 bg-line" />
-        or with your email
-        <span className="h-px flex-1 bg-line" />
-      </div>
+          <div className="t-small my-6 flex items-center gap-4" aria-hidden>
+            <span className="h-px flex-1 bg-line" />
+            or with your email
+            <span className="h-px flex-1 bg-line" />
+          </div>
+        </>
+      )}
 
       <div className="space-y-2">
         <label htmlFor={`${uid}-email`} className="sr-only">
