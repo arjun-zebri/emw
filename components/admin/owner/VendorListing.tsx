@@ -39,7 +39,9 @@ export function VendorListing() {
  */
 export function usePreloadEditor() {
   const router = useRouter();
-  useEffect(() => router.prefetch("/admin/vendors/edit"), [router]);
+  useEffect(() => {
+    router.prefetch("/admin/vendors/edit");
+  }, [router]);
 }
 
 /** Where the editor was opened from: Approvals, or (by default) Admin → Vendors. */
@@ -60,7 +62,9 @@ export function OldVendorLink() {
   const { slug } = useParams<{ slug: string }>();
   const from = useFrom();
   const router = useRouter();
-  useEffect(() => router.replace(editHref(slug, from)), [slug, from, router]);
+  useEffect(() => {
+    router.replace(editHref(slug, from));
+  }, [slug, from, router]);
   return null;
 }
 
@@ -69,7 +73,10 @@ export function OldVendorLink() {
  * keeps whatever of the old scroll fits the shorter loading outline, leaving the top under the bar.
  */
 function OpenAtTop() {
-  useLayoutEffect(() => scrollTo(0, 0), []);
+  // Braced: whatever scrollTo returns must not become the effect's cleanup.
+  useLayoutEffect(() => {
+    scrollTo(0, 0);
+  }, []);
   return null;
 }
 
