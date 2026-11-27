@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { NextPage, SitePageArticle, SitePageFrame } from "@/components/pages/SitePage";
+import { SitePageArticle, SitePageFrame } from "@/components/pages/SitePage";
 import { getPage } from "@/lib/pages/live";
-import { PAGES } from "@/lib/pages/pages";
 import { pageMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,8 +18,9 @@ export default function AboutPage() {
 }
 
 async function About() {
-  const [page, commitment] = await Promise.all([getPage("about"), getPage("shared-commitment")]);
-  // Until the team writes it in Admin → Pages, About is the section on the home page.
+  const page = await getPage("about");
+  // Until the team writes it in Admin → Pages, About is the section on the home page. The page shows
+  // only what's written there: a link to Shared commitment is one the team puts in the text.
   if (!page) redirect("/#about");
-  return <SitePageArticle page={page} more={commitment && <NextPage href={PAGES["shared-commitment"].path}>{commitment.title || PAGES["shared-commitment"].name}</NextPage>} />;
+  return <SitePageArticle page={page} />;
 }
