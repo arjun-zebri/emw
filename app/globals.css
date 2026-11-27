@@ -461,14 +461,15 @@ html:not(.js) .intro {
 
 /*
  * The site's own pages (About, Shared commitment, Privacy, Terms), on the site and in Admin → Pages
- * alike, so the editor writes as the page reads. Set as an editorial page, not a story: the title
- * across the top, then each section on a hairline, its heading small in the left third and its words
- * in a readable column on the right. Below 1024px, one column. Unlayered, so it wins over the
- * story's own column utilities on the same blocks.
+ * alike, so the editor writes as the page reads. An editorial page, not a story: the title, then
+ * whatever comes before the first heading as the opening, straight under the title and a little
+ * larger; then each section on a hairline across the page, its heading small in the left third and
+ * its words in a readable column on the right. Below 1024px, one column. Unlayered, so it wins over
+ * the story's own column utilities on the same blocks.
  */
 :is(.page-flow, .page-editor [role="textbox"]) {
   --flow-gap: clamp(2rem, 3vw, 3.5rem);
-  --flow-space: clamp(3rem, 6vw, 4.5rem);
+  --flow-space: clamp(2.25rem, 4vw, 3.25rem);
   overflow-wrap: anywhere;
 }
 :is(.page-flow, .page-editor [role="textbox"]) > * {
@@ -478,6 +479,12 @@ html:not(.js) .intro {
 }
 :is(.page-flow, .page-editor [role="textbox"]) > figure {
   max-width: none;
+}
+/* The opening: the paragraphs before the first heading, read first and set larger. */
+:is(.page-flow, .page-editor [role="textbox"]) > p:not(:is(h1, h2) ~ *) {
+  max-width: 48rem;
+  font-size: clamp(1.1875rem, 1.5vw, 1.375rem);
+  line-height: 1.6;
 }
 :is(.page-flow, .page-editor [role="textbox"]) > :is(h1, h2) {
   position: relative;
@@ -499,7 +506,8 @@ html:not(.js) .intro {
   margin-top: 0;
 }
 @media (min-width: 1024px) {
-  /* Each heading takes the left third for as many rows as its section has; its section fills the right. */
+  /* The opening runs from the left edge under the title; after the first heading, each heading takes
+     the left third for as many rows as its section has, and its section fills the right. */
   :is(.page-flow, .page-editor [role="textbox"]) {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -507,6 +515,9 @@ html:not(.js) .intro {
     align-items: start;
   }
   :is(.page-flow, .page-editor [role="textbox"]) > * {
+    grid-column: 1 / 9;
+  }
+  :is(.page-flow, .page-editor [role="textbox"]) > :is(h1, h2) ~ * {
     grid-column: 6 / 13;
   }
   :is(.page-flow, .page-editor [role="textbox"]) > :is(h1, h2) {
