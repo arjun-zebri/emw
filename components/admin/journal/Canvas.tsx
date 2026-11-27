@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
-import { postDate } from "@/components/journal/Article";
+import { coverBox, postDate } from "@/components/journal/Article";
 import type { PostContent } from "@/lib/admin/journal";
 import { type Block, type Photo, photoUrl, ratioOf } from "@/lib/journal/blocks";
 import { BodyEditor, type BodyHandle, OnPhoto, pickFiles } from "./BodyEditor";
@@ -224,7 +224,8 @@ function Cover({
   const ratio = ratioOf(photo) ?? 3 / 2;
   return (
     <figure {...drop} className="group/cover mt-10">
-      <div className={clsx("relative mx-auto", over && "outline outline-2 outline-offset-4 outline-ink")} style={{ aspectRatio: ratio, width: `min(100%, calc(80vh * ${ratio}))` }}>
+      {/* Placed exactly as the post places it. */}
+      <div className={clsx("relative max-sm:ml-0! max-sm:w-full!", over && "outline outline-2 outline-offset-4 outline-ink")} style={coverBox(ratio)}>
         <Media src={photoUrl(photo.src)} alt={photo.alt} brief="" quiet sizes="900px" priority className="size-full" />
         {uploading && <span aria-hidden className="skeleton absolute inset-0 opacity-60 mix-blend-multiply" />}
         <div className="absolute right-3 bottom-3 flex gap-1.5 opacity-0 transition-opacity group-focus-within/cover:opacity-100 group-hover/cover:opacity-100">

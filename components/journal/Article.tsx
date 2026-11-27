@@ -37,6 +37,17 @@ const TEXT = "mx-auto w-full max-w-[42rem]";
 export const HEADING_2 = "t-heading text-[clamp(1.625rem,2.2vw,2.125rem)] text-balance";
 export const HEADING_3 = "t-title text-[clamp(1.25rem,1.6vw,1.5rem)] text-balance";
 
+/**
+ * Where the cover sits, shared with the editor. As large as the screen's height allows (88vh). Narrower
+ * than the text, it lines up with the text's left edge; only a little wider (under 48rem), it snaps to
+ * the text's width, so it never overhangs by a few pixels; wider than that, it sits centred, running wide.
+ */
+export function coverBox(ratio: number): React.CSSProperties {
+  const fit = `min(100%, calc(88vh * ${ratio}))`;
+  const width = `max(min(${fit}, 42rem), calc(${fit} - max(0px, 48rem - ${fit}) * 100))`;
+  return { aspectRatio: ratio, width, marginLeft: `max(0px, min((100% - 42rem) / 2, (100% - ${width}) / 2))` };
+}
+
 export function Article({ post, vendors, more }: { post: ArticlePost; vendors: Credit[]; more?: React.ReactNode }) {
   // Posts from WordPress carry their cover photo in the body as well; it's already at the top.
   const coverSrc = post.cover?.src;
@@ -78,7 +89,15 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
 
       {post.cover && (
         <figure data-reveal-media suppressHydrationWarning className="shell mt-[clamp(2rem,4vw,3.5rem)]">
-          <Frame photo={{ ...post.cover, alt: post.cover.alt || post.title }} sizes="(min-width: 1440px) 1300px, 100vw" priority className="max-w-[81.25rem]" />
+          {ratioOf(post.cover) ? (
+            <div className="mx-auto max-w-[81.25rem]">
+              <div className="max-sm:ml-0! max-sm:w-full!" style={coverBox(ratioOf(post.cover)!)}>
+                <Media src={post.cover.src} alt={post.cover.alt || post.title} brief="" quiet sizes="(min-width: 1440px) 1300px, 100vw" priority className="size-full" />
+              </div>
+            </div>
+          ) : (
+            <Frame photo={{ ...post.cover, alt: post.cover.alt || post.title }} sizes="(min-width: 1440px) 1300px, 100vw" priority className="max-w-[81.25rem]" />
+          )}
         </figure>
       )}
 
