@@ -3,11 +3,14 @@
 import Lenis from "lenis";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { setLenis } from "@/lib/lenis";
+import { getLenis, setLenis } from "@/lib/lenis";
 
 // Revealed elements get a data-in attribute rather than a class: streamed-in HTML can be revealed
 // before React hydrates it, and a class React also renders would then fail hydration.
 const REVEAL = "[data-reveal]:not([data-in]), [data-reveal-media]:not([data-in])";
+
+/** A link to another page was clicked: open it at the top. */
+let toTop = false;
 
 /*
  * One client island for site-wide motion: Lenis smooth scrolling, scroll-triggered reveals for
@@ -21,16 +24,24 @@ export function MotionRuntime() {
     const lenis = reduce ? null : new Lenis({ autoRaf: true, lerp: 0.085, wheelMultiplier: 0.9 });
     setLenis(lenis);
 
-    // A click made while the page is still gliding would let Lenis carry on scrolling the next page,
-    // so it opened part way down. Stop the glide on any link to another page; back and forward are untouched.
+    // A link to another page opens it at the top (NT, 27 Nov 2026: the menu opened pages part way
+    // down). Stop any glide still running, then go to the top once the new page is in (the effect on
+    // pathname below): pages kept alive by <Activity> would otherwise come back where they were left.
+    // A link to the page you're on goes back to its top. Back and forward, and links to a #section, are untouched.
     const onClick = (e: MouseEvent) => {
-      if (!lenis || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.defaultPrevented) return;
       const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!a || (a.target && a.target !== "_self")) return;
+      if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
       const url = new URL(a.href, location.href);
-      if (url.origin !== location.origin || url.pathname === location.pathname) return;
-      lenis.stop();
-      lenis.start();
+      if (url.origin !== location.origin || url.hash) return;
+      lenis?.stop();
+      lenis?.start();
+      if (url.pathname !== location.pathname) toTop = true;
+      // Same page, other filters (the directory's): stay where you are.
+      else if (url.search === location.search) {
+        if (lenis) lenis.scrollTo(0);
+        else scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+      }
     };
     document.addEventListener("click", onClick, true);
 
@@ -42,6 +53,13 @@ export function MotionRuntime() {
       setLenis(null);
     };
   }, []);
+
+  useEffect(() => {
+    if (!toTop) return;
+    toTop = false;
+    getLenis()?.scrollTo(0, { immediate: true, force: true });
+    scrollTo(0, 0);
+  }, [pathname]);
 
   useEffect(() => {
     const io = new IntersectionObserver(

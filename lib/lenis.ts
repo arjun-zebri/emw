@@ -6,6 +6,8 @@ export function setLenis(lenis: Lenis | null) {
   instance = lenis;
 }
 
+export const getLenis = () => instance;
+
 /** Pause smooth scrolling while a drawer, menu or lightbox owns the viewport. */
 export function lockScroll(locked: boolean) {
   if (locked) instance?.stop();
