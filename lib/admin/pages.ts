@@ -103,13 +103,15 @@ export async function publishPage(page: SitePage, c: PostContent): Promise<SiteP
     .from("site_pages")
     .update({
       title: c.title.trim(),
-      standfirst: c.standfirst.trim(),
-      cover_path: c.cover?.src ?? null,
-      cover_alt: c.cover?.alt.trim() ?? "",
-      cover_width: c.cover?.w ?? null,
-      cover_height: c.cover?.h ?? null,
+      // A page has no line under its title, no cover and no separate search description: the editor
+      // doesn't show them, so nothing it can't show is kept. Search engines get the opening words.
+      standfirst: "",
+      cover_path: null,
+      cover_alt: "",
+      cover_width: null,
+      cover_height: null,
       body: tidyBody(c.body) as unknown as Json,
-      description: c.description.trim(),
+      description: "",
     })
     .eq("slug", page.slug)
     .eq("updated_at", page.updatedAt)

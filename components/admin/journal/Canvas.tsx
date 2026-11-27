@@ -101,7 +101,7 @@ export function Canvas({ content, update, version, uploading, onFiles, date, min
         />
       )}
 
-      <div className="mt-12">
+      <div className={plain ? "mt-[clamp(2.5rem,5vw,4rem)]" : "mt-12"}>
         <BodyEditor
           key={version}
           body={content.body}

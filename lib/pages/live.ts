@@ -38,7 +38,8 @@ async function load(): Promise<Partial<Record<PageSlug, LivePage>>> {
     cacheLife({ stale: 30, revalidate: 60, expire: 300 });
     return {};
   }
-  cacheLife("days");
+  // Publishing refreshes at once; anything written another way shows within the hour.
+  cacheLife("hours");
 
   const pages: Partial<Record<PageSlug, LivePage>> = {};
   for (const p of data) {

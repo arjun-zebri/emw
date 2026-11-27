@@ -480,6 +480,11 @@ html:not(.js) .intro {
 }
 :is(.page-flow, .page-editor [role="textbox"]) > figure {
   max-width: none;
+  margin-block: clamp(2.5rem, 4vw, 3.5rem);
+}
+/* Rows of photos one after another sit together, as in a story. */
+:is(.page-flow, .page-editor [role="textbox"]) > figure + figure {
+  margin-top: clamp(0.5rem, 1vw, 1rem);
 }
 /* The opening: the paragraphs before the first heading, read first and set larger. */
 :is(.page-flow, .page-editor [role="textbox"]) > p:not(:is(h1, h2) ~ *) {
