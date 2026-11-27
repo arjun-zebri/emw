@@ -10,7 +10,7 @@ import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { Portal } from "@/components/ui/Portal";
 import { VendorSpread } from "@/components/vendor/VendorSpread";
-import { areaLabel, australiaWide, crafts, languages as languageNames, overseas, serviceLabels, states } from "@/data/taxonomy";
+import { areaLabel, australiaWide, byLabel, crafts, languages as languageNames, overseas, serviceLabels, states } from "@/data/taxonomy";
 import type { Language, OverseasCode, StateCode, Vendor } from "@/data/types";
 import { finishApplication, submitApplication } from "@/lib/apply/actions";
 import { type Application, disciplineSuggestions, emptyApplication, fullPhone, isEmail, isWebsite, LIMITS, otherLanguageList, socialUrl, storyChars, withScheme } from "@/lib/apply/application";
@@ -669,7 +669,7 @@ function Crafts({ a, set, flip, headingId, uid }: { a: Application; set: Setter;
                           </span>
                         </span>
                         <div className="flex flex-wrap gap-2">
-                          {c.services.map((s) => (
+                          {byLabel(c.services).map((s) => (
                             <Chip key={s} on={a.services.includes(s)} onClick={() => flip("services", s)}>
                               {serviceLabels[s]}
                             </Chip>

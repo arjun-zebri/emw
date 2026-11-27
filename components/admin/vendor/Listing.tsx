@@ -11,7 +11,7 @@ import { NativeName } from "@/components/ui/LanguageName";
 import { Skeleton, SkeletonLines } from "@/components/ui/Skeleton";
 import { StickyColumn } from "@/components/vendor/StickyColumn";
 import { Story } from "@/components/vendor/Story";
-import { areaOptions as allAreas, languages as languageNames, serviceLabels, serviceOptions } from "@/data/taxonomy";
+import { areaOptions as allAreas, languages as languageNames, serviceOptions, servicesLine } from "@/data/taxonomy";
 import type { Language, Service } from "@/data/types";
 import { editPhotos, LINE_MAX, saveListing, SaveError, useOwnListing, type EditPhoto, type ListingDetails, type OwnListing } from "@/lib/account/listing";
 import { approveDraft, draftMissing, MissingError, missingLabels, reopen, type Missing } from "@/lib/admin/drafts";
@@ -46,7 +46,8 @@ const ordered = (list: Language[]) => languageOrder.filter((l) => list.includes(
 const valuesOf = (l: OwnListing): Values => ({
   name: l.name,
   person: l.person,
-  discipline: l.discipline,
+  // From the services, so a listing saved before the line followed them shows (and saves) the full line.
+  discipline: l.services.length ? servicesLine(l.services, LINE_MAX) : l.discipline,
   story: normaliseStory([...(l.lede.trim() ? [serialiseBlock({ type: "p", content: [{ text: l.lede.trim() }] })] : []), ...l.story]).join("\n\n"),
   services: l.services,
   based: l.based,
@@ -67,9 +68,6 @@ const languageOptions = (Object.keys(languageNames) as Language[]).map((l) => ({
   hint: languageNames[l].native === l ? undefined : l,
   lang: languageNames[l].lang,
 }));
-
-// "MC" stays as it is; "Photography" becomes "photography" after the first.
-const lower = (t: string) => (/^[A-Z]{2,}\b/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1));
 
 /** The one text (introduction and story together): enough to say something, and no more than the page holds. */
 const TEXT_MIN = 100;
@@ -212,16 +210,8 @@ function Editor({
       : textLength > TEXT_MAX
         ? `That’s ${(textLength - TEXT_MAX).toLocaleString("en-AU")} characters over the ${TEXT_MAX.toLocaleString("en-AU")} limit. Shorten it to save.`
         : null;
-  // The line under the name lists every service chosen: "Photography", "Celebrant & MC",
-  // "Celebrant, MC, photography & videography".
-  const chooseServices = (services: Service[]) =>
-    setV((s) => {
-      const labels = services.map((x, i) => (i === 0 ? serviceLabels[x] : lower(serviceLabels[x])));
-      // "and" before the last when a name has its own "&", so "videography and hair & makeup" still reads.
-      const join = labels.some((l) => l.includes("&")) ? " and " : " & ";
-      const all = labels.length > 1 ? `${labels.slice(0, -1).join(", ")}${join}${labels.at(-1)}` : (labels[0] ?? "");
-      return { ...s, services, discipline: all.length <= LINE_MAX ? all : `${labels.slice(0, 3).join(", ")} and more` };
-    });
+  // The line under the name always lists every service chosen.
+  const chooseServices = (services: Service[]) => setV((s) => ({ ...s, services, discipline: servicesLine(services, LINE_MAX) }));
   const live = listing.status === "published";
   useEffect(() => {
     if (!dirty || !hint) return;

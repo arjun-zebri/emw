@@ -80,9 +80,27 @@ export function craftOf(service: Service): Craft {
 /** Every service a vendor can choose, in category order. */
 export const offeredServices: Service[] = crafts.flatMap((c) => c.services);
 
-/** Options for a services picker: what's offered, plus any retired service the listing already has. */
+/** Services in A–Z order of their labels, as a vendor reads them in a picker. */
+export const byLabel = (list: readonly Service[]) => [...list].sort((a, b) => serviceLabels[a].localeCompare(serviceLabels[b], "en-AU"));
+
+/** Options for a services picker, A–Z: what's offered, plus any retired service the listing already has. */
 export const serviceOptions = (current: readonly Service[] = []) =>
-  [...offeredServices, ...current.filter((s) => s in retiredServices)].map((s) => ({ value: s, label: serviceLabels[s] }));
+  byLabel([...offeredServices, ...current.filter((s) => s in retiredServices)]).map((s) => ({ value: s, label: serviceLabels[s] }));
+
+// "MC" stays as it is; "Photography" becomes "photography" after the first.
+const lower = (t: string) => (/^[A-Z]{2,}\b/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1));
+
+/**
+ * The line under a vendor's name, from every service they offer: "Photography", "Celebrant & MC",
+ * "Celebrant, MC, photography & videography". Past `max` characters, the first three "and more".
+ */
+export function servicesLine(services: readonly Service[], max = 120): string {
+  const labels = services.map((x, i) => (i === 0 ? serviceLabels[x] : lower(serviceLabels[x])));
+  // "and" before the last when a name has its own "&", so "videography and hair & makeup" still reads.
+  const join = labels.some((l) => l.includes("&")) ? " and " : " & ";
+  const all = labels.length > 1 ? `${labels.slice(0, -1).join(", ")}${join}${labels.at(-1)}` : (labels[0] ?? "");
+  return all.length <= max ? all : `${labels.slice(0, 3).join(", ")} and more`;
+}
 
 export const serviceLabels: Record<Service, string> = {
   Celebrant: "Celebrant",
