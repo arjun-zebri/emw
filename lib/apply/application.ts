@@ -32,6 +32,10 @@ export type Application = {
   facebook: string;
   /** They confirmed the photos are theirs to share. */
   rights: boolean;
+  /** Just for the team, never on the listing: a cultural moment from a wedding that stayed with them. */
+  moment: string;
+  /** Just for the team, optional: what they'd bring to or learn from the community, and why EMW. */
+  why: string;
 };
 
 export const emptyApplication: Application = {
@@ -53,6 +57,8 @@ export const emptyApplication: Application = {
   instagram: "",
   facebook: "",
   rights: false,
+  moment: "",
+  why: "",
 };
 
 export const LIMITS = {
@@ -71,6 +77,8 @@ export const LIMITS = {
    * uncropped. Every camera shape, 16:9 included, is under it.
    */
   photoShape: 2,
+  /** Each of the two questions just for the team. */
+  private: 1200,
 } as const;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -137,6 +145,8 @@ export function problems(a: Application): string[] {
   if (!text(a.phone, 30) || (digits && (digits.length < 6 || digits.length > 14)) || !countryByCode(a.phoneCountry, null)) out.push("Check your phone number.");
   if (!text(a.website, 200) || !isWebsite(a.website)) out.push("Check your website address.");
   if (!text(a.instagram, 200) || (a.instagram.trim() && !socialUrl(a.instagram, "instagram"))) out.push("Check your Instagram.");
+  if (typeof a.moment !== "string" || !a.moment.trim() || a.moment.length > LIMITS.private) out.push("Tell us about a cultural moment from a wedding.");
+  if (typeof a.why !== "string" || a.why.length > LIMITS.private) out.push("Keep why East Meets Wed a little shorter.");
   if (!text(a.facebook, 200) || (a.facebook.trim() && !socialUrl(a.facebook, "facebook"))) out.push("Check your Facebook.");
   if (a.rights !== true) out.push("Confirm the photos are yours to share.");
   return out;

@@ -489,6 +489,7 @@ export type Database = {
         Row: {
           applicant_id: string | null
           categories_original: string | null
+          cultural_moment: string | null
           confidence: Database["public"]["Enums"]["review_confidence"] | null
           created_at: string
           notes: string
@@ -496,11 +497,13 @@ export type Database = {
           source: string
           updated_at: string
           vendor_id: string
+          why_emw: string | null
           years_attended: string | null
         }
         Insert: {
           applicant_id?: string | null
           categories_original?: string | null
+          cultural_moment?: string | null
           confidence?: Database["public"]["Enums"]["review_confidence"] | null
           created_at?: string
           notes?: string
@@ -508,11 +511,13 @@ export type Database = {
           source?: string
           updated_at?: string
           vendor_id: string
+          why_emw?: string | null
           years_attended?: string | null
         }
         Update: {
           applicant_id?: string | null
           categories_original?: string | null
+          cultural_moment?: string | null
           confidence?: Database["public"]["Enums"]["review_confidence"] | null
           created_at?: string
           notes?: string
@@ -520,6 +525,7 @@ export type Database = {
           source?: string
           updated_at?: string
           vendor_id?: string
+          why_emw?: string | null
           years_attended?: string | null
         }
         Relationships: [

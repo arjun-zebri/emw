@@ -61,6 +61,9 @@ export type ReviewNotes = {
   categoriesOriginal?: string;
   registeredEmails?: string;
   source: string;
+  /** Their answers to the two questions just for the team, from the application. */
+  moment?: string;
+  why?: string;
 };
 
 export type DraftPhoto = { id: string; src: string; width: number | null; height: number | null };
@@ -249,7 +252,7 @@ export async function loadDraft(id: string) {
       .eq("id", id)
       .single(),
     db().from("vendor_queue").select(ROW).eq("id", id).single(),
-    db().from("vendor_review_notes").select("confidence, notes, years_attended, categories_original, registered_emails, source").eq("vendor_id", id).maybeSingle(),
+    db().from("vendor_review_notes").select("confidence, notes, years_attended, categories_original, registered_emails, source, cultural_moment, why_emw").eq("vendor_id", id).maybeSingle(),
   ]);
   detailLoading.delete(id);
   if (vendor.error || row.error) return;
@@ -272,7 +275,7 @@ export async function loadDraft(id: string) {
     facebook: opt(v.facebook),
     photos: [...v.vendor_photos].sort((a, b) => a.position - b.position).map((p) => ({ id: p.id, src: imageUrl("vendor-photos", p.path), width: p.width, height: p.height })),
     review: n
-      ? { confidence: opt(n.confidence), notes: n.notes, yearsAttended: opt(n.years_attended), categoriesOriginal: opt(n.categories_original), registeredEmails: opt(n.registered_emails), source: n.source }
+      ? { confidence: opt(n.confidence), notes: n.notes, yearsAttended: opt(n.years_attended), categoriesOriginal: opt(n.categories_original), registeredEmails: opt(n.registered_emails), source: n.source, moment: opt(n.cultural_moment), why: opt(n.why_emw) }
       : undefined,
   };
   set({ details: { ...state.details, [id]: draft } });

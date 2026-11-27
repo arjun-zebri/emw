@@ -675,6 +675,7 @@ function DraftPanel({ row, draft, view, onView }: { row: QueueRow; draft?: Draft
         </div>
       ) : (
         <div className="max-w-[56rem] p-6">
+          {(draft.review?.moment || draft.review?.why) && <JustForUs r={draft.review} />}
           {draft.review && <Research r={draft.review} name={draft.name} />}
           <Facts
             rows={[
@@ -986,6 +987,27 @@ const confidenceMeaning = {
 /** An ABN quoted in the research notes, as 11 digits. */
 const abnIn = (notes: string) => notes.match(/\bABN[:\s]*((?:\d\s?){11})/i)?.[1].replace(/\s/g, "");
 const spaced = (abn: string) => `${abn.slice(0, 2)} ${abn.slice(2, 5)} ${abn.slice(5, 8)} ${abn.slice(8)}`;
+
+/** What they told the team, just for us, at the end of their application. Never on the listing. */
+function JustForUs({ r }: { r: ReviewNotes }) {
+  const answers = [
+    { q: "A cultural moment from a wedding that stayed with them, or one they’d love to be part of", a: r.moment },
+    { q: "What they’d bring to, or learn from, the community, and why East Meets Wed", a: r.why },
+  ].filter((x) => x.a);
+  return (
+    <section className="mt-6 border-t hairline pt-5">
+      <h3 className="text-[0.9375rem] text-ink">Just for us</h3>
+      <dl className="mt-3 space-y-4">
+        {answers.map((x) => (
+          <div key={x.q}>
+            <dt className="text-[0.8125rem] text-ink-soft">{x.q}</dt>
+            <dd className="mt-1 max-w-[62ch] text-[0.9375rem] leading-relaxed whitespace-pre-line text-ink">{x.a}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
 
 /** The research spreadsheet's verdict, kept apart from the listing itself, and a way to check the business. */
 function Research({ r, name }: { r: ReviewNotes; name: string }) {

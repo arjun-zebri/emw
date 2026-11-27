@@ -32,7 +32,7 @@ import { reportClient } from "@/lib/observe/client";
  * this browser as they go (text in localStorage, photos in IndexedDB), so "Save and exit" means it.
  */
 
-type StepId = "welcome" | "about" | "craft" | "languages" | "where" | "show" | "photos" | "name" | "line" | "story" | "finish" | "contact" | "review";
+type StepId = "welcome" | "about" | "craft" | "languages" | "where" | "show" | "photos" | "name" | "line" | "story" | "finish" | "contact" | "us" | "review";
 
 const flow: { id: StepId; section?: 0 | 1 | 2; intro?: boolean }[] = [
   { id: "welcome" },
@@ -47,6 +47,7 @@ const flow: { id: StepId; section?: 0 | 1 | 2; intro?: boolean }[] = [
   { id: "story", section: 1 },
   { id: "finish", section: 2, intro: true },
   { id: "contact", section: 2 },
+  { id: "us", section: 2 },
   { id: "review", section: 2 },
 ];
 
@@ -156,6 +157,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
       (!a.phone || a.phone.length >= 6) &&
       (!a.instagram.trim() || !!socialUrl(a.instagram, "instagram")) &&
       (!a.facebook.trim() || !!socialUrl(a.facebook, "facebook")),
+    us: !!a.moment.trim(),
     review: a.rights,
   };
   const firstGap = flow.findIndex((s) => !valid[s.id] && s.id !== "review");
@@ -440,6 +442,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
                 </Intro>
               )}
               {step.id === "contact" && <Contact a={a} set={set} headingId={headingId} uid={uid} />}
+              {step.id === "us" && <JustForUs a={a} set={set} headingId={headingId} uid={uid} />}
               {step.id === "review" && (
                 <Review a={a} photos={photos} headingId={headingId} uid={uid} problems={problems} onEdit={edit} onPreview={() => setPreview(true)} onRights={(v) => set("rights", v)} />
               )}
@@ -802,6 +805,38 @@ function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; 
   );
 }
 
+/** Two questions for NT and Mona, to get to know who's joining. Kept with the team's notes, never on the listing. */
+function JustForUs({ a, set, headingId, uid }: { a: Application; set: Setter; headingId: string; uid: string }) {
+  const box =
+    "mt-3 block min-h-[8.5rem] w-full resize-none border hairline bg-surface px-4 py-3.5 text-[1.0625rem] leading-[1.6] text-ink placeholder:text-ink-mute/60 transition-colors [field-sizing:content] focus:border-ink focus:outline-none";
+  return (
+    <>
+      <StepHead id={headingId} title="Just for us 💛">
+        These won&rsquo;t show on your profile.
+      </StepHead>
+      <div className="space-y-10">
+        {[
+          { key: "moment" as const, q: "What’s a cultural moment from a wedding that stayed with you, or one you’d love to be part of?", hint: "A few sentences is perfect. No right answers, and any culture counts." },
+          { key: "why" as const, q: "What would you love to bring to, or learn from, the EMW community? Why East Meets Wed?", hint: "Optional. A few sentences is perfect." },
+        ].map(({ key, q, hint }) => (
+          <div key={key}>
+            <label htmlFor={`${uid}-${key}`} className="block text-[1.125rem] leading-[1.45] text-ink text-pretty">
+              {q}
+            </label>
+            <p className="t-small mt-1.5">{hint}</p>
+            <textarea id={`${uid}-${key}`} value={a[key]} maxLength={LIMITS.private} onChange={(e) => set(key, e.target.value)} className={box} />
+            {a[key].length > LIMITS.private * 0.8 && (
+              <p className="t-small mt-2 text-right tabular-nums">
+                {a[key].length} / {LIMITS.private}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function Contact({ a, set, headingId, uid }: { a: Application; set: Setter; headingId: string; uid: string }) {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const blur = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }));
@@ -897,6 +932,7 @@ function Review({
     },
     { label: "About", value: <span className="line-clamp-3">{blocks.map((b) => b.replace(/^## |^- |^\d+\. |\*\*/gm, "")).join(" ")}</span>, step: "story" },
     { label: "Contact", value: [a.email, fullPhone(a), a.website, a.instagram, a.facebook].filter((s) => s.trim()).join(" · "), step: "contact" },
+    { label: "Just for us", value: <span className="line-clamp-2">{[a.moment, a.why].map((t) => t.trim()).filter(Boolean).join(" ")}</span>, step: "us" },
   ];
   return (
     <>

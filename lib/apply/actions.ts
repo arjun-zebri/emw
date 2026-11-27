@@ -117,7 +117,7 @@ export async function submitApplication(a: Application, meta: { photos: number; 
     a.otherCraft.trim() && `Also does: ${clean(a.otherCraft)}.`,
     "They confirmed the photos are theirs to share, or that they have permission.",
   ].filter(Boolean);
-  const note = await db.from("vendor_review_notes").insert({ vendor_id: vendor.id, applicant_id: user.id, notes: notes.join("\n"), registered_emails: email, source: `${SOURCE}, ${today()}` });
+  const note = await db.from("vendor_review_notes").insert({ vendor_id: vendor.id, applicant_id: user.id, notes: notes.join("\n"), registered_emails: email, source: `${SOURCE}, ${today()}`, cultural_moment: a.moment.trim(), why_emw: a.why.trim() || null });
   if (note.error) {
     reportSoon(note.error, { area: "apply", severity: "urgent", route: "/list-your-business/apply", context: { step: "saving the review notes" } });
     await db.from("vendors").delete().eq("id", vendor.id);
