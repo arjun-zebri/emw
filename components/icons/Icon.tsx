@@ -193,6 +193,7 @@ const paths = {
       <circle cx="15" cy="17" r=".9" fill="currentColor" />
     </>
   ),
+  grid: <path d="M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z" />,
   "arrow-up": <path d="M12 20.5V3.5M6 9.5l6-6 6 6" />,
   "arrow-down": <path d="M12 3.5v17M6 14.5l6 6 6-6" />,
   send: <path d="M20.5 3.5 10 14M20.5 3.5l-6.5 17-4-6.5-6.5-4z" />,

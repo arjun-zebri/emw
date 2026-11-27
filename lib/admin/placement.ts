@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Service } from "@/data/types";
 import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
 import { imageUrl } from "@/lib/supabase/storage";
@@ -26,7 +27,8 @@ export type PlacedVendor = {
   slug: string;
   name: string;
   discipline: string;
-  cover?: { src: string; ratio: number };
+  services: Service[];
+  cover?: { src: string; ratio: number; focus?: string };
   featured: boolean;
   largeTile: boolean;
   statsEnabled: boolean;
@@ -53,7 +55,7 @@ async function load(): Promise<PlacedVendor[]> {
     db()
       .from("vendors")
       .select(
-        "id, slug, name, discipline, status, featured, large_tile, stats_enabled, vendor_photos(path, width, height, position), vendor_decisions(verdict, created_at, team_members(name))",
+        "id, slug, name, discipline, services, status, featured, large_tile, stats_enabled, vendor_photos(path, width, height, focus_x, focus_y, position), vendor_decisions(verdict, created_at, team_members(name))",
       )
       .in("status", ["published", "hidden"])
       .order("name")
@@ -78,7 +80,12 @@ async function load(): Promise<PlacedVendor[]> {
         slug: v.slug,
         name: v.name,
         discipline: v.discipline,
-        cover: first && { src: imageUrl("vendor-photos", first.path), ratio: first.width && first.height ? first.width / first.height : 4 / 5 },
+        services: v.services as Service[],
+        cover: first && {
+          src: imageUrl("vendor-photos", first.path),
+          ratio: first.width && first.height ? first.width / first.height : 4 / 5,
+          focus: first.focus_x != null && first.focus_y != null ? `${first.focus_x}% ${first.focus_y}%` : undefined,
+        },
         featured: v.featured,
         largeTile: v.large_tile,
         statsEnabled: v.stats_enabled,
