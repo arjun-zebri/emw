@@ -81,6 +81,35 @@ export async function preparePhoto(file: Blob, min: number = LIMITS.photoMin, sh
   }
 }
 
+/**
+ * The photo a quarter turn clockwise, prepared afresh at every size. From the photo as added (a Blob)
+ * or as saved (its address in storage). No size or shape checks: it passed them when it was added.
+ */
+export async function rotatePhoto(source: Blob | string): Promise<ApplyPhoto> {
+  let blob: Blob;
+  try {
+    blob = typeof source === "string" ? await fetch(source, { cache: "no-store" }).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`${r.status}`)))) : source;
+  } catch {
+    throw new PhotoError("We couldn’t fetch this photo to turn it. Check your connection and try again.");
+  }
+  const bitmap = await decode(blob);
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.height;
+    canvas.height = bitmap.width;
+    const ctx = canvas.getContext("2d")!;
+    ctx.translate(canvas.width, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(bitmap, 0, 0);
+    const turned = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new PhotoError("We couldn’t turn this photo."))), "image/jpeg", 0.95),
+    );
+    return await preparePhoto(turned, 0, null);
+  } finally {
+    bitmap.close();
+  }
+}
+
 // ── Keeping the photos between visits ───────────────────────────────────
 // IndexedDB, because photos are too big for localStorage. Best effort: in a private window or with
 // storage blocked this quietly does nothing and the flow still works.

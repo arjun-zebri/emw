@@ -8,7 +8,9 @@ import { Icon, type IconName } from "@/components/icons/Icon";
 import { Media } from "@/components/media/Media";
 import { Portal } from "@/components/ui/Portal";
 import type { EditPhoto } from "@/lib/account/listing";
+import { toast } from "@/lib/admin/toast";
 import { LIMITS } from "@/lib/apply/application";
+import { PhotoError, rotatePhoto } from "@/lib/apply/photos";
 
 const ratioOf = (p: { width: number | null; height: number | null }) => (p.width && p.height ? p.width / p.height : 0.8);
 const isSoft = (p: { width: number | null; height: number | null }) => !!p.width && !!p.height && Math.max(p.width, p.height) < LIMITS.photoMin;
@@ -76,6 +78,7 @@ export function ListingPhotos({
   const [dropping, setDropping] = useState(false);
   const [viewing, setViewing] = useState<EditPhoto | null>(null);
   const [framing, setFraming] = useState(false);
+  const [turning, setTurning] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -190,6 +193,23 @@ export function ListingPhotos({
     onChange(photos.filter((_, j) => j !== i));
     setSelected(null);
   };
+  /** A quarter turn clockwise. The turned copy is a new photo in the same place; saving replaces the old one. */
+  const rotate = async (i: number) => {
+    const p = photos[i];
+    if (turning) return;
+    setTurning(p.key);
+    try {
+      const turned = await rotatePhoto(p.upload ? p.upload.full : p.src);
+      if (p.upload) URL.revokeObjectURL(p.src);
+      const next: EditPhoto = { key: turned.id, src: turned.url, width: turned.width, height: turned.height, focusX: null, focusY: null, upload: turned };
+      onChange(latest.current.photos.map((x) => (x.key === p.key ? next : x)));
+      setSelected(next.key);
+    } catch (e) {
+      toast(e instanceof PhotoError ? e.message : "We couldn’t turn this photo. Try again.");
+    } finally {
+      setTurning(null);
+    }
+  };
   const choose = () => input.current?.click();
   const add = (files: FileList | null) => {
     const images = [...(files ?? [])].filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
@@ -218,6 +238,7 @@ export function ListingPhotos({
         </p>
         <div className="flex flex-wrap gap-1.5">
           <Action onClick={() => setViewing(p)} icon="eye" label="View large" />
+          <Action onClick={() => void rotate(i)} icon="refresh" label="Rotate a quarter turn" disabled={!!turning} />
           {i === 0 && <Action onClick={() => setFraming(true)}>Move the crop</Action>}
           {i > 0 && <Action onClick={() => move(i, 0)}>Make cover</Action>}
           <Action icon="arrow-left" label="Move earlier" disabled={i === 0} onClick={() => move(i, i - 1)} />
@@ -287,6 +308,11 @@ export function ListingPhotos({
           {photo.upload && <span className="bg-paper px-2 py-1 text-[0.75rem] text-ink">New</span>}
           {isSoft(photo) && editable && <span className="bg-paper px-2 py-1 text-[0.75rem] text-warn">Soft</span>}
         </span>
+        {turning === photo.key && (
+          <span className="pointer-events-none absolute inset-0" aria-label="Turning the photo">
+            <Skeleton className="size-full opacity-80" />
+          </span>
+        )}
         {upload && (
           <span className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-paper/55">
             <span className="px-3 pb-2 text-[0.75rem] text-ink">{upload === "done" ? "Uploaded" : "Uploading"}</span>
