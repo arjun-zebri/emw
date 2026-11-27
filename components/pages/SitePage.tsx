@@ -21,7 +21,7 @@ export function SitePageArticle({ page, more }: { page: LivePage; more?: React.R
   return (
     <Article
       plain
-      post={{ title: page.title, standfirst: page.standfirst, category: "", cover: page.cover, body: page.body, author: "", minutes: 0 }}
+      post={{ title: page.title, standfirst: page.standfirst, category: "", body: page.body, author: "", minutes: 0 }}
       vendors={[]}
       more={more}
     />

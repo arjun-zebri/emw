@@ -33,7 +33,7 @@ type Props = {
   minutes: number;
   focus: Focus | null;
   setFocus: (f: Focus) => void;
-  /** A page of the site rather than a story: no line of category, date and reading time. */
+  /** A page of the site rather than a story: no category, date or author line, and no cover. */
   plain?: boolean;
 };
 
@@ -89,12 +89,15 @@ export function Canvas({ content, update, version, uploading, onFiles, date, min
         )}
       </header>
 
-      <Cover
-        photo={content.cover}
-        uploading={!!content.cover && uploading.has(content.cover.src)}
-        onFiles={(files) => void onFiles(files.slice(0, 1), { kind: "cover" })}
-        onRemove={() => update((c) => ({ ...c, cover: null }))}
-      />
+      {/* A page of the site (About, Privacy) has no cover: photos go in the body, wherever they're wanted. */}
+      {!plain && (
+        <Cover
+          photo={content.cover}
+          uploading={!!content.cover && uploading.has(content.cover.src)}
+          onFiles={(files) => void onFiles(files.slice(0, 1), { kind: "cover" })}
+          onRemove={() => update((c) => ({ ...c, cover: null }))}
+        />
+      )}
 
       <div className="mt-12">
         <BodyEditor
