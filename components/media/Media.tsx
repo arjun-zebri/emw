@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import Image from "next/image";
 import { SHOW_IMAGE_BRIEFS } from "@/lib/config";
+import { cropStyle } from "@/lib/crop";
 import { photoSrcSet } from "@/lib/supabase/storage";
 
 /*
@@ -33,9 +34,11 @@ export type MediaProps = {
   quiet?: boolean;
   /** CSS object-position for the crop, e.g. "70% 50%". */
   position?: string;
+  /** Zoom into the crop around `position` (1 = none). */
+  zoom?: number;
 };
 
-export function Media({ src, alt, brief, className, sizes = "100vw", priority, tone, quiet, position }: MediaProps) {
+export function Media({ src, alt, brief, className, sizes = "100vw", priority, tone, quiet, position, zoom }: MediaProps) {
   // Photos in Supabase Storage are served straight from its CDN at a size picked by srcset, never
   // through next/image: Vercel's image optimiser is metered and these are hundreds of photos. Local
   // blob and data URLs (a vendor's own photos in the apply preview) take the same path.
@@ -52,7 +55,7 @@ export function Media({ src, alt, brief, className, sizes = "100vw", priority, t
           decoding="async"
           fetchPriority={priority ? "high" : undefined}
           className="absolute inset-0 size-full object-cover"
-          style={position ? { objectPosition: position } : undefined}
+          style={cropStyle(position, zoom)}
         />
       </span>
     );
@@ -60,7 +63,7 @@ export function Media({ src, alt, brief, className, sizes = "100vw", priority, t
   if (src) {
     return (
       <span className={clsx("relative block overflow-hidden bg-paper-soft", className)}>
-        <Image src={src} alt={alt} fill sizes={sizes} priority={priority} className="object-cover" style={position ? { objectPosition: position } : undefined} />
+        <Image src={src} alt={alt} fill sizes={sizes} priority={priority} className="object-cover" style={cropStyle(position, zoom)} />
       </span>
     );
   }

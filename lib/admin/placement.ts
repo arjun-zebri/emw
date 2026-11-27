@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Service } from "@/data/types";
 import { refreshListings } from "@/lib/listings-actions";
 import { supabase } from "@/lib/supabase/browser";
+import { cropOf } from "@/lib/crop";
 import { imageUrl } from "@/lib/supabase/storage";
 
 /*
@@ -28,7 +29,7 @@ export type PlacedVendor = {
   name: string;
   discipline: string;
   services: Service[];
-  cover?: { src: string; ratio: number; focus?: string };
+  cover?: { src: string; ratio: number; focus?: string; zoom?: number };
   featured: boolean;
   largeTile: boolean;
   statsEnabled: boolean;
@@ -55,7 +56,7 @@ async function load(): Promise<PlacedVendor[]> {
     db()
       .from("vendors")
       .select(
-        "id, slug, name, discipline, services, status, featured, large_tile, stats_enabled, vendor_photos(path, width, height, focus_x, focus_y, position), vendor_decisions(verdict, created_at, team_members(name))",
+        "id, slug, name, discipline, services, status, featured, large_tile, stats_enabled, vendor_photos(path, width, height, focus_x, focus_y, focus_zoom, position), vendor_decisions(verdict, created_at, team_members(name))",
       )
       .in("status", ["published", "hidden"])
       .order("name")
@@ -84,7 +85,8 @@ async function load(): Promise<PlacedVendor[]> {
         cover: first && {
           src: imageUrl("vendor-photos", first.path),
           ratio: first.width && first.height ? first.width / first.height : 4 / 5,
-          focus: first.focus_x != null && first.focus_y != null ? `${first.focus_x}% ${first.focus_y}%` : undefined,
+          focus: cropOf(first).position,
+          zoom: cropOf(first).zoom,
         },
         featured: v.featured,
         largeTile: v.large_tile,

@@ -15,7 +15,7 @@ export type LanguageRow = {
   native: string;
   lang: string;
   count: number;
-  vendors: { name: string; slug: string; cover?: string; focus?: string; discipline: string }[];
+  vendors: { name: string; slug: string; cover?: string; focus?: string; zoom?: number; discipline: string }[];
 };
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -118,6 +118,7 @@ export function LanguageIndex({
                       <Media
                         src={v.cover}
                         position={v.focus}
+                        zoom={v.zoom}
                         alt=""
                         brief=""
                         sizes="56px"

@@ -11,12 +11,14 @@ import type { EditPhoto } from "@/lib/account/listing";
 import { toast } from "@/lib/admin/toast";
 import { LIMITS } from "@/lib/apply/application";
 import { PhotoError, rotatePhoto } from "@/lib/apply/photos";
+import { cropStyle } from "@/lib/crop";
 
 const ratioOf = (p: { width: number | null; height: number | null }) => (p.width && p.height ? p.width / p.height : 0.8);
 const isSoft = (p: { width: number | null; height: number | null }) => !!p.width && !!p.height && Math.max(p.width, p.height) < LIMITS.photoMin;
 const GAP = "gap-[clamp(0.5rem,1vw,1rem)]";
 /** The cover's crop as CSS object-position, once someone has chosen one. */
 const focusOf = (p: { focusX: number | null; focusY: number | null }) => (p.focusX != null && p.focusY != null ? `${p.focusX}% ${p.focusY}%` : undefined);
+const zoomOf = (p: { focusZoom: number | null }) => (p.focusZoom && p.focusZoom > 100 ? p.focusZoom / 100 : undefined);
 
 type Tile = { kind: "photo"; photo: EditPhoto; index: number } | { kind: "pending"; key: string } | { kind: "add" };
 const tileRatio = (t: Tile) => (t.kind === "photo" ? ratioOf(t.photo) : 0.8);
@@ -201,7 +203,7 @@ export function ListingPhotos({
     try {
       const turned = await rotatePhoto(p.upload ? p.upload.full : p.src);
       if (p.upload) URL.revokeObjectURL(p.src);
-      const next: EditPhoto = { key: turned.id, src: turned.url, width: turned.width, height: turned.height, focusX: null, focusY: null, upload: turned };
+      const next: EditPhoto = { key: turned.id, src: turned.url, width: turned.width, height: turned.height, focusX: null, focusY: null, focusZoom: null, upload: turned };
       onChange(latest.current.photos.map((x) => (x.key === p.key ? next : x)));
       setSelected(next.key);
     } catch (e) {
@@ -225,27 +227,51 @@ export function ListingPhotos({
   const [cover, ...rest] = tiles;
   const landscape = cover?.kind === "photo" && ratioOf(cover.photo) >= 1.2;
   const gallery = rows(rest);
-  const chosen = photos.findIndex((p) => p.key === selected);
 
-  /** The selected photo's actions, under its row. */
-  const actions = (i: number) => {
+  /** A photo's menu: opened by selecting the photo, or its button in the corner. */
+  const menu = (i: number) => {
     const p = photos[i];
+    const items: { label: string; icon: IconName; run: () => void; danger?: boolean; rule?: boolean }[] = [
+      { label: "View large", icon: "eye", run: () => setViewing(p) },
+      ...(i === 0 ? [{ label: "Crop the cover", icon: "crop" as const, run: () => setFraming(true) }] : [{ label: "Make cover", icon: "image" as const, run: () => move(i, 0) }]),
+      { label: "Rotate", icon: "refresh", run: () => void rotate(i) },
+      ...(i > 0 ? [{ label: "Move earlier", icon: "arrow-left" as const, run: () => move(i, i - 1) }] : []),
+      ...(i < n - 1 ? [{ label: "Move later", icon: "arrow" as const, run: () => move(i, i + 1) }] : []),
+      { label: "Remove", icon: "trash", run: () => remove(i), danger: true, rule: true },
+    ];
     return (
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b hairline pb-3">
-        <p className="text-[0.875rem] text-ink">
-          {i === 0 ? "The cover" : `Photo ${i + 1}`}
-          {isSoft(p) && <span className="text-ink-soft"> · Under {LIMITS.photoMin}px, so it may look soft on a large screen</span>}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          <Action onClick={() => setViewing(p)} icon="eye" label="View large" />
-          <Action onClick={() => void rotate(i)} icon="refresh" label="Rotate a quarter turn" disabled={!!turning} />
-          {i === 0 && <Action onClick={() => setFraming(true)}>Move the crop</Action>}
-          {i > 0 && <Action onClick={() => move(i, 0)}>Make cover</Action>}
-          <Action icon="arrow-left" label="Move earlier" disabled={i === 0} onClick={() => move(i, i - 1)} />
-          <Action icon="arrow" label="Move later" disabled={i === n - 1} onClick={() => move(i, i + 1)} />
-          <Action onClick={() => remove(i)}>Remove</Action>
-        </div>
-      </div>
+      <motion.div
+        role="menu"
+        aria-label={i === 0 ? "The cover" : `Photo ${i + 1}`}
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute top-14 right-3 z-30 w-56 border border-ink/10 bg-surface py-1.5 shadow-[0_24px_48px_-20px_rgb(22_20_18/0.3)]"
+      >
+        {isSoft(p) && <p className="border-b hairline px-4 pt-1.5 pb-3 text-[0.8125rem] leading-snug text-warn">Under {LIMITS.photoMin}px, so it may look soft on a large screen.</p>}
+        {items.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            role="menuitem"
+            disabled={item.label === "Rotate" && !!turning}
+            onClick={() => {
+              setSelected(null);
+              item.run();
+            }}
+            className={clsx(
+              "flex h-10 w-full items-center gap-3 px-4 text-left text-[0.875rem] transition-colors hover:bg-paper focus:bg-paper focus:outline-none disabled:opacity-40",
+              item.danger ? "text-bad" : "text-ink-soft hover:text-ink",
+              item.rule && "mt-1.5 h-[2.875rem] border-t hairline pt-1.5",
+            )}
+          >
+            <Icon name={item.icon} className="size-3.5 shrink-0" strokeWidth={1.5} />
+            {item.label}
+          </button>
+        ))}
+      </motion.div>
     );
   };
 
@@ -282,6 +308,7 @@ export function ListingPhotos({
           "group/tile relative bg-paper-soft outline-offset-[3px] transition-[opacity,outline-color] duration-300 select-none [-webkit-touch-callout:none]",
           editable && "cursor-pointer",
           dragging === i && "opacity-30",
+          on && "z-20",
           on ? "outline-2 outline-ink" : over === i && dragging !== null && dragging !== i ? "outline-2 outline-ink/50" : "outline-2 outline-transparent",
         )}
         style={style}
@@ -301,8 +328,25 @@ export function ListingPhotos({
           aria-label={`Photo ${i + 1}${i === 0 ? ", the cover" : ""}`}
           className="absolute inset-0 overflow-hidden [&_img]:pointer-events-none"
         >
-          <Media src={photo.src} alt="" brief="" sizes={sizes} position={i === 0 ? focusOf(photo) : undefined} className="size-full" />
+          <Media src={photo.src} alt="" brief="" sizes={sizes} position={i === 0 ? focusOf(photo) : undefined} zoom={i === 0 ? zoomOf(photo) : undefined} className="size-full" />
         </button>
+        {editable && (
+          <button
+            type="button"
+            aria-label={`More for photo ${i + 1}`}
+            aria-haspopup="menu"
+            aria-expanded={on}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => setSelected(on ? null : photo.key)}
+            className={clsx(
+              "absolute top-3 right-3 flex size-9 items-center justify-center bg-paper/90 text-ink backdrop-blur-sm transition-opacity duration-300 hover:bg-paper",
+              on ? "opacity-100" : "opacity-0 group-hover/tile:opacity-100 focus-visible:opacity-100 max-lg:opacity-100",
+            )}
+          >
+            <Icon name="more" className="size-4" strokeWidth={1.5} />
+          </button>
+        )}
+        <AnimatePresence>{on && editable && menu(i)}</AnimatePresence>
         <span className="pointer-events-none absolute top-3 left-3 flex flex-wrap gap-1.5">
           {i === 0 && <span className="bg-ink px-2 py-1 text-[0.75rem] text-paper">Cover</span>}
           {photo.upload && <span className="bg-paper px-2 py-1 text-[0.75rem] text-ink">New</span>}
@@ -359,7 +403,6 @@ export function ListingPhotos({
             <span className="t-body mt-4">Or drop them here. The first one is the cover.</span>
           </button>
         )}
-        {chosen === 0 && actions(0)}
       </div>
 
       <div className="min-w-0 max-lg:order-3 lg:mt-[clamp(0.5rem,1vw,1rem)]">
@@ -367,7 +410,6 @@ export function ListingPhotos({
           <div className={clsx("flex flex-col", GAP)}>
             {gallery.map((row, r) => {
               const total = row.reduce((sum, t) => sum + tileRatio(t), 0);
-              const here = chosen > 0 && row.some((t) => t.kind === "photo" && t.index === chosen);
               return (
                 <Fragment key={r}>
                   <div className={clsx("flex flex-col sm:flex-row", GAP)}>
@@ -380,7 +422,6 @@ export function ListingPhotos({
                       ),
                     )}
                   </div>
-                  {here && actions(chosen)}
                 </Fragment>
               );
             })}
@@ -415,8 +456,8 @@ export function ListingPhotos({
           <Framing
             photo={photos[0]}
             onClose={() => setFraming(false)}
-            onDone={(focusX, focusY) => {
-              onChange(photos.map((p, i) => (i === 0 ? { ...p, focusX, focusY } : p)));
+            onDone={(focusX, focusY, focusZoom) => {
+              onChange(photos.map((p, i) => (i === 0 ? { ...p, focusX, focusY, focusZoom } : p)));
               setFraming(false);
             }}
           />
@@ -426,18 +467,34 @@ export function ListingPhotos({
   );
 }
 
+/** The frames the cover is shown in: the top of its page, the directory tile, and the directory on a phone. */
+const framesFor = (ratio: number) => [
+  { id: "page", label: "Listing page", aspect: ratio >= 1.2 ? 4 / 3 : 0.8 },
+  { id: "tile", label: "Directory", aspect: 0.8 },
+  { id: "phone", label: "Directory on phones", aspect: 1.5 },
+];
+
+const ZOOM_MAX = 300;
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
 /**
- * Where the cover is cropped. The whole photo, with the point that stays in view: click or drag to
- * move it. Beside it, the cover in each frame it's shown in, following the point as it moves.
- * Nothing changes until "Done", and the listing still has to be saved.
+ * Cropping the cover, as a photo editor does it: the frame stays still and the photo moves behind it.
+ * Drag the photo, zoom with the slider (or pinch on a trackpad), and see what falls outside the frame,
+ * dimmed. One crop serves every frame (lib/crop.ts): switch frames to check each. Nothing changes until
+ * "Done", and the listing still has to be saved.
  */
-function Framing({ photo, onClose, onDone }: { photo: EditPhoto; onClose: () => void; onDone: (x: number, y: number) => void }) {
-  const [x, setX] = useState(photo.focusX ?? 50);
-  const [y, setY] = useState(photo.focusY ?? 50);
-  const img = useRef<HTMLImageElement>(null);
-  const held = useRef<number | null>(null);
+function Framing({ photo, onClose, onDone }: { photo: EditPhoto; onClose: () => void; onDone: (x: number, y: number, zoom: number | null) => void }) {
+  const [x, setX] = useState((photo.focusX ?? 50) / 100);
+  const [y, setY] = useState((photo.focusY ?? 50) / 100);
+  const [zoom, setZoom] = useState(photo.focusZoom ?? 100);
   const ratio = ratioOf(photo);
-  const position = `${x}% ${y}%`;
+  const frames = framesFor(ratio);
+  const [frameId, setFrameId] = useState(frames[0].id);
+  const frame = frames.find((f) => f.id === frameId) ?? frames[0];
+  const stage = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  const held = useRef<{ id: number; cx: number; cy: number; x: number; y: number } | null>(null);
+  const [moving, setMoving] = useState(false);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -445,96 +502,167 @@ function Framing({ photo, onClose, onDone }: { photo: EditPhoto; onClose: () => 
     return () => removeEventListener("keydown", esc);
   }, [onClose]);
 
-  const point = (e: React.PointerEvent) => {
-    const r = img.current?.getBoundingClientRect();
-    if (!r) return;
-    const clamp = (v: number) => Math.round(Math.min(100, Math.max(0, v)));
-    setX(clamp(((e.clientX - r.left) / r.width) * 100));
-    setY(clamp(((e.clientY - r.top) / r.height) * 100));
-  };
-  const nudge = (e: React.KeyboardEvent) => {
-    const step = e.shiftKey ? 10 : 2;
-    const by = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
-    if (!by) return;
-    e.preventDefault();
-    setX((v) => Math.min(100, Math.max(0, v + by[0])));
-    setY((v) => Math.min(100, Math.max(0, v + by[1])));
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBox({ w: e.contentRect.width, h: e.contentRect.height }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // The frame, as large as the stage allows with room around it to see what's cropped away.
+  const fit = box ? Math.min((box.w * 0.74) / frame.aspect, box.h * 0.8) : 0;
+  const fh = fit;
+  const fw = fit * frame.aspect;
+  const fx = box ? (box.w - fw) / 2 : 0;
+  const fy = box ? (box.h - fh) / 2 : 0;
+  // The photo covering the frame, then zoomed: the same sums as object-position and scale (lib/crop.ts).
+  const cw = Math.max(fw, fh * ratio) * (zoom / 100);
+  const ch = cw / ratio;
+  const left = fx + x * (fw - cw);
+  const top = fy + y * (fh - ch);
+
+  const zoomBy = (to: number) => setZoom(Math.round(Math.min(ZOOM_MAX, Math.max(100, to))));
+
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    // A trackpad pinch arrives as a wheel with ctrl held; a plain wheel zooms too, the page doesn't scroll here.
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom((z) => Math.round(Math.min(ZOOM_MAX, Math.max(100, z * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002))))));
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, []);
+
+  const keys = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 0.1 : 0.02;
+    const by = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[e.key];
+    if (by) {
+      e.preventDefault();
+      setX((v) => clamp01(v + by[0]));
+      setY((v) => clamp01(v + by[1]));
+    } else if (e.key === "+" || e.key === "=") zoomBy(zoom + 10);
+    else if (e.key === "-") zoomBy(zoom - 10);
   };
 
-  // The frames the cover appears in: the directory tile, the directory on a phone, and the top of the page.
-  const frames = [
-    { label: "Directory", aspect: 0.8 },
-    { label: "Directory on phones", aspect: 1.5 },
-    { label: "Listing page", aspect: ratio >= 1.2 ? 4 / 3 : 0.8 },
-  ];
+  const position = `${Math.round(x * 100)}% ${Math.round(y * 100)}%`;
+  const done = () => onDone(Math.round(x * 100), Math.round(y * 100), zoom > 100 ? zoom : null);
 
   return (
     <Portal>
       <motion.div
         role="dialog"
         aria-modal="true"
-        aria-label="Move the crop"
+        aria-label="Crop the cover"
         className="fixed inset-0 z-[90] flex flex-col bg-paper"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b hairline px-5 py-4 sm:px-8">
-          <div>
-            <h2 className="t-title text-[1.5rem]">Move the crop</h2>
-            <p className="mt-0.5 text-[0.875rem] text-ink-soft">Click or drag on the photo to choose what stays in view when the cover is cropped.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Action onClick={() => (setX(50), setY(50))}>Centre</Action>
-            <Action onClick={onClose}>Cancel</Action>
-            <button type="button" onClick={() => onDone(x, y)} className="t-nav inline-flex h-9 items-center bg-ink px-5 text-paper transition-opacity hover:opacity-85">
+        <div className="flex items-center justify-between gap-6 border-b hairline px-5 py-3.5 sm:px-8">
+          <h2 className="t-title text-[1.375rem]">Crop the cover</h2>
+          <div className="flex items-center gap-5">
+            <button type="button" onClick={onClose} className="t-nav link-line text-ink-soft hover:text-ink">
+              Cancel
+            </button>
+            <button type="button" onClick={done} className="t-nav inline-flex h-10 items-center bg-ink px-6 text-paper transition-opacity hover:opacity-85">
               Done
             </button>
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto p-5 sm:p-8 lg:grid-cols-[1fr_20rem] lg:gap-10">
-          <div className="flex min-h-[50svh] items-center justify-center lg:min-h-0">
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_17rem]">
+          <div className="flex min-h-0 flex-col">
             <div
-              role="slider"
+              ref={stage}
+              role="application"
               tabIndex={0}
-              aria-label="Crop point"
-              aria-valuenow={x}
-              aria-valuetext={`${x}% across, ${y}% down`}
-              onKeyDown={nudge}
+              aria-label={`Drag the photo to move it in the frame. Arrow keys move it, plus and minus zoom. Now ${position}, ${zoom}%.`}
+              onKeyDown={keys}
               onPointerDown={(e) => {
-                held.current = e.pointerId;
+                if (e.button !== 0) return;
                 e.currentTarget.setPointerCapture(e.pointerId);
-                point(e);
+                held.current = { id: e.pointerId, cx: e.clientX, cy: e.clientY, x, y };
+                setMoving(true);
               }}
-              onPointerMove={(e) => held.current === e.pointerId && point(e)}
-              onPointerUp={() => (held.current = null)}
-              onPointerCancel={() => (held.current = null)}
-              className="relative cursor-crosshair touch-none outline-offset-4 select-none focus-visible:outline-2 focus-visible:outline-ink"
-              style={{ aspectRatio: ratio, maxWidth: "100%", maxHeight: "calc(100svh - 12rem)", width: `min(100%, calc((100svh - 12rem) * ${ratio}))` }}
+              onPointerMove={(e) => {
+                const h = held.current;
+                if (!h || h.id !== e.pointerId) return;
+                // The photo follows the pointer: the room it has to move in each way is how far it overhangs the frame.
+                if (cw - fw > 0.5) setX(clamp01(h.x + (e.clientX - h.cx) / (fw - cw)));
+                if (ch - fh > 0.5) setY(clamp01(h.y + (e.clientY - h.cy) / (fh - ch)));
+              }}
+              onPointerUp={() => ((held.current = null), setMoving(false))}
+              onPointerCancel={() => ((held.current = null), setMoving(false))}
+              className={clsx("relative min-h-[55svh] flex-1 touch-none overflow-hidden bg-paper-soft outline-none select-none lg:min-h-0", moving ? "cursor-grabbing" : "cursor-grab")}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- the whole photo, straight from storage or the browser */}
-              <img ref={img} src={photo.src} alt="" draggable={false} className="size-full object-contain" />
-              <span
-                aria-hidden
-                className="pointer-events-none absolute size-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper shadow-[0_0_0_1px_rgb(22_20_18/0.35),0_6px_18px_rgb(22_20_18/0.35)]"
-                style={{ left: `${x}%`, top: `${y}%` }}
+              {box && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- the whole photo, straight from storage or the browser */}
+                  <img src={photo.src} alt="" draggable={false} className="pointer-events-none absolute max-w-none" style={{ left, top, width: cw, height: ch }} />
+                  {/* Everything outside the frame, dimmed; the frame itself, with thirds while the photo moves. */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute shadow-[0_0_0_200vmax_rgb(250_248_245/0.8)] outline outline-1 outline-paper"
+                    style={{ left: fx, top: fy, width: fw, height: fh }}
+                  >
+                    <span className={clsx("absolute inset-0 transition-opacity duration-300", moving ? "opacity-100" : "opacity-0")}>
+                      <span className="absolute inset-y-0 left-1/3 w-px bg-paper/60" />
+                      <span className="absolute inset-y-0 left-2/3 w-px bg-paper/60" />
+                      <span className="absolute inset-x-0 top-1/3 h-px bg-paper/60" />
+                      <span className="absolute inset-x-0 top-2/3 h-px bg-paper/60" />
+                    </span>
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center justify-center gap-4 border-t hairline px-5 py-4">
+              <button type="button" onClick={() => zoomBy(zoom - 20)} disabled={zoom <= 100} aria-label="Zoom out" className="flex size-8 items-center justify-center text-ink-soft transition-colors hover:text-ink disabled:opacity-30">
+                <Icon name="minus" className="size-4" strokeWidth={1.4} />
+              </button>
+              <input
+                type="range"
+                min={100}
+                max={ZOOM_MAX}
+                value={zoom}
+                onChange={(e) => zoomBy(Number(e.target.value))}
+                aria-label="Zoom"
+                className="h-px w-[min(18rem,50vw)] cursor-pointer appearance-none bg-ink/20 [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ink [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ink"
+              />
+              <button type="button" onClick={() => zoomBy(zoom + 20)} disabled={zoom >= ZOOM_MAX} aria-label="Zoom in" className="flex size-8 items-center justify-center text-ink-soft transition-colors hover:text-ink disabled:opacity-30">
+                <Icon name="plus" className="size-4" strokeWidth={1.4} />
+              </button>
+              <button
+                type="button"
+                onClick={() => (setX(0.5), setY(0.5), setZoom(100))}
+                disabled={x === 0.5 && y === 0.5 && zoom === 100}
+                className="t-nav link-line ml-4 text-ink-soft hover:text-ink disabled:pointer-events-none disabled:opacity-30"
               >
-                <span className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-paper" />
-              </span>
+                Reset
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 content-start gap-4 lg:grid-cols-2 lg:gap-x-5 lg:gap-y-6">
-            {frames.map((f, i) => (
-              <figure key={f.label} className={clsx("min-w-0", i === 2 && "lg:col-span-2")}>
-                <div className="overflow-hidden bg-paper-soft" style={{ aspectRatio: f.aspect }}>
+          {/* Each frame the cover is shown in, live; choose one to crop in that shape. */}
+          <div className="flex gap-4 overflow-x-auto border-t hairline p-5 lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-t-0 lg:border-l lg:p-7">
+            {frames.map((f) => (
+              <button key={f.id} type="button" onClick={() => setFrameId(f.id)} aria-pressed={f.id === frameId} className="group w-28 shrink-0 text-left lg:w-full">
+                <span
+                  className={clsx(
+                    "block overflow-hidden bg-paper-soft outline-offset-[3px] transition-[outline-color] duration-300",
+                    f.id === frameId ? "outline-2 outline-ink" : "outline-2 outline-transparent group-hover:outline-ink/25",
+                  )}
+                  style={{ aspectRatio: f.aspect, width: f.aspect < 1 ? "72%" : undefined }}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element -- a preview of the crop */}
-                  <img src={photo.src} alt="" className="size-full object-cover" style={{ objectPosition: position }} />
-                </div>
-                <figcaption className="mt-2 text-[0.8125rem] text-ink-soft">{f.label}</figcaption>
-              </figure>
+                  <img src={photo.src} alt="" className="size-full object-cover" style={cropStyle(position, zoom / 100)} />
+                </span>
+                <span className={clsx("mt-2 block text-[0.8125rem]", f.id === frameId ? "text-ink" : "text-ink-soft")}>{f.label}</span>
+              </button>
             ))}
           </div>
         </div>
@@ -574,20 +702,5 @@ function Large({ photo, onClose }: { photo: EditPhoto; onClose: () => void }) {
         )}
       </motion.div>
     </Portal>
-  );
-}
-
-function Action({ onClick, icon, label, disabled, children }: { onClick: () => void; icon?: IconName; label?: string; disabled?: boolean; children?: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className="flex h-9 min-w-9 items-center justify-center border border-ink/15 bg-surface px-3.5 text-[0.8125rem] text-ink transition-colors hover:border-ink disabled:opacity-30"
-    >
-      {icon ? <Icon name={icon} className="size-3.5" strokeWidth={1.6} /> : children}
-    </button>
   );
 }

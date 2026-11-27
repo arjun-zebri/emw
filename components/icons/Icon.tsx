@@ -197,6 +197,7 @@ const paths = {
   "arrow-up": <path d="M12 20.5V3.5M6 9.5l6-6 6 6" />,
   "arrow-down": <path d="M12 3.5v17M6 14.5l6 6 6-6" />,
   send: <path d="M20.5 3.5 10 14M20.5 3.5l-6.5 17-4-6.5-6.5-4z" />,
+  crop: <path d="M7 3.5V17h13.5M3.5 7H17v13.5" />,
 
   // ── Crafts ──
   // An arbour: the frame every ceremony stands under.

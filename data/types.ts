@@ -106,6 +106,8 @@ export type Vendor = {
   cover?: string;
   /** Where the cover is cropped around, as CSS object-position ("50% 30%"), when someone has set it. */
   focus?: string;
+  /** How far the cover is zoomed in around `focus` (1 = none). */
+  zoom?: number;
   gallery?: string[];
   /** Width ÷ height of each photo, by src. Listings from the database carry their own; otherwise data/photo-ratios.ts. */
   ratios?: Record<string, number>;

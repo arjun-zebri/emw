@@ -16,7 +16,7 @@ export async function Languages() {
     vendors: vendors
       .filter((v) => v.languages?.includes(name as Language))
       .sort((a, b) => Number(!!b.cover) - Number(!!a.cover))
-      .map((v) => ({ name: v.name, slug: v.slug, cover: v.cover, focus: v.focus, discipline: v.discipline })),
+      .map((v) => ({ name: v.name, slug: v.slug, cover: v.cover, focus: v.focus, zoom: v.zoom, discipline: v.discipline })),
   }));
 
   return (

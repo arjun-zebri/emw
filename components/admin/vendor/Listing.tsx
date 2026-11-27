@@ -231,7 +231,7 @@ function Editor({
     for (const file of take) {
       try {
         const p = await preparePhoto(file);
-        setPhotos((list) => [...list, { key: p.id, src: p.url, width: p.width, height: p.height, focusX: null, focusY: null, upload: p }]);
+        setPhotos((list) => [...list, { key: p.id, src: p.url, width: p.width, height: p.height, focusX: null, focusY: null, focusZoom: null, upload: p }]);
       } catch (e) {
         problems.push(`${file.name}: ${e instanceof PhotoError ? e.message : "we couldn’t open it."}`);
       } finally {

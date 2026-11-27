@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
 import { areas, languages, otherLanguagesOf, serviceLabels } from "@/data/taxonomy";
 import type { AreaCode, Language, Service, Vendor } from "@/data/types";
+import { cropOf } from "@/lib/crop";
 import { splitLede } from "@/lib/story";
 import type { Database } from "./supabase/database.types";
 import { imageUrl } from "./supabase/storage";
@@ -29,7 +30,7 @@ async function load(): Promise<Vendor[]> {
   });
   const { data, error } = await db
     .from("vendors")
-    .select("*, vendor_photos(path, width, height, focus_x, focus_y, position)")
+    .select("*, vendor_photos(path, width, height, focus_x, focus_y, focus_zoom, position)")
     .eq("status", "published")
     .order("name");
   // Fail loudly rather than render an empty directory: a cached empty list would hide every vendor.
@@ -66,7 +67,8 @@ async function load(): Promise<Vendor[]> {
       featured: v.featured,
       largeTile: v.large_tile,
       cover: urls[0],
-      focus: photos[0]?.focus_x != null && photos[0].focus_y != null ? `${photos[0].focus_x}% ${photos[0].focus_y}%` : undefined,
+      focus: cropOf(photos[0]).position,
+      zoom: cropOf(photos[0]).zoom,
       gallery: urls.slice(1),
       ratios,
     } satisfies Vendor;

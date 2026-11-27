@@ -44,7 +44,7 @@ export function VendorCard({
       <div className={clsx("relative overflow-hidden", aspect, fill && "lg:aspect-auto lg:min-h-[20rem] lg:flex-1")}>
         <ViewTransition name={`vendor-${vendor.slug}`} share="morph" default="none">
           <div className="absolute inset-0 transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.03]">
-            <Media {...vendorCover(vendor)} sizes={sizes} position={vendor.focus ?? position} priority={priority} className="size-full" />
+            <Media {...vendorCover(vendor)} sizes={sizes} position={vendor.focus ?? position} zoom={vendor.zoom} priority={priority} className="size-full" />
           </div>
         </ViewTransition>
       </div>

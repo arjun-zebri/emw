@@ -97,6 +97,7 @@ export function VendorSpread({ vendor, related, still }: { vendor: Vendor; relat
               index={0}
               priority
               position={vendor.focus}
+              zoom={vendor.zoom}
               sizes="(min-width: 1024px) 58vw, 100vw"
               className={clsx(
                 "w-full lg:col-span-7 lg:row-start-1 lg:max-h-[calc(100svh-var(--header-h)-2rem)]",

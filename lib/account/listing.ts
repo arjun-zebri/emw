@@ -28,6 +28,8 @@ export type OwnPhoto = {
   /** The point the cover is cropped around, as percentages across and down; null until someone sets it. */
   focusX: number | null;
   focusY: number | null;
+  /** How far it's zoomed in, as a percentage; null for none. */
+  focusZoom: number | null;
 };
 
 export type OwnListing = {
@@ -64,6 +66,7 @@ export type EditPhoto = {
   height: number | null;
   focusX: number | null;
   focusY: number | null;
+  focusZoom: number | null;
   id?: string;
   path?: string;
   upload?: ApplyPhoto;
@@ -94,7 +97,7 @@ const current = (slug: string) => storeFor(slug).state.listing;
 const db = () => supabase();
 const str = (s: string | null) => s ?? "";
 
-const toPhoto = (p: { id: string; path: string; width: number | null; height: number | null; focus_x: number | null; focus_y: number | null }): OwnPhoto => ({
+const toPhoto = (p: { id: string; path: string; width: number | null; height: number | null; focus_x: number | null; focus_y: number | null; focus_zoom: number | null }): OwnPhoto => ({
   id: p.id,
   path: p.path,
   src: imageUrl("vendor-photos", p.path),
@@ -102,13 +105,14 @@ const toPhoto = (p: { id: string; path: string; width: number | null; height: nu
   height: p.height,
   focusX: p.focus_x,
   focusY: p.focus_y,
+  focusZoom: p.focus_zoom,
 });
 
 async function load(slug: string) {
   const { data: v, error } = await db()
     .from("vendors")
     .select(
-      "id, slug, status, name, person, discipline, lede, story, services, based, service_area, languages, email, phone, website, instagram, facebook, updated_at, vendor_photos(id, path, width, height, focus_x, focus_y, position, created_at)",
+      "id, slug, status, name, person, discipline, lede, story, services, based, service_area, languages, email, phone, website, instagram, facebook, updated_at, vendor_photos(id, path, width, height, focus_x, focus_y, focus_zoom, position, created_at)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -187,13 +191,14 @@ export const editPhotos = (l: OwnListing): EditPhoto[] =>
     height: p.height,
     focusX: p.focusX,
     focusY: p.focusY,
+    focusZoom: p.focusZoom,
     id: p.id,
     path: p.path,
   }));
 
 /** Have the photos changed from what's saved: which, their order, or where the cover is cropped? */
 export const photosDiffer = (photos: EditPhoto[], saved: OwnPhoto[]) =>
-  photos.length !== saved.length || photos.some((p, i) => p.id !== saved[i].id || p.focusX !== saved[i].focusX || p.focusY !== saved[i].focusY);
+  photos.length !== saved.length || photos.some((p, i) => p.id !== saved[i].id || p.focusX !== saved[i].focusX || p.focusY !== saved[i].focusY || p.focusZoom !== saved[i].focusZoom);
 
 const clip = (s: string, max: number) => s.replace(/\s+/g, " ").trim().slice(0, max);
 const orNull = (s: string) => s.trim() || null;
@@ -286,6 +291,7 @@ export async function saveListing(
                       height: p.height,
                       focus_x: p.focusX,
                       focus_y: p.focusY,
+                      focus_zoom: p.focusZoom,
                       position: i,
                       alt: alt(name, i),
                     },
@@ -309,7 +315,7 @@ export async function saveListing(
         kept.map(({ p, i }) =>
           db()
             .from("vendor_photos")
-            .update({ position: i, alt: alt(name, i), focus_x: p.focusX, focus_y: p.focusY })
+            .update({ position: i, alt: alt(name, i), focus_x: p.focusX, focus_y: p.focusY, focus_zoom: p.focusZoom })
             .eq("id", p.id!),
         ),
       );

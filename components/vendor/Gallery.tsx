@@ -119,18 +119,20 @@ export function GalleryImage({
   sizes,
   priority,
   position,
+  zoom,
 }: {
   index: number;
   className?: string;
   sizes: string;
   priority?: boolean;
   position?: string;
+  zoom?: number;
 }) {
   const ctx = use(Context)!;
   const image = ctx.images[index];
   const media = (
     <div className="size-full transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.02]">
-      <Media {...image} priority={priority} sizes={sizes} position={position} className="size-full" />
+      <Media {...image} priority={priority} sizes={sizes} position={position} zoom={zoom} className="size-full" />
     </div>
   );
 
