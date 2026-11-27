@@ -33,12 +33,14 @@ type Props = {
   minutes: number;
   focus: Focus | null;
   setFocus: (f: Focus) => void;
+  /** A page of the site rather than a story: no line of category, date and reading time. */
+  plain?: boolean;
 };
 
 // Centred, as the article sets it.
 const TEXT = "mx-auto w-full max-w-[42rem]";
 
-export function Canvas({ content, update, version, uploading, onFiles, date, minutes, focus, setFocus }: Props) {
+export function Canvas({ content, update, version, uploading, onFiles, date, minutes, focus, setFocus, plain }: Props) {
   const body = useRef<BodyHandle>(null);
   const setBody = useCallback((fn: (b: Block[]) => Block[]) => update((c) => ({ ...c, body: fn(c.body) })), [update]);
 
@@ -70,19 +72,21 @@ export function Canvas({ content, update, version, uploading, onFiles, date, min
           onDown={() => setFocus(focusOn("body", "start"))}
           className="t-body mt-6 max-w-[40ch] text-[clamp(1.125rem,1.5vw,1.3125rem)] leading-[1.5] text-pretty"
         />
-        <p className="t-small mt-6 flex flex-wrap gap-x-2">
-          <span>{content.category}</span>
-          <span aria-hidden>·</span>
-          <span>{date ? postDate(date) : "Not yet published"}</span>
-          <span aria-hidden>·</span>
-          <span>{minutes} min read</span>
-          {content.author.trim() && content.author.trim() !== "East Meets Wed" && (
-            <>
-              <span aria-hidden>·</span>
-              <span>{content.author}</span>
-            </>
-          )}
-        </p>
+        {!plain && (
+          <p className="t-small mt-6 flex flex-wrap gap-x-2">
+            <span>{content.category}</span>
+            <span aria-hidden>·</span>
+            <span>{date ? postDate(date) : "Not yet published"}</span>
+            <span aria-hidden>·</span>
+            <span>{minutes} min read</span>
+            {content.author.trim() && content.author.trim() !== "East Meets Wed" && (
+              <>
+                <span aria-hidden>·</span>
+                <span>{content.author}</span>
+              </>
+            )}
+          </p>
+        )}
       </header>
 
       <Cover

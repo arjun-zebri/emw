@@ -4,17 +4,21 @@ import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/Button";
 import { SITE } from "@/lib/config";
 import { getListings } from "@/lib/listings";
+import { livePages } from "@/lib/pages/live";
+import { PAGES } from "@/lib/pages/pages";
 import { listedCrafts } from "@/lib/vendors";
 import { Newsletter } from "./Newsletter";
 import { primaryNav, vendorCta } from "./nav";
 
 export async function SiteFooter() {
-  const vendors = await getListings();
+  const [vendors, pages] = await Promise.all([getListings(), livePages()]);
+  // Shared commitment is linked once the team has written it in Admin → Pages.
+  const commitment = pages.includes("shared-commitment") ? [{ href: PAGES["shared-commitment"].path, label: PAGES["shared-commitment"].name }] : [];
   const columns = [
     { title: "Vendors", links: listedCrafts(vendors).map((c) => ({ href: `/vendors?craft=${c.id}`, label: c.short })) },
     {
       title: "East Meets Wed",
-      links: [...primaryNav.filter((n) => n.href !== "/vendors"), vendorCta],
+      links: [...primaryNav.filter((n) => n.href !== "/vendors"), ...commitment, vendorCta],
     },
   ];
 

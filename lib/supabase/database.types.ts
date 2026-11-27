@@ -320,6 +320,45 @@ export type Database = {
         }
         Relationships: []
       }
+      site_pages: {
+        Row: {
+          body: Json
+          cover_alt: string
+          cover_height: number | null
+          cover_path: string | null
+          cover_width: number | null
+          description: string
+          slug: string
+          standfirst: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: Json
+          cover_alt?: string
+          cover_height?: number | null
+          cover_path?: string | null
+          cover_width?: number | null
+          description?: string
+          slug: string
+          standfirst?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: Json
+          cover_alt?: string
+          cover_height?: number | null
+          cover_path?: string | null
+          cover_width?: number | null
+          description?: string
+          slug?: string
+          standfirst?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string
@@ -444,6 +483,7 @@ export type Database = {
           created_at: string
           focus_x: number | null
           focus_y: number | null
+          focus_zoom: number | null
           height: number | null
           id: string
           path: string
@@ -456,6 +496,7 @@ export type Database = {
           created_at?: string
           focus_x?: number | null
           focus_y?: number | null
+          focus_zoom?: number | null
           height?: number | null
           id?: string
           path: string
@@ -468,6 +509,7 @@ export type Database = {
           created_at?: string
           focus_x?: number | null
           focus_y?: number | null
+          focus_zoom?: number | null
           height?: number | null
           id?: string
           path?: string

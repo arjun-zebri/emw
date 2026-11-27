@@ -48,7 +48,8 @@ export function coverBox(ratio: number): React.CSSProperties {
   return { aspectRatio: ratio, width, marginLeft: `max(0px, min((100% - 42rem) / 2, (100% - ${width}) / 2))` };
 }
 
-export function Article({ post, vendors, more }: { post: ArticlePost; vendors: Credit[]; more?: React.ReactNode }) {
+/** `plain`: a page of the site rather than a story (About, the privacy policy): no line of category, date and reading time. */
+export function Article({ post, vendors, more, plain }: { post: ArticlePost; vendors: Credit[]; more?: React.ReactNode; plain?: boolean }) {
   // Posts from WordPress carry their cover photo in the body as well; it's already at the top.
   const coverSrc = post.cover?.src;
   const body = post.body.filter((b) => !(b.type === "img" && b.images.length === 1 && coverSrc && photoUrl(b.images[0].src) === coverSrc));
@@ -71,19 +72,21 @@ export function Article({ post, vendors, more }: { post: ArticlePost; vendors: C
               {post.standfirst}
             </p>
           )}
-          <p data-reveal suppressHydrationWarning style={{ "--d": "0.14s" } as React.CSSProperties} className="t-small mt-6 flex flex-wrap gap-x-2">
-            <span>{post.category}</span>
-            <span aria-hidden>·</span>
-            {post.date ? <time dateTime={post.date}>{postDate(post.date)}</time> : <span>Not yet published</span>}
-            <span aria-hidden>·</span>
-            <span>{post.minutes} min read</span>
-            {by && by !== "East Meets Wed" && (
-              <>
-                <span aria-hidden>·</span>
-                <span>{by}</span>
-              </>
-            )}
-          </p>
+          {!plain && (
+            <p data-reveal suppressHydrationWarning style={{ "--d": "0.14s" } as React.CSSProperties} className="t-small mt-6 flex flex-wrap gap-x-2">
+              <span>{post.category}</span>
+              <span aria-hidden>·</span>
+              {post.date ? <time dateTime={post.date}>{postDate(post.date)}</time> : <span>Not yet published</span>}
+              <span aria-hidden>·</span>
+              <span>{post.minutes} min read</span>
+              {by && by !== "East Meets Wed" && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>{by}</span>
+                </>
+              )}
+            </p>
+          )}
         </header>
       </div>
 

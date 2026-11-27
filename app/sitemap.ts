@@ -1,14 +1,17 @@
 import type { MetadataRoute } from "next";
 import { getPosts } from "@/lib/journal/posts";
 import { getListings } from "@/lib/listings";
+import { livePages } from "@/lib/pages/live";
+import { PAGES } from "@/lib/pages/pages";
 import { absolute } from "@/lib/seo";
 
-/** The public pages: home, the directory, every published vendor, the journal and its posts. Refreshes with the listings and the journal. */
+/** The public pages: home, the directory, every published vendor, the journal and its posts, and the pages the team has written. Refreshes with the listings, the journal and the pages. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [vendors, posts] = await Promise.all([getListings(), getPosts()]);
+  const [vendors, posts, pages] = await Promise.all([getListings(), getPosts(), livePages()]);
   return [
     { url: absolute("/"), changeFrequency: "weekly", priority: 1 },
     { url: absolute("/vendors"), changeFrequency: "daily", priority: 0.9 },
+    ...pages.map((slug) => ({ url: absolute(PAGES[slug].path), changeFrequency: "monthly" as const, priority: 0.4 })),
     ...vendors.map((v) => ({
       url: absolute(`/vendors/${v.slug}`),
       changeFrequency: "monthly" as const,

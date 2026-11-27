@@ -18,6 +18,7 @@ export const ownerNav: NavGroup[] = [
       { href: "/admin/approvals", label: "Approvals", icon: "inbox", badge: "approvals" },
       { href: "/admin/vendors", label: "Vendors", icon: "store" },
       { href: "/admin/journal", label: "Journal", icon: "pen" },
+      { href: "/admin/pages", label: "Pages", icon: "text" },
     ],
   },
   {
