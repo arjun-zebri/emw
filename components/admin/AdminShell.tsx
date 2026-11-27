@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Monogram } from "@/components/brand/Logo";
@@ -169,6 +169,15 @@ function ActiveNavLinks(props: { nav: NavGroup[]; badges: Badges; onNavigate: ()
   return <NavLinks {...props} active={activeHref(props.nav, usePathname())} />;
 }
 
+/**
+ * A clicked item shows as the current page at once, while the page is still on its way (a server
+ * that has been idle can take a few seconds), so one click is plainly enough.
+ */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden className={clsx("absolute inset-0 bg-ink/[0.06] transition-opacity duration-150", pending ? "opacity-100" : "opacity-0")} />;
+}
+
 function NavLinks({ nav: all, badges, active, onNavigate, role }: { nav: NavGroup[]; badges: Badges; active?: string; onNavigate: () => void; role: "owner" | "vendor" }) {
   // For vendors, what isn't built yet sits together at the foot, rather than greyed among the rest.
   const nav =
@@ -208,9 +217,10 @@ function NavLinks({ nav: all, badges, active, onNavigate, role }: { nav: NavGrou
                       on ? "bg-ink/[0.06] text-ink" : "text-ink-soft hover:bg-ink/[0.03] hover:text-ink",
                     )}
                   >
-                    <Icon name={item.icon} className={clsx("size-[1.125rem]", on ? "text-ink" : "text-ink-mute group-hover:text-ink")} strokeWidth={1.4} />
-                    <span className="flex-1">{item.label}</span>
-                    {count > 0 && <span className="min-w-5 bg-ink px-1.5 text-center text-[0.6875rem] leading-5 font-medium text-paper tabular-nums">{count}</span>}
+                    <Pending />
+                    <Icon name={item.icon} className={clsx("relative size-[1.125rem]", on ? "text-ink" : "text-ink-mute group-hover:text-ink")} strokeWidth={1.4} />
+                    <span className="relative flex-1">{item.label}</span>
+                    {count > 0 && <span className="relative min-w-5 bg-ink px-1.5 text-center text-[0.6875rem] leading-5 font-medium text-paper tabular-nums">{count}</span>}
                   </Link>
                 </li>
               );

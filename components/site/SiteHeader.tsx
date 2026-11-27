@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Monogram } from "@/components/brand/Logo";
@@ -12,6 +12,20 @@ import { SITE } from "@/lib/config";
 import { primaryNav, vendorCta } from "./nav";
 
 const ease = [0.76, 0, 0.24, 1] as const;
+
+/**
+ * The underline drawn the moment a link is clicked, while the page is on its way, so one click is
+ * plainly enough even when the page takes a moment. It sits on the link's own underline.
+ */
+function Underline() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      className={clsx("pointer-events-none absolute inset-x-0 bottom-0 h-px origin-left bg-current transition-transform duration-500 ease-out-expo", pending ? "scale-x-100" : "scale-x-0")}
+    />
+  );
+}
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -82,12 +96,14 @@ export function SiteHeader() {
                 key={item.href}
                 href={item.href}
                 aria-current={pathname === item.href ? "page" : undefined}
-                className="t-nav link-line"
+                className="t-nav link-line relative"
               >
+                <Underline />
                 {item.label}
               </Link>
             ))}
-            <Link href={vendorCta.href} className="t-nav link-line">
+            <Link href={vendorCta.href} className="t-nav link-line relative">
+              <Underline />
               {vendorCta.label}
             </Link>
           </nav>
