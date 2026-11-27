@@ -205,14 +205,12 @@ export function StoryEditor({
 
   return (
     <div className={clsx("group/story", !inline && "border hairline bg-surface transition-colors focus-within:border-ink")}>
-      {/* Inline, the bar opens in place above the story while you write, so it never covers anything. */}
-      <div
-        className={clsx(
-          inline &&
-            "grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-500 ease-out-expo group-focus-within/story:grid-rows-[1fr] group-focus-within/story:opacity-100",
-        )}
-      >
-        <div className={clsx(inline && "min-h-0 overflow-hidden")}>
+      {/*
+        Inline, the bar sits above the story, faint until you write. It always takes its space: opening it
+        on focus pushed the words down mid-click, so a selection started and ended away from the pointer.
+      */}
+      <div className={clsx(inline && "opacity-40 transition-opacity duration-500 ease-out-expo group-focus-within/story:opacity-100 hover:opacity-100")}>
+        <div>
           <div
             role="toolbar"
             aria-label="Formatting"
