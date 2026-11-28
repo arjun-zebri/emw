@@ -3,8 +3,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createClient as createAdmin, type User } from "@supabase/supabase-js";
 import { isEmail } from "@/lib/apply/application";
-import { emailOrigin } from "@/lib/email/config";
+import { emailFrom, emailOrigin } from "@/lib/email/config";
 import { load, sendWelcomeEmail } from "@/lib/email/send";
+import { welcomeEmail } from "@/lib/email/templates";
 import { reportSoon } from "@/lib/observe/report";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
@@ -65,6 +66,21 @@ export async function welcomeStatus(ids: string[]): Promise<WelcomeTarget[]> {
     const why = !email ? "No email on the listing" : !isEmail(email) ? "The listing's email isn't valid" : user && staff.has(user.id) ? "That email is on the team" : undefined;
     return { id, email, sentAt: welcomeOf(user).sentAt ?? null, why };
   });
+}
+
+export type WelcomePreview = { id: string; from: string; to: string; subject: string; html: string };
+
+/**
+ * The welcome as this vendor will get it, for the sheet before sending: their name, photos and
+ * email. The button points at /login, since the real link is only made when it's sent.
+ */
+export async function welcomePreview(id: string): Promise<WelcomePreview | null> {
+  if (typeof id !== "string" || !(await isTeam())) return null;
+  const d = await load(id);
+  if (!d) return null;
+  const origin = emailOrigin();
+  const r = welcomeEmail({ origin, first: d.first, name: d.vendor.name, line: d.vendor.discipline, photos: d.photos, url: `${origin}/login`, days: WELCOME_DAYS });
+  return { id, from: emailFrom(), to: d.vendor.email?.trim() || "No email on the listing", subject: r.subject, html: r.html };
 }
 
 /**

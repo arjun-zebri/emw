@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Icon, type IconName } from "@/components/icons/Icon";
 import { setEmailSwitch } from "@/lib/admin/notifications-actions";
 import type { NotificationsData, Switch } from "@/lib/admin/notifications";
@@ -10,6 +10,7 @@ import { day } from "@/lib/admin/format";
 import { toast } from "@/lib/admin/toast";
 import type { EmailPreview } from "@/lib/email/previews";
 import type { SwitchId } from "@/lib/email/switches";
+import { EmailFrame, EmailHeader } from "../shared/EmailFrame";
 import { Toggle } from "../ui";
 
 const icons: Record<EmailPreview["id"], IconName> = {
@@ -125,14 +126,8 @@ export function Notifications({ data }: { data: NotificationsData }) {
               transition={{ duration: 0.6, ease: expo }}
               className="mx-auto max-w-[600px]"
             >
-              <dl className="mb-5 space-y-1 px-1 text-[0.8125rem]">
-                <Field label="From">{selected.from}</Field>
-                <Field label="To">{selected.to}</Field>
-                <Field label="Subject" strong>
-                  {selected.subject}
-                </Field>
-              </dl>
-              <Inbox html={selected.html} title={selected.subject} />
+              <EmailHeader from={selected.from} to={selected.to} subject={selected.subject} />
+              <EmailFrame html={selected.html} title={selected.subject} />
             </motion.div>
           </AnimatePresence>
         </div>
@@ -150,53 +145,4 @@ function status(e: EmailPreview, s: Switch | undefined, canEdit: boolean) {
   const state = s?.enabled ? "On" : "Off";
   const changed = s?.changed ? `${state} since ${day(s.changed.at, { year: true })}, set by ${s.changed.by}.` : `${state}.`;
   return canEdit ? changed : `${changed} Only an owner can change this.`;
-}
-
-function Field({ label, strong, children }: { label: string; strong?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3">
-      <dt className="w-16 shrink-0 text-ink-soft">{label}</dt>
-      <dd className={clsx("min-w-0 truncate", strong ? "font-medium text-ink" : "text-ink-soft")}>{children}</dd>
-    </div>
-  );
-}
-
-/**
- * The email's own HTML, in a sandboxed frame so its styles stay its own. No scripts run in it;
- * links open in a new tab. The frame grows to the email's height as its images load.
- */
-function Inbox({ html, title }: { html: string; title: string }) {
-  const ref = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState(640);
-
-  useEffect(() => {
-    const frame = ref.current;
-    if (!frame) return;
-    let observer: ResizeObserver | undefined;
-    const fit = () => {
-      const doc = frame.contentDocument;
-      if (!doc?.body) return;
-      setHeight(doc.documentElement.scrollHeight);
-      observer?.disconnect();
-      observer = new ResizeObserver(() => setHeight(doc.documentElement.scrollHeight));
-      observer.observe(doc.body);
-    };
-    frame.addEventListener("load", fit);
-    fit();
-    return () => {
-      frame.removeEventListener("load", fit);
-      observer?.disconnect();
-    };
-  }, [html]);
-
-  return (
-    <iframe
-      ref={ref}
-      title={title}
-      srcDoc={html.replace(/<head>/i, '<head><base target="_blank">')}
-      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      className="block w-full bg-paper shadow-[0_1px_2px_rgb(22_20_18/0.04),0_24px_48px_-28px_rgb(22_20_18/0.25)]"
-      style={{ height }}
-    />
-  );
 }
