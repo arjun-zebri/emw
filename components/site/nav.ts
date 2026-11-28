@@ -6,3 +6,6 @@ export const primaryNav = [
 ];
 
 export const vendorCta = { href: "/list-your-business", label: "List your business" };
+
+/** Straight to sign-in for vendors already listed, as in the footer. */
+export const vendorLogin = { href: "/login?as=vendor", label: "Vendor login" };

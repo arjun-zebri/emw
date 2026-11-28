@@ -1,6 +1,6 @@
 import { Monogram } from "@/components/brand/Logo";
 import { Icon, type IconName } from "@/components/icons/Icon";
-import { primaryNav, vendorCta } from "@/components/site/nav";
+import { primaryNav, vendorCta, vendorLogin } from "@/components/site/nav";
 import { ArrowLink } from "@/components/ui/ArrowLink";
 import { Button } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -38,7 +38,7 @@ export function Header() {
         <div className="flex h-[var(--header-h)] items-center justify-between px-[clamp(1rem,3vw,2rem)]">
           <Monogram className="w-[4.5rem]" />
           <div className="hidden items-center gap-10 md:flex">
-            {[...primaryNav, vendorCta].map((item, i) => (
+            {[...primaryNav, vendorCta, vendorLogin].map((item, i) => (
               <span key={item.href} className="t-nav link-line" style={i === 0 ? { backgroundSize: "100% 1px" } : undefined}>
                 {item.label}
               </span>

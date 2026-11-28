@@ -9,7 +9,7 @@ import { Monogram } from "@/components/brand/Logo";
 import { MenuIcon } from "@/components/icons/MenuIcon";
 import { lockScroll } from "@/lib/lenis";
 import { SITE } from "@/lib/config";
-import { primaryNav, vendorCta } from "./nav";
+import { primaryNav, vendorCta, vendorLogin } from "./nav";
 
 const ease = [0.76, 0, 0.24, 1] as const;
 
@@ -106,6 +106,10 @@ export function SiteHeader() {
               <Underline />
               {vendorCta.label}
             </Link>
+            <Link href={vendorLogin.href} className="t-nav link-line relative">
+              <Underline />
+              {vendorLogin.label}
+            </Link>
           </nav>
 
           <button
@@ -135,7 +139,7 @@ export function SiteHeader() {
             transition={{ duration: 0.7, ease }}
           >
             <nav aria-label="Mobile" className="shell mt-auto mb-12 flex flex-col gap-1">
-              {[{ href: "/", label: "Home" }, ...primaryNav, vendorCta].map((item, i) => (
+              {[{ href: "/", label: "Home" }, ...primaryNav, vendorCta, vendorLogin].map((item, i) => (
                 <div key={item.href} className="overflow-hidden">
                   <motion.div
                     initial={{ y: "110%" }}

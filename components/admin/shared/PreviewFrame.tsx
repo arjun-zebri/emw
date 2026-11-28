@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { Monogram } from "@/components/brand/Logo";
 import { Icon } from "@/components/icons/Icon";
-import { primaryNav, vendorCta } from "@/components/site/nav";
+import { primaryNav, vendorCta, vendorLogin } from "@/components/site/nav";
 import { lockScroll } from "@/lib/lenis";
 
 /**
@@ -108,7 +108,7 @@ export function PreviewFrame<T extends string>({
           <header className="shell flex h-[var(--header-h)] items-center justify-between">
             <Monogram className="w-[4.5rem]" />
             <nav className="hidden items-center gap-10 md:flex">
-              {[...primaryNav, vendorCta].map((item) => (
+              {[...primaryNav, vendorCta, vendorLogin].map((item) => (
                 <span key={item.href} className="t-nav">
                   {item.label}
                 </span>
