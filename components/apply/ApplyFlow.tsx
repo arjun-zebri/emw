@@ -726,6 +726,8 @@ function WithCard({ a, cover, children }: { a: Application; cover?: string; chil
 
 type Reach = "states" | "australia" | "world";
 const allOverseas = Object.keys(overseas) as OverseasCode[];
+/** The Australia chip under Worldwide: not a stored value, it ticks every state. */
+const AUSTRALIA = "AU";
 const reachOf = (area: readonly string[]): Reach => (area.some((s) => s in overseas) ? "world" : australiaWide(area) ? "australia" : "states");
 
 /**
@@ -740,14 +742,22 @@ function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; 
     // Narrowing back to some states starts from none, so they choose rather than untick eight.
     set("serviceArea", r === "states" ? [] : r === "australia" ? [...allStates] : [...allStates, ...allOverseas]);
   };
+  const allIn = allStates.every((s) => a.serviceArea.includes(s));
+  const isOn = (code: string) => (code === AUSTRALIA ? allIn : a.serviceArea.includes(code as StateCode | OverseasCode));
+  const flipPlace = (code: string) => {
+    if (code !== AUSTRALIA) return flip("serviceArea", code);
+    const rest = a.serviceArea.filter((s) => !(allStates as string[]).includes(s));
+    set("serviceArea", allIn ? rest : [...allStates, ...rest]);
+  };
   const options: { id: Reach; title: string; note: string; places?: { code: string; label: string }[] }[] = [
     { id: "states", title: "Selected states", note: "Choose the states you’ll work in.", places: allStates.map((s) => ({ code: s, label: states[s] })) },
     { id: "australia", title: "Anywhere in Australia", note: "Couples in every state will find you." },
     {
       id: "world",
       title: "Worldwide",
-      note: "Anywhere in Australia, and overseas. Untick any region you won’t travel to.",
-      places: allOverseas.map((o) => ({ code: o, label: overseas[o] })),
+      note: "Australia and overseas. Untick anywhere you won’t travel to.",
+      // Australia first, standing for every state at once.
+      places: [{ code: AUSTRALIA, label: "Australia" }, ...allOverseas.map((o) => ({ code: o, label: overseas[o] }))],
     },
   ];
 
@@ -756,7 +766,7 @@ function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; 
       <StepHead id={headingId} title="Where do you work?" />
       <div className="max-w-[28rem]">
         <Field label="Where you’re based" htmlFor={`${uid}-based`} note="A suburb or town is plenty.">
-          <input id={`${uid}-based`} value={a.based} maxLength={LIMITS.based} onChange={(e) => set("based", e.target.value)} placeholder="For example, Footscray" autoComplete="address-level2" className={inputClass} />
+          <input id={`${uid}-based`} value={a.based} maxLength={LIMITS.based} onChange={(e) => set("based", e.target.value)} placeholder="For example, Melbourne" autoComplete="address-level2" className={inputClass} />
         </Field>
       </div>
       <div className="mt-12 max-w-[40rem]">
@@ -788,7 +798,7 @@ function Where({ a, set, flip, headingId, uid }: { a: Application; set: Setter; 
                     >
                       <div role="group" aria-label={o.title} className="flex flex-wrap gap-2 px-4 pb-4 sm:pr-5 sm:pb-5 sm:pl-14">
                         {o.places.map((p) => (
-                          <Chip key={p.code} on={a.serviceArea.includes(p.code as StateCode | OverseasCode)} onClick={() => flip("serviceArea", p.code)}>
+                          <Chip key={p.code} on={isOn(p.code)} onClick={() => flipPlace(p.code)}>
                             {p.label}
                           </Chip>
                         ))}
