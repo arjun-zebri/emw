@@ -811,7 +811,14 @@ function JustForUs({ a, set, headingId, uid }: { a: Application; set: Setter; he
     "mt-3 block min-h-[8.5rem] w-full resize-none border hairline bg-surface px-4 py-3.5 text-[1.0625rem] leading-[1.6] text-ink placeholder:text-ink-mute/60 transition-colors [field-sizing:content] focus:border-ink focus:outline-none";
   return (
     <>
-      <StepHead id={headingId} title="Just for us 💛">
+      <StepHead
+        id={headingId}
+        title={
+          <>
+            Just for us <Icon name="heart" className="inline-block size-[0.62em] -translate-y-[0.04em] align-baseline" strokeWidth={1.25} />
+          </>
+        }
+      >
         These won&rsquo;t show on your profile.
       </StepHead>
       <div className="space-y-10">

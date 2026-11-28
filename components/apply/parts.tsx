@@ -5,7 +5,7 @@ import type { Language } from "@/data/types";
 import { LanguageName } from "@/components/ui/LanguageName";
 
 /** The question at the top of a step, and one plain line under it. */
-export function StepHead({ title, children, id }: { title: string; children?: React.ReactNode; id?: string }) {
+export function StepHead({ title, children, id }: { title: React.ReactNode; children?: React.ReactNode; id?: string }) {
   return (
     <div className="mb-[clamp(2rem,5vh,3rem)]">
       <h1 id={id} tabIndex={-1} className="font-display text-[clamp(2rem,3.6vw,3.25rem)] leading-[1.02] tracking-[-0.025em] text-balance outline-none">
