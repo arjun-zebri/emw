@@ -829,9 +829,9 @@ export function BodyEditor({
         onPaste={onPaste}
         onBlur={() => setSlash(null)}
         className={clsx(
-          "t-body min-h-[40vh] text-[1.0625rem] leading-[1.8] whitespace-pre-wrap outline-none [overflow-wrap:anywhere]",
-          // Set as the article sets it: a centred column of text, photos wider and centred on it.
-          "[&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:mx-auto [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:w-full [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div)]:max-w-[var(--measure,42rem)]",
+          "t-body min-h-[40vh] text-[length:var(--body-size,1.1875rem)] leading-[1.8] whitespace-pre-wrap outline-none [overflow-wrap:anywhere]",
+          // Set as the article sets it: one column, text and photos sharing its edges.
+          "[&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div,figure)]:mx-auto [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div,figure)]:w-full [&>:is(p,h1,h2,h3,h4,h5,h6,ul,ol,div,figure)]:max-w-[var(--measure,56rem)]",
           "[&>*+*]:mt-4 [&>:is(h1,h2)]:mt-12 [&>:is(h3,h4,h5,h6)]:mt-10 [&>:is(h1,h2,h3,h4,h5,h6)+*]:mt-4 [&>figure]:my-12 [&>:first-child]:mt-0",
           // Rows of photos one after another sit together as one slab, a caption giving a little more room.
           "[&>figure:has(+figure)]:mb-0 [&>figure+figure]:mt-3 [&>figure:has(input)+figure]:mt-8",
@@ -1049,8 +1049,8 @@ function PhotoRow({
 
   const showCaption = captioning || !!block.caption;
   return (
-    // Narrower than the text, a row lines up with the text's left edge; wider, it sits centred on the page, as in the article.
-    <div className="group/row select-none max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - var(--measure, 42rem)) / 2, (100% - ${w}) / 2))` }}>
+    // The column's width, or narrower when its height holds it, lined up with the column's left edge, as in the article.
+    <div className="group/row select-none max-sm:w-full!" style={{ width: w }}>
       <div ref={strip} className="relative flex gap-3 max-sm:flex-col">
         {block.images.map((p, n) => (
           <div

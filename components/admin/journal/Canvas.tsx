@@ -37,8 +37,8 @@ type Props = {
   plain?: boolean;
 };
 
-// Centred, as the article sets it.
-const TEXT = "mx-auto w-full max-w-[var(--measure,42rem)]";
+// The article's column, as the article sets it: text and photos share its edges.
+const TEXT = "mx-auto w-full max-w-[var(--measure,56rem)]";
 
 export function Canvas({ content, update, version, uploading, onFiles, date, minutes, focus, setFocus, plain }: Props) {
   const body = useRef<BodyHandle>(null);
@@ -219,7 +219,7 @@ function Cover({
         {...drop}
         onClick={() => pickFiles(onFiles, false)}
         className={clsx(
-          "mt-10 flex aspect-[3/2] w-full flex-col items-center justify-center gap-4 border border-dashed transition-colors duration-300",
+          "mx-auto mt-10 flex aspect-[3/2] w-full max-w-[var(--measure,56rem)] flex-col items-center justify-center gap-4 border border-dashed transition-colors duration-300",
           over ? "border-ink bg-ink/[0.03]" : "border-ink/20 bg-surface hover:border-ink/40",
         )}
       >
@@ -232,9 +232,9 @@ function Cover({
 
   const ratio = ratioOf(photo) ?? 3 / 2;
   return (
-    <figure {...drop} className="group/cover mt-10">
+    <figure {...drop} className={clsx("group/cover mt-10", TEXT)}>
       {/* Placed exactly as the post places it. */}
-      <div className={clsx("relative max-sm:ml-0! max-sm:w-full!", over && "outline outline-2 outline-offset-4 outline-ink")} style={coverBox(ratio)}>
+      <div className={clsx("relative max-sm:w-full!", over && "outline outline-2 outline-offset-4 outline-ink")} style={coverBox(ratio)}>
         <Media src={photoUrl(photo.src)} alt={photo.alt} brief="" quiet sizes="900px" priority className="size-full" />
         {uploading && <span aria-hidden className="skeleton absolute inset-0 opacity-60 mix-blend-multiply" />}
         <div className="absolute right-3 bottom-3 flex gap-1.5 opacity-0 transition-opacity group-focus-within/cover:opacity-100 group-hover/cover:opacity-100">

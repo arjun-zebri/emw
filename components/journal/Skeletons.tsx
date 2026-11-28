@@ -36,7 +36,7 @@ export function PostSkeleton() {
   return (
     <div aria-busy="true" className="pt-[clamp(2rem,5vw,4.5rem)]">
       <div className="shell">
-        <div className="mx-auto max-w-[42rem]">
+        <div className="mx-auto max-w-[56rem]">
           <Skeleton className="h-[clamp(2.5rem,5.2vw,5rem)] w-full" />
           <Skeleton className="mt-3 h-[clamp(2.5rem,5.2vw,5rem)] w-3/5" />
           <SkeletonLines lines={2} className="mt-7 max-w-[40ch] text-[1.25rem]" />
@@ -44,10 +44,10 @@ export function PostSkeleton() {
         </div>
       </div>
       <div className="shell mt-[clamp(2rem,4vw,3.5rem)]">
-        <Skeleton className="mx-auto aspect-[3/2] max-h-[88vh] w-full max-w-[81.25rem]" />
+        <Skeleton className="mx-auto aspect-[3/2] max-h-[88vh] w-full max-w-[56rem]" />
       </div>
       <div className="shell mt-[clamp(2.5rem,5vw,4rem)]">
-        <SkeletonLines lines={5} className="mx-auto max-w-[42rem] text-[1.0625rem] leading-[1.8]" />
+        <SkeletonLines lines={5} className="mx-auto max-w-[56rem] text-[1.1875rem] leading-[1.8]" />
       </div>
     </div>
   );

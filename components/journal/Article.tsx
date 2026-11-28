@@ -7,9 +7,9 @@ import type { Credit } from "@/lib/journal/posts";
 
 /*
  * A journal post as couples read it, shared by the public journal and the admin's preview so the preview is
- * the real thing. A narrow column of text on the paper; photos run at their own shape, never
- * cropped, a row of two or three at one height, across the page unless the editor
- * made them shorter; the vendors in the story close it, as the directory shows them.
+ * the real thing. One column: the title, the cover, the words and the photos share the same edges. Photos
+ * run at their own shape, never cropped, a row of two or three at one height, across the column unless the
+ * editor made them shorter; the vendors in the story close it, as the directory shows them.
  */
 
 export type ArticlePost = {
@@ -32,21 +32,20 @@ const dateFmt = new Intl.DateTimeFormat("en-AU", {
 });
 export const postDate = (iso: string) => dateFmt.format(new Date(iso));
 
-/** The text column: 42rem for a story; a page of the site sets --measure to run full width. */
-const TEXT = "mx-auto w-full max-w-[var(--measure,42rem)]";
+/** The column: 56rem for a story, text and photos alike; a page of the site sets --measure to run full width. */
+const TEXT = "mx-auto w-full max-w-[var(--measure,56rem)]";
+/** Body text: a touch larger in a story, to read well across the column; a page of the site sets its own. */
+const BODY_SIZE = "text-[length:var(--body-size,1.1875rem)]";
 /** The two heading sizes in a post, shared with the editor so it writes as it reads. */
 export const HEADING_2 = "t-heading text-[clamp(1.625rem,2.2vw,2.125rem)] text-balance";
 export const HEADING_3 = "t-title text-[clamp(1.25rem,1.6vw,1.5rem)] text-balance";
 
 /**
- * Where the cover sits, shared with the editor. As large as the screen's height allows (88vh). Narrower
- * than the text, it lines up with the text's left edge; only a little wider (under 48rem), it snaps to
- * the text's width, so it never overhangs by a few pixels; wider than that, it sits centred, running wide.
+ * Where the cover sits in the column, shared with the editor: the column's full width, unless the screen's
+ * height (88vh) holds a tall photo narrower, when it lines up with the column's left edge.
  */
 export function coverBox(ratio: number): React.CSSProperties {
-  const fit = `min(100%, calc(88vh * ${ratio}))`;
-  const width = `max(min(${fit}, 42rem), calc(${fit} - max(0px, 48rem - ${fit}) * 100))`;
-  return { aspectRatio: ratio, width, marginLeft: `max(0px, min((100% - 42rem) / 2, (100% - ${width}) / 2))` };
+  return { aspectRatio: ratio, width: `min(100%, calc(88vh * ${ratio}))` };
 }
 
 /** `plain`: a page of the site rather than a story (About, the privacy policy): full width, no line of category, date and reading time. */
@@ -57,7 +56,7 @@ export function Article({ post, vendors, more, plain }: { post: ArticlePost; ven
   const by = post.author.trim();
 
   return (
-    <article className="pt-[clamp(2rem,5vw,4.5rem)]" style={plain ? ({ "--measure": "100%" } as React.CSSProperties) : undefined}>
+    <article className="pt-[clamp(2rem,5vw,4.5rem)]" style={plain ? ({ "--measure": "100%", "--body-size": "1.0625rem" } as React.CSSProperties) : undefined}>
       <div className="shell">
         <header className={TEXT}>
           <h1 data-reveal suppressHydrationWarning className="t-display text-[clamp(2.5rem,5.2vw,5rem)] text-balance">
@@ -94,13 +93,13 @@ export function Article({ post, vendors, more, plain }: { post: ArticlePost; ven
       {post.cover && (
         <figure data-reveal-media suppressHydrationWarning className="shell mt-[clamp(2rem,4vw,3.5rem)]">
           {ratioOf(post.cover) ? (
-            <div className="mx-auto max-w-[81.25rem]">
-              <div className="max-sm:ml-0! max-sm:w-full!" style={coverBox(ratioOf(post.cover)!)}>
-                <Media src={post.cover.src} alt={post.cover.alt || post.title} brief="" quiet sizes="(min-width: 1440px) 1300px, 100vw" priority className="size-full" />
+            <div className={TEXT}>
+              <div className="max-sm:w-full!" style={coverBox(ratioOf(post.cover)!)}>
+                <Media src={post.cover.src} alt={post.cover.alt || post.title} brief="" quiet sizes="(min-width: 960px) 896px, 100vw" priority className="size-full" />
               </div>
             </div>
           ) : (
-            <Frame photo={{ ...post.cover, alt: post.cover.alt || post.title }} sizes="(min-width: 1440px) 1300px, 100vw" priority className="max-w-[81.25rem]" />
+            <Frame photo={{ ...post.cover, alt: post.cover.alt || post.title }} sizes="(min-width: 960px) 896px, 100vw" priority className={TEXT} />
           )}
         </figure>
       )}
@@ -170,7 +169,7 @@ function BodyBlock({ b, prev, next }: { b: Block; prev?: Block; next?: Block }) 
   if (b.type === "ul") {
     const List = b.ordered ? "ol" : "ul";
     return (
-      <List className={clsx(TEXT, "t-body space-y-2 text-[1.0625rem] leading-[1.75]", gap)}>
+      <List className={clsx(TEXT, "t-body space-y-2 leading-[1.75]", BODY_SIZE, gap)}>
         {b.items.map((item, i) => (
           <li key={i} className="flex gap-3">
             <span aria-hidden className={clsx("shrink-0 text-ink-mute", b.ordered ? "min-w-5 tabular-nums" : "w-4")}>
@@ -185,7 +184,7 @@ function BodyBlock({ b, prev, next }: { b: Block; prev?: Block; next?: Block }) 
     );
   }
   return (
-    <p className={clsx(TEXT, "t-body text-[1.0625rem] leading-[1.8] text-pretty", gap)}>
+    <p className={clsx(TEXT, "t-body leading-[1.8] text-pretty", BODY_SIZE, gap)}>
       <Runs c={b.content} />
     </p>
   );
@@ -233,15 +232,15 @@ export function Photos({ block, className }: { block: Extract<Block, { type: "im
       ? `min(100%, calc(${block.height ? `min(88vh, ${block.height}px)` : "88vh"} * ${ratio}))`
       : "100%";
   return (
-    <figure data-reveal-media suppressHydrationWarning className={clsx("mx-auto w-full max-w-[64rem]", className)}>
-      {/* Narrower than the text, they line up with its left edge; wider, they sit centred on it. */}
-      <div className="max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - var(--measure, 42rem)) / 2, (100% - ${w}) / 2))` }}>
+    <figure data-reveal-media suppressHydrationWarning className={clsx(TEXT, className)}>
+      {/* The column's width, or narrower when their height holds them, lined up with its left edge. */}
+      <div className="max-sm:ml-0! max-sm:w-full!" style={{ width: w, marginLeft: `max(0px, min((100% - var(--measure, 56rem)) / 2, (100% - ${w}) / 2))` }}>
         <div className="flex gap-[clamp(0.5rem,1vw,1rem)] max-sm:flex-col">
           {block.images.map((p, i) => (
             <Frame
               key={`${p.src}-${i}`}
               photo={{ ...p, src: photoUrl(p.src), alt: p.alt || block.caption }}
-              sizes={many ? "(min-width: 1024px) 34vw, 100vw" : "(min-width: 1024px) 64rem, 100vw"}
+              sizes={many ? "(min-width: 960px) 448px, 100vw" : "(min-width: 960px) 896px, 100vw"}
               grow={many}
               tall={block.height}
             />

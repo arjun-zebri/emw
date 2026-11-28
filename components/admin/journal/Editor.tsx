@@ -601,14 +601,14 @@ function EditorSkeleton() {
       </div>
       <div className="grid grid-cols-1 gap-y-10 xl:grid-cols-12 xl:gap-x-[clamp(2rem,3vw,3.5rem)]">
         <div className="xl:col-span-8">
-          <div className="max-w-[42rem]">
+          <div className="mx-auto max-w-[56rem]">
             <Skeleton className="h-[clamp(2.5rem,4.4vw,4.25rem)] w-full" />
             <Skeleton className="mt-3 h-[clamp(2.5rem,4.4vw,4.25rem)] w-2/3" />
             <SkeletonLines lines={2} className="mt-7 max-w-[40ch] text-[1.25rem]" />
             <Skeleton className="mt-6 h-3.5 w-48" />
           </div>
-          <Skeleton className="mt-10 aspect-[3/2] w-full" />
-          <SkeletonLines lines={4} className="mt-12 max-w-[42rem] text-[1.0625rem] leading-[1.8]" />
+          <Skeleton className="mx-auto mt-10 aspect-[3/2] w-full max-w-[56rem]" />
+          <SkeletonLines lines={4} className="mx-auto mt-12 max-w-[56rem] text-[1.1875rem] leading-[1.8]" />
         </div>
         <div className="space-y-6 xl:col-span-4">
           {[4, 2, 3].map((rows, i) => (

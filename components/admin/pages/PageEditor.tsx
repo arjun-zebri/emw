@@ -166,7 +166,7 @@ function Editing({ page: initial }: { page: SitePage }) {
         {!live && !dirty && <p className="border-t hairline py-3 text-[0.875rem] text-ink-soft">{meta.empty}</p>}
       </div>
 
-      <div className="page-editor" style={{ "--measure": "100%" } as React.CSSProperties}>
+      <div className="page-editor" style={{ "--measure": "100%", "--body-size": "1.0625rem" } as React.CSSProperties}>
         <Canvas
           content={content}
           update={update}
