@@ -69,6 +69,8 @@ export const LIMITS = {
   storyMax: 2000,
   otherLanguages: 80,
   otherCraft: 80,
+  /** An application can't go on, or be sent, with fewer. */
+  photosMin: 4,
   photosMax: 12,
   /** Below this on the long edge a photo is refused, so every listing looks sharp on a large screen. */
   photoMin: 1600,

@@ -56,7 +56,7 @@ export async function submitApplication(a: Application, meta: { photos: number; 
   if (!user) return { status: "signed-out" };
 
   const issues = problems(a);
-  if (!Number.isInteger(meta.photos) || meta.photos < 1 || meta.photos > LIMITS.photosMax) issues.push("Add at least one photo.");
+  if (!Number.isInteger(meta.photos) || meta.photos < LIMITS.photosMin || meta.photos > LIMITS.photosMax) issues.push(`Add at least ${LIMITS.photosMin} photos.`);
   if (issues.length) return { status: "invalid", problems: issues };
 
   const db = admin();

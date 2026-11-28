@@ -61,8 +61,8 @@ export type FlowPhotos = { about: string; show: string; finish: string; welcome:
 
 type Phase = { kind: "form" } | { kind: "sending"; done: number; total: number } | { kind: "sent"; duplicate?: boolean };
 
-/** English isn't asked: every vendor is taken to work in it. */
-const languageOrder = Object.keys(languageNames) as Language[];
+/** English isn't asked: every vendor is taken to work in it. In alphabetical order, by their English names. */
+const languageOrder = (Object.keys(languageNames) as Language[]).sort((x, y) => x.localeCompare(y, "en-AU"));
 const allStates = Object.keys(states) as StateCode[];
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -146,7 +146,7 @@ export function ApplyFlow({ images }: { images: FlowPhotos }) {
     languages: true,
     where: a.serviceArea.length > 0,
     show: true,
-    photos: photos.length > 0,
+    photos: photos.length >= LIMITS.photosMin,
     name: !!a.name.trim() && !!a.person.trim(),
     line: !!a.discipline.trim(),
     story: storyChars(a.story) > 0,

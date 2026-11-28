@@ -185,15 +185,19 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
   const dragged = drag && photos.find((p) => p.id === drag.id);
   // While dragging, the grid shows the order the drop will make.
   const shown = drag ? reorder(photos, drag.from, drag.to) : photos;
+  // How many more before they can go on.
+  const short = Math.max(0, LIMITS.photosMin - photos.length);
 
   return (
     <div {...dropProps}>
-      <StepHead id={headingId} title={empty ? "Add photos of your work" : photos.length < 5 ? "Add a few more if you can" : "Your photos"}>
+      <StepHead id={headingId} title={empty ? "Add photos of your work" : short ? `Add ${short} more` : photos.length < 5 ? "Add a few more if you can" : "Your photos"}>
         {empty
-          ? "Your work is what couples see first, shown large and never cropped. Start with your best photo: it becomes your cover."
-          : photos.length < 5
-            ? "Five or more looks best. The first photo is your cover; drag to change the order."
-            : "The first photo is your cover. Drag to change the order."}
+          ? `Your work is what couples see first, shown large and never cropped. Add at least ${LIMITS.photosMin}, starting with your best: it becomes your cover.`
+          : short
+            ? `At least ${LIMITS.photosMin} photos to go on. The first photo is your cover; drag to change the order.`
+            : photos.length < 5
+              ? "Five or more looks best. The first photo is your cover; drag to change the order."
+              : "The first photo is your cover. Drag to change the order."}
       </StepHead>
       {picker}
 
@@ -306,7 +310,7 @@ export function PhotoStep({ photos, onChange, headingId }: { photos: ApplyPhoto[
       <div className="mt-5 space-y-1.5" aria-live="polite">
         {photos.length > 0 && (
           <p className="t-small">
-            {photos.length} of {LIMITS.photosMax} photos
+            {photos.length} of {LIMITS.photosMax} photos{short > 0 && `, at least ${LIMITS.photosMin}`}
           </p>
         )}
         {errors.map((e) => (
